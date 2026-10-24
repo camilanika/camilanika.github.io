@@ -468,11 +468,11 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
     {id:"matcha", name:"Matcha Series", tag:"Kesegaran matcha, ketenangan di setiap tegukan."},
   ];
   const DRINKS = [
-    {id:"amer", s:"coffee", name:"Americano", sub:"Strong, bold, tanpa susu", p:{S:13000,M:25000,L:44500}},
+    {id:"amer", s:"coffee", name:"Americano", sub:"Strong, bold, tanpa susu", p:{S:13000,M:25000,L:44500}, sugar:["No Sugar","Less Sugar","Normal Sugar"]},
     {id:"famer", s:"coffee", name:"Flavored Americano", sub:"Americano segar dengan rasa buah", flavors:["Peach","Berry","Orange"], fmt:f=>`${f} Americano`, p:{S:16500,M:31500,L:59500}},
-    {id:"aren", s:"coffee", name:"Aren Latte", sub:"Espresso, susu segar, gula aren asli", p:{S:15500,M:29500,L:58500}},
-    {id:"cafe", s:"coffee", name:"Cafe Latte", sub:"Espresso dan susu segar, manis pas", p:{S:15500,M:29500,L:58500}},
-    {id:"flat", s:"coffee", name:"Flavored Cafe Latte", sub:"Cafe latte creamy dengan pilihan rasa", flavors:["Caramel Sea Salt","Butterscotch Sea Salt"], fmt:f=>`${f} Cafe Latte`, p:{S:18500,M:36500,L:69500}},
+    {id:"aren", s:"coffee", name:"Aren Latte", sub:"Espresso, susu segar, gula aren asli", p:{S:15500,M:29500,L:58500}, sugar:["Less Sugar","Normal Sugar"]},
+    {id:"cafe", s:"coffee", name:"Cafe Latte", sub:"Espresso dan susu segar, manis pas", p:{S:15500,M:29500,L:58500}, sugar:["No Sugar","Less Sugar","Normal Sugar"]},
+    {id:"flat", s:"coffee", name:"Flavored Cafe Latte", sub:"Cafe latte creamy dengan pilihan rasa", flavors:["Caramel Sea Salt","Butterscotch Sea Salt"], fmt:f=>`${f} Cafe Latte`, p:{S:18500,M:36500,L:69500}, sugar:["Less Sugar","Normal Sugar"]},
     {id:"choc", s:"choco", name:"Chocolate", sub:"Cokelat susu, tanpa kopi", p:{S:16500,M:31500,L:59500}, noShot:true},
     {id:"chocorange", s:"choco", name:"Chocorange", sub:"Cokelat Belgian dan susu dengan sentuhan jeruk, tanpa kopi", p:{S:16500,M:31500,L:59500}, noShot:true},
     {id:"mocha", s:"choco", name:"Mochaccino", sub:"Espresso, cokelat Belgian, dan susu", note:"Mengandung kopi", p:{S:18500,M:36500,L:69500}},
@@ -490,7 +490,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   const save = () => { try { localStorage.setItem("cn-cart", JSON.stringify(cart)); } catch(e) {} };
 
   // chips helper
-  const chipGroup = (opts, label) => `<div class="opt-label">${label}</div><div class="chips" role="group" aria-label="${label}">${opts.map((o,i)=>`<button type="button" class="chip" data-v="${o}" aria-pressed="${i===0}">${o}</button>`).join("")}</div>`;
+  const chipGroup = (opts, label, def = 0) => `<div class="opt-label">${label}</div><div class="chips" role="group" aria-label="${label}">${opts.map((o,i)=>`<button type="button" class="chip" data-v="${o}" aria-pressed="${i===def}">${o}</button>`).join("")}</div>`;
   document.addEventListener("click", e => {
     const c = e.target.closest(".chip"); if(!c) return;
     c.parentElement.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed", b===c));
@@ -508,6 +508,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
         <div class="price num" data-price>${rp(d.p[size])}<small data-size-l>${SIZES[size]}</small></div>
       </div>
       ${d.flavors ? chipGroup(d.flavors, "Pilih rasa") : ""}
+      ${d.sugar ? chipGroup(d.sugar, "Tingkat gula", d.sugar.length-1) : ""}
       ${d.noShot ? "" : `<label class="check"><input type="checkbox" id="shot-${d.id}"> Extra shot <span class="num" data-shot>+${rp(SHOT[size])}</span></label>`}
       <button class="btn btn-rose add" type="button" data-add-drink="${d.id}">Tambah ke keranjang</button>
     </article>`;
@@ -531,9 +532,10 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
     const b = e.target.closest("[data-add-drink]"); if(!b) return;
     const d = DRINKS.find(x=>x.id===b.dataset.addDrink), card = b.closest(".item");
     const flavor = d.flavors ? pick(card,0) : null;
+    const sugar = d.sugar ? pick(card, d.flavors ? 1 : 0) : null;
     const shot = !d.noShot && card.querySelector("input[type=checkbox]").checked;
     const name = flavor ? d.fmt(flavor) : d.name;
-    addLine({key:`${d.id}|${flavor}|${size}|${shot}`, name, detail:`${size} · ${SIZES[size]}${shot?" · extra shot":""}`, price:d.p[size] + (shot?SHOT[size]:0)}, b);
+    addLine({key:`${d.id}|${flavor}|${sugar}|${size}|${shot}`, name, detail:`${size} · ${SIZES[size]}${sugar?" · "+sugar:""}${shot?" · extra shot":""}`, price:d.p[size] + (shot?SHOT[size]:0)}, b);
   });
 
 
