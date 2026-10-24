@@ -137,6 +137,7 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .item{background:var(--paper);border:2px dashed var(--line);border-radius:22px;padding:1.3rem;display:flex;flex-direction:column;gap:.85rem;min-width:0}
 .item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
 .item h3 span{display:block;font-family:var(--f-body);font-size:.9rem;font-weight:600;color:var(--muted);margin-top:.25rem}
+.item h3 .note-tag{display:inline-block;margin-top:.4rem;padding:.15rem .55rem;border-radius:999px;background:var(--rose-soft);color:var(--rose);font-style:normal;font-family:var(--f-body);font-size:.75rem;font-weight:800}
 .price{font-family:var(--f-display);font-weight:800;font-size:1.45rem;color:var(--rose);white-space:nowrap}
 .price small{display:block;font-family:var(--f-body);font-size:.75rem;color:var(--muted);font-weight:700;text-align:right}
 .chips{display:flex;flex-wrap:wrap;gap:.4rem}
@@ -437,10 +438,16 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   const SHOT = {S:2000, M:4000, L:8000};
   const DRINKS = [
     {id:"aren", name:"Aren Latte", sub:"Espresso, susu segar, gula aren asli", p:{S:15500,M:29500,L:58500}},
-    {id:"flat", name:"Flavored Latte", sub:"Latte creamy dengan pilihan rasa", flavors:["Salted Caramel","Butterscotch","Hazelnut","Pumpkin Spice"], p:{S:18500,M:36500,L:69500}},
-    {id:"choc", name:"Chocolate", sub:"Cokelat susu, tanpa kopi", p:{S:16500,M:31500,L:59500}, noShot:true},
+    {id:"cafe", name:"Cafe Latte", sub:"Espresso dan susu segar, manis pas", p:{S:15500,M:29500,L:58500}},
+    {id:"flat", name:"Flavored Cafe Latte", sub:"Cafe latte creamy dengan pilihan rasa", flavors:["Caramel Sea Salt","Butterscotch Sea Salt"], fmt:f=>`${f} Cafe Latte`, p:{S:18500,M:36500,L:69500}},
     {id:"amer", name:"Americano", sub:"Strong, bold, tanpa susu", p:{S:13000,M:25000,L:44500}},
-    {id:"famer", name:"Flavored Americano", sub:"Americano segar dengan buah", flavors:["Peach","Blueberry"], p:{S:16500,M:31500,L:59500}},
+    {id:"famer", name:"Flavored Americano", sub:"Americano segar dengan rasa buah", flavors:["Peach","Berry","Orange"], fmt:f=>`${f} Americano`, p:{S:16500,M:31500,L:59500}},
+    {id:"mocha", name:"Mochaccino", sub:"Espresso, cokelat Belgian, dan susu", note:"Mengandung kopi", p:{S:18500,M:36500,L:69500}},
+    {id:"choc", name:"Chocolate", sub:"Cokelat susu, tanpa kopi", p:{S:16500,M:31500,L:59500}, noShot:true},
+    {id:"chocorange", name:"Chocorange", sub:"Cokelat Belgian dan susu dengan sentuhan jeruk, tanpa kopi", p:{S:16500,M:31500,L:59500}, noShot:true},
+    {id:"matcha", name:"Matcha Latte", sub:"Matcha dan susu segar, tanpa kopi", p:{S:18500,M:36500,L:69500}, noShot:true},
+    {id:"dirty", name:"Dirty Matcha", sub:"Matcha latte dengan shot espresso", note:"Mengandung kopi", p:{S:18500,M:36500,L:69500}},
+    {id:"berrymatcha", name:"Berry Matcha", sub:"Matcha dan susu dengan sirup berry, tanpa kopi", p:{S:18500,M:36500,L:69500}, noShot:true},
   ];
   const CIRENG = {
     packs:{"6":{label:"Isi 6 pcs · 10 cm",frozen:18500,matang:20500},"10":{label:"Isi 10 pcs · 8 cm",frozen:19500,matang:21500}},
@@ -465,7 +472,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   grid.innerHTML = DRINKS.map(d => `
     <article class="item" data-drink="${d.id}">
       <div class="item-top">
-        <h3>${d.name}<span>${d.sub}</span></h3>
+        <h3>${d.name}<span>${d.sub}</span>${d.note ? `<em class="note-tag">${d.note}</em>` : ""}</h3>
         <div class="price num" data-price>${rp(d.p[size])}<small data-size-l>${SIZES[size]}</small></div>
       </div>
       ${d.flavors ? chipGroup(d.flavors, "Pilih rasa") : ""}
@@ -488,7 +495,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
     const d = DRINKS.find(x=>x.id===b.dataset.addDrink), card = b.closest(".item");
     const flavor = d.flavors ? pick(card,0) : null;
     const shot = !d.noShot && card.querySelector("input[type=checkbox]").checked;
-    const name = flavor ? (d.id==="flat" ? `${flavor} Latte` : `${flavor} Americano`) : d.name;
+    const name = flavor ? d.fmt(flavor) : d.name;
     addLine({key:`${d.id}|${flavor}|${size}|${shot}`, name, detail:`${size} · ${SIZES[size]}${shot?" · extra shot":""}`, price:d.p[size] + (shot?SHOT[size]:0)}, b);
   });
 
