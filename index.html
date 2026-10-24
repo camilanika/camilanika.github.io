@@ -151,6 +151,9 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .series-head p{margin:0;color:var(--muted);font-weight:700;font-style:italic}
 @media (max-width:600px){.series{padding:.8rem}}
 .item{background:var(--paper);border:2px dashed var(--line);border-radius:22px;padding:1.3rem;display:flex;flex-direction:column;gap:.85rem;min-width:0}
+.drink-ill{display:block;width:124px;height:124px;margin:-.2rem auto .1rem;border-radius:50%;box-shadow:0 0 0 4px var(--paper),0 0 0 6px color-mix(in srgb,var(--accent,var(--caramel)) 35%,transparent);transition:transform .2s}
+.item:hover .drink-ill{transform:rotate(-4deg) scale(1.04)}
+@media (max-width:600px){.drink-ill{width:108px;height:108px}}
 .item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
 .item h3 span{display:block;font-family:var(--f-body);font-size:.9rem;font-weight:600;color:var(--muted);margin-top:.25rem}
 .item h3 .note-tag{display:inline-block;margin-top:.4rem;padding:.15rem .55rem;border-radius:999px;background:var(--rose-soft);color:var(--rose);font-style:normal;font-family:var(--f-body);font-size:.75rem;font-weight:800}
@@ -499,6 +502,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   const grid = document.getElementById("drink-grid");
   const card = d => `
     <article class="item" data-drink="${d.id}">
+      <img class="drink-ill" src="img/menu/${d.id}.webp" alt="Ilustrasi ${d.name}" width="200" height="200" loading="lazy">
       <div class="item-top">
         <h3>${d.name}<span>${d.sub}</span>${d.note ? `<em class="note-tag">${d.note}</em>` : ""}</h3>
         <div class="price num" data-price>${rp(d.p[size])}<small data-size-l>${SIZES[size]}</small></div>
