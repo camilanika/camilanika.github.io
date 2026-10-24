@@ -134,6 +134,13 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .menu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}
 @media (max-width:960px){.menu-grid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:600px){.menu-grid{grid-template-columns:1fr}}
+.menu-bar{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--hdr,64px));z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1rem;padding:.6rem 0;margin-bottom:.4rem;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(8px)}
+.menu-bar .size-switch{margin-bottom:0}
+.series-nav{display:flex;gap:.4rem;flex-wrap:wrap}
+.series-nav a{font:800 .92rem var(--f-body);text-decoration:none;color:var(--fg);padding:.5rem .95rem;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);white-space:nowrap}
+.series-nav a[aria-current="true"]{background:var(--rose);border-color:var(--rose);color:var(--rose-ink)}
+.series{scroll-margin-top:calc(env(safe-area-inset-top,0px) + var(--hdr,64px) + var(--bar,60px) + 12px)}
+@media (max-width:600px){.series-nav a{padding:.45rem .75rem;font-size:.85rem}.size-switch button{padding:.45rem .7rem;font-size:.85rem}.size-switch{flex-wrap:nowrap}.size-switch .hemat{display:none}.menu-bar{gap:.45rem;padding:.45rem 0}}
 .series{--accent:var(--caramel);border:2px dashed color-mix(in srgb,var(--accent) 45%,transparent);border-radius:26px;padding:1.2rem;margin-top:1.4rem;background:color-mix(in srgb,var(--accent) 7%,transparent)}
 .series-choco{--accent:var(--rose)}
 .series-matcha{--accent:#6E9A3E}
@@ -312,10 +319,17 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
       </div>
       <p class="swipe-hint">Geser untuk lihat foto lainnya →</p>
 
-      <div class="size-switch" role="group" aria-label="Pilih ukuran">
-        <button type="button" data-size="S" aria-pressed="false">S · 250 ml</button>
-        <button type="button" data-size="M" aria-pressed="true">M · 500 ml</button>
-        <button type="button" data-size="L" aria-pressed="false">L · 1000 ml · lebih hemat</button>
+      <div class="menu-bar">
+        <nav class="series-nav" aria-label="Lompat ke seri menu">
+          <a href="#series-coffee-sec" data-series="coffee">☕ Coffee</a>
+          <a href="#series-choco-sec" data-series="choco">🍫 Chocolate</a>
+          <a href="#series-matcha-sec" data-series="matcha">🍵 Matcha</a>
+        </nav>
+        <div class="size-switch" role="group" aria-label="Pilih ukuran">
+          <button type="button" data-size="S" aria-pressed="false">S · 250 ml</button>
+          <button type="button" data-size="M" aria-pressed="true">M · 500 ml</button>
+          <button type="button" data-size="L" aria-pressed="false">L · 1000 ml<span class="hemat"> · lebih hemat</span></button>
+        </div>
       </div>
 
       <div id="drink-grid"></div>
@@ -494,7 +508,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
       <button class="btn btn-rose add" type="button" data-add-drink="${d.id}">Tambah ke keranjang</button>
     </article>`;
   grid.innerHTML = SERIES.map(sr => `
-    <section class="series series-${sr.id}" aria-labelledby="series-${sr.id}">
+    <section class="series series-${sr.id}" id="series-${sr.id}-sec" aria-labelledby="series-${sr.id}">
       <div class="series-head"><h3 id="series-${sr.id}">${sr.name}</h3><p>${sr.tag}</p></div>
       <div class="menu-grid">${DRINKS.filter(d=>d.s===sr.id).map(card).join("")}</div>
     </section>`).join("");
@@ -517,6 +531,20 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
     const name = flavor ? d.fmt(flavor) : d.name;
     addLine({key:`${d.id}|${flavor}|${size}|${shot}`, name, detail:`${size} · ${SIZES[size]}${shot?" · extra shot":""}`, price:d.p[size] + (shot?SHOT[size]:0)}, b);
   });
+
+
+  // sticky series nav: offsets + active highlight
+  const hdr = document.querySelector("header"), bar = document.querySelector(".menu-bar");
+  const setOffsets = () => { document.documentElement.style.setProperty("--hdr", hdr.offsetHeight + "px"); document.documentElement.style.setProperty("--bar", bar.offsetHeight + "px"); };
+  setOffsets(); addEventListener("resize", setOffsets);
+  const navLinks = [...document.querySelectorAll(".series-nav a")];
+  const setActive = () => {
+    const line = hdr.offsetHeight + bar.offsetHeight + 40;
+    let cur = null;
+    document.querySelectorAll(".series").forEach(sec => { if (sec.getBoundingClientRect().top <= line) cur = sec.id; });
+    navLinks.forEach(a => a.setAttribute("aria-current", a.getAttribute("href") === "#" + cur));
+  };
+  addEventListener("scroll", setActive, {passive:true}); setActive();
 
   // cireng
   const KUAH_FILLINGS = ["Ayam Suwir Original","Ayam Suwir Pedas","Keju Lumer","Jando Pedas"];
