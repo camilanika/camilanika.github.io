@@ -306,6 +306,37 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
 .oc-head{display:flex;justify-content:space-between;gap:.5rem;align-items:center;flex-wrap:wrap}
 .order-card ul{margin:0;padding-left:1.1rem;color:var(--muted);font-size:.9rem}
 .order-card .tot{font-weight:800}
+/* orders page */
+.orders-page{position:fixed;inset:0;z-index:65;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.op-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:.6rem;padding:.75rem 16px;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.op-head h3{flex:1;margin:0;font-size:1.15rem;min-width:0}
+.op-body{width:min(720px,100%);margin:0 auto;padding:1rem 16px 2.5rem;display:grid;gap:.9rem;align-content:start}
+.op-filters{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.2rem;scrollbar-width:none}
+.op-filters .chip{white-space:nowrap;flex:none}
+.op-list{display:grid;gap:.6rem}
+.op-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.3rem .8rem;width:100%;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:.85rem 1rem;color:var(--fg);font:inherit;cursor:pointer}
+.op-row:hover{border-color:var(--rose)}
+.op-row b{font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.op-row .badge-st{white-space:nowrap}
+.op-row .badge-st{justify-self:end}
+.op-row .meta{color:var(--muted);font-size:.85rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.op-row .amt{font-weight:800;text-align:right;white-space:nowrap}
+.due{grid-column:1/-1;margin:0;font-size:.85rem;font-weight:800;color:var(--caramel)}
+.op-note{color:var(--muted);font-size:.9rem;margin:0}
+.op-empty{text-align:center;color:var(--muted);padding:1.5rem 0;display:grid;gap:.8rem;justify-items:center}
+.od-sec{background:var(--paper);border-radius:18px;padding:1rem 1.1rem;display:grid;gap:.45rem}
+.od-sec h4{margin:0;font:800 .78rem var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.od-msg{margin:.2rem 0 0}
+.od-muted{color:var(--muted)}
+.od-line{display:flex;justify-content:space-between;gap:.8rem}
+.od-line span:first-child{min-width:0}
+.od-line span:last-child{white-space:nowrap;font-weight:700}
+.od-line small{display:block;color:var(--muted);font-size:.85rem}
+.od-line.sub{border-top:1px dashed var(--line);padding-top:.45rem;margin-top:.15rem}
+.od-line.disc span:last-child{color:var(--wa)}
+.od-line.total{font-weight:800;font-size:1.08rem;border-top:1px dashed var(--line);padding-top:.45rem}
+.od-actions{display:grid;gap:.6rem;margin-top:.3rem}
+.od-actions .btn{justify-content:center}
 .acct-form{display:grid;gap:.7rem}
 .acct-form .btn{justify-content:center}
 .acct-tabs{display:flex;gap:.4rem}
@@ -509,19 +540,18 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   </div>
 </div>
 
-<div class="modal-bg" id="status-modal" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="status-title">
-    <div class="drawer-head">
-      <h3 id="status-title">Status pesanan</h3>
-      <button class="icon-btn" type="button" id="close-status" aria-label="Tutup">×</button>
-    </div>
-    <div class="modal-body" id="status-body"></div>
+<section class="orders-page" id="orders-page" hidden aria-labelledby="op-title">
+  <div class="op-head">
+    <button class="icon-btn" type="button" id="op-back" aria-label="Kembali">←</button>
+    <h3 id="op-title">Pesanan saya</h3>
+    <button class="icon-btn" type="button" id="op-close" aria-label="Tutup">×</button>
   </div>
-</div>
+  <div class="op-body" id="op-body"></div>
+</section>
 
-<script src="js/config.js?v=202610262141"></script>
+<script src="js/config.js?v=202610262222"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202610262141"></script>
+<script src="js/shop.js?v=202610262222"></script>
 
 </body>
 </html>

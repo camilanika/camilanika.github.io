@@ -75,7 +75,7 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
@@ -111,3 +111,10 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
   - **Tarif**: rows of "up to X km → Rp Y". Fill these from the Paxel app (its website rate check needs a CAPTCHA, so rates aren't fetched automatically).
   - Tick **Hitung ongkir otomatis** to turn it on. While off, delivery is free and the pin is optional.
 - Distance is a straight line from the shop pin, so road distance is usually a bit longer; set tiers with that in mind.
+
+## Order history ("Pesanan saya")
+- Customers open it from **Akun → Riwayat pesanan → Lihat semua pesanan** (or `camilanika.github.io/#pesanan`). It lists every order from their account plus orders made on that device without logging in, with filters: Belum dibayar, Diproses, Selesai, Batal.
+- Tapping an order opens its page: status, items, discount, ongkir, total, delivery address and map pin, payment method.
+- **Unpaid orders** show "Bayar sebelum HH:MM" and a **Lanjutkan pembayaran** button that reopens the same Midtrans payment, even on another phone when logged in. After 30 minutes the order shows as Kedaluwarsa and can't be paid any more.
+- Paid orders show **Chat admin untuk pengiriman**; other orders show **Tanya lewat WhatsApp**.
+- The page updates by itself while a payment is pending, and the phone's back button works.
