@@ -613,6 +613,13 @@
     renderMenu(); renderPromo(); renderCart();
   }
 
+  // Online payment can be switched off in config.js (WhatsApp / GoFood ordering still works)
+  if (!CFG.ONLINE_PAYMENT) {
+    $("pay-btn").hidden = true;
+    document.querySelector(".pay-note").hidden = true;
+    $("to-checkout").textContent = "Lanjut isi data & pesan";
+  }
+
   (async () => {
     setOffsets();
     renderCart();
