@@ -13,11 +13,6 @@
 
   const SIZES = { S: "250 ml", M: "500 ml", L: "1000 ml" };
   const SIZE_ATTR = "Ukuran";
-  const SERIES = [
-    { id: "coffee", name: "Coffee Series", tag: "Rasa kopi yang selalu jadi pilihan.", emoji: "☕" },
-    { id: "choco", name: "Chocolate Series", tag: "Cokelat yang selalu bikin hari lebih manis.", emoji: "🍫" },
-    { id: "matcha", name: "Matcha Series", tag: "Kesegaran matcha, ketenangan di setiap tegukan.", emoji: "🍵" },
-  ];
   const ERRORS = {
     CART_EMPTY: "Keranjang masih kosong.",
     OUT_OF_STOCK: "Maaf, stok salah satu menu tidak cukup. Jumlahnya sudah kami sesuaikan, cek lagi ya.",
@@ -51,63 +46,87 @@
   const save = () => store.set("cn-cart-v2", cart);
 
   // ------------------------------------------------------------------ menu rendering
-  const drinkSeries = (p) => SERIES.some((s) => s.id === p.series) || (p.series !== "cireng");
+  // Main menus (categories) -> submenus (sections) -> products, all from the database.
+  const SIZE_ORDER = ["S", "M", "L"];
   const attrValues = (p, a) => [...new Set(p.variants.map((v) => v.attrs?.[a]).filter(Boolean))];
-  const usesSize = (p) => p.attr_names.includes(SIZE_ATTR) && drinkSeries(p);
+  const usesSize = (p) => p.attr_names.includes(SIZE_ATTR);
+  const sizeLabel = (s) => (SIZES[s] ? `${s} · ${SIZES[s]}` : s);
 
   const chipGroup = (opts, label, def = 0, attr = "") =>
     `<div class="opt-label">${esc(label)}</div><div class="chips" role="group" aria-label="${esc(label)}" data-attr="${esc(attr)}" data-label="${esc(label)}">${opts
       .map((o, i) => `<button type="button" class="chip" data-v="${esc(o)}" aria-pressed="${i === def}">${esc(o)}</button>`)
       .join("")}</div>`;
 
-  const priceTable = (p) => {
-    if (!(p.attr_names.includes("Kemasan") && p.attr_names.includes("Kondisi"))) return "";
-    const packs = attrValues(p, "Kemasan"), conds = attrValues(p, "Kondisi");
-    const price = (k, c) => {
-      const ps = p.variants.filter((v) => v.attrs.Kemasan === k && v.attrs.Kondisi === c).map((v) => v.price);
-      return ps.length ? Math.min(...ps) : null;
-    };
-    return `<div style="overflow-x:auto"><table class="pack-table"><thead><tr><th>Kemasan</th>${conds.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
-      <tbody>${packs.map((k) => `<tr><td>${esc(k)}</td>${conds.map((c) => `<td>${price(k, c) == null ? "–" : `<b>${rp(price(k, c))}</b>`}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-  };
-
   const cardHTML = (p) => {
-    const attrs = p.attr_names.filter((a) => !(a === SIZE_ATTR && usesSize(p)));
+    const drinkStyle = usesSize(p);
+    const attrs = p.attr_names.filter((a) => a !== SIZE_ATTR);
     const chips = attrs.map((a) => chipGroup(attrValues(p, a), a === "Rasa" ? "Pilih rasa" : a, 0, a)).join("") +
       (p.choices || []).map((c) => chipGroup(c.options, c.label, c.default ?? 0)).join("");
     const addon = p.addon_label
       ? `<label class="check" data-addon-wrap><input type="checkbox" data-addon> ${esc(p.addon_label)} <span class="num" data-addon-price></span></label>` : "";
-    const isDrink = drinkSeries(p);
-    const table = priceTable(p);
-    const img = p.image_url ? `<img class="${isDrink ? "drink-ill" : ""}" src="${esc(p.image_url)}" alt="${esc(isDrink ? "Ilustrasi " + p.name : p.name)}" ${isDrink ? 'width="200" height="200"' : ""} loading="lazy" onerror="this.remove()">` : "";
     const head = `<div class="item-top"><h3>${esc(p.name)}${p.subtitle ? `<span>${esc(p.subtitle)}</span>` : ""}${p.note ? `<em class="note-tag">${esc(p.note)}</em>` : ""}</h3><div class="price num" data-price></div></div>`;
     const btn = `<span class="stock-tag" data-stock></span><button class="btn btn-rose add" type="button" data-add>Tambah ke keranjang</button>`;
-    if (!isDrink && p.image_url && !table) {
-      return `<article class="item kuah" data-product="${p.id}">${img}<div style="display:grid;gap:.6rem;min-width:0">${head}${chips}${addon}${btn}</div></article>`;
+    if (drinkStyle || !p.image_url) {
+      const img = drinkStyle && p.image_url ? `<img class="drink-ill" src="${esc(p.image_url)}" alt="Ilustrasi ${esc(p.name)}" width="200" height="200" loading="lazy" onerror="this.remove()">` : "";
+      return `<article class="item" data-product="${p.id}">${img}${head}${chips}${addon}${btn}</article>`;
     }
-    return `<article class="item" data-product="${p.id}">${isDrink ? img : ""}${head}${table}${chips}${addon}${btn}</article>`;
+    return `<article class="item kuah" data-product="${p.id}"><img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" onerror="this.remove()"><div style="display:grid;gap:.6rem;min-width:0">${head}${chips}${addon}${btn}</div></article>`;
   };
 
-  function renderMenu() {
-    const grid = $("drink-grid"), cg = $("cireng-grid");
-    const drinks = menu.products.filter(drinkSeries);
-    const series = [...SERIES];
-    drinks.forEach((p) => { if (!series.some((s) => s.id === p.series)) series.push({ id: p.series, name: p.series.charAt(0).toUpperCase() + p.series.slice(1), tag: "" }); });
-    const shown = series.filter((s) => drinks.some((p) => p.series === s.id));
-    grid.innerHTML = shown.length ? shown.map((sr) => `
-      <section class="series series-${esc(sr.id)}" id="series-${esc(sr.id)}-sec" aria-labelledby="series-${esc(sr.id)}">
-        <div class="series-head"><h3 id="series-${esc(sr.id)}">${esc(sr.name)}</h3>${sr.tag ? `<p>${esc(sr.tag)}</p>` : ""}</div>
-        <div class="menu-grid">${drinks.filter((d) => d.series === sr.id).map(cardHTML).join("")}</div>
-      </section>`).join("") : `<p class="menu-status">Menu minuman belum tersedia.</p>`;
-    // series nav reflects series that exist
-    const nav = document.querySelector(".series-nav");
-    nav.innerHTML = shown.map((s) => `<a href="#series-${esc(s.id)}-sec">${s.emoji ? s.emoji + " " : ""}${esc(s.name.replace(" Series", ""))}</a>`).join("");
-    navLinks = [...nav.querySelectorAll("a")];
+  const tpl = (id) => document.getElementById(id)?.innerHTML || "";
+  const sizesIn = (c) => {
+    const all = new Set();
+    c.sections.forEach((s) => s.products.filter(usesSize).forEach((p) => attrValues(p, SIZE_ATTR).forEach((v) => all.add(v))));
+    return [...all].sort((a, b) => (SIZE_ORDER.indexOf(a) + 1 || 99) - (SIZE_ORDER.indexOf(b) + 1 || 99));
+  };
 
-    const snacks = menu.products.filter((p) => !drinkSeries(p));
-    cg.innerHTML = snacks.length ? snacks.map(cardHTML).join("") : `<p class="menu-status">Cireng belum tersedia.</p>`;
+  function catHTML(c, i) {
+    const showT = document.getElementById("showcase-" + c.slug);
+    const showcase = showT ? showT.innerHTML : "";
+    const side = !!showcase && showT.dataset.layout === "side";
+    const sizes = sizesIn(c);
+    if (sizes.length && !sizes.includes(size)) size = sizes.includes("M") ? "M" : sizes[0];
+    const head = `<div class="sec-head">
+        ${c.eyebrow ? `<p class="eyebrow">${esc(c.eyebrow)}</p>` : ""}
+        <h2 id="cat-${esc(c.slug)}">${esc(c.heading || c.name)}${c.heading_script ? ` <span class="script" style="font-size:.6em">${esc(c.heading_script)}</span>` : ""}</h2>
+        ${c.description ? `<p>${esc(c.description)}</p>` : ""}
+      </div>${tpl("intro-" + c.slug)}`;
+    const nav = c.sections.length > 1
+      ? `<nav class="series-nav" aria-label="Submenu ${esc(c.name)}">${c.sections.map((s) => `<a href="#sub-${esc(s.slug)}">${s.icon ? esc(s.icon) + " " : ""}${esc(s.name.replace(/ Series$/, ""))}</a>`).join("")}</nav>` : "<span></span>";
+    const sw = sizes.length
+      ? `<div class="size-switch" role="group" aria-label="Pilih ukuran">${sizes.map((s) => `<button type="button" data-size="${esc(s)}" aria-pressed="${s === size}">${esc(sizeLabel(s))}${s === "L" && sizes.length > 1 ? '<span class="hemat"> · lebih hemat</span>' : ""}</button>`).join("")}</div>` : "";
+    const bar = c.sections.length > 1 || sizes.length ? `<div class="menu-bar">${nav}${sw}</div>` : "";
+    const secs = c.sections.map((s) => `
+      <section class="series acc-${esc(s.accent || "caramel")}" id="sub-${esc(s.slug)}" aria-labelledby="sub-h-${esc(s.slug)}">
+        <div class="series-head"><h3 id="sub-h-${esc(s.slug)}">${esc(s.name)}</h3>${s.tagline ? `<p>${esc(s.tagline)}</p>` : ""}</div>
+        <div class="menu-grid">${s.products.map(cardHTML).join("")}</div>
+      </section>`).join("");
+    const main = head + (side ? "" : showcase) + bar + secs + tpl("after-" + c.slug);
+    return `<section class="block cat${i % 2 ? " alt" : ""}" id="${esc(c.slug)}" aria-labelledby="cat-${esc(c.slug)}">
+      <div class="wrap${side ? " cat-side" : ""}">${side ? `<div class="cat-media">${showcase}</div>` : ""}<div class="cat-main">${main}</div></div>
+    </section>`;
+  }
+
+  function renderMenu() {
+    const root = $("menu-root");
+    const bySection = new Map();
+    menu.products.forEach((p) => { if (!bySection.has(p.section_id)) bySection.set(p.section_id, []); bySection.get(p.section_id).push(p); });
+    const cats = (menu.categories || [])
+      .map((c) => ({ ...c, sections: c.sections.map((s) => ({ ...s, products: bySection.get(s.id) || [] })).filter((s) => s.products.length) }))
+      .filter((c) => c.sections.length);
+    if (!cats.length) {
+      root.innerHTML = `<section class="block"><div class="wrap"><p class="menu-status">Menu belum tersedia. Pesan langsung lewat <a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a>.</p></div></section>`;
+      $("nav-menus").innerHTML = "";
+      return;
+    }
+    root.innerHTML = cats.map(catHTML).join("");
+    $("nav-menus").innerHTML = cats.map((c) => `<a href="#${esc(c.slug)}">${esc(c.name)}</a>`).join("");
+    $("see-menu").href = "#" + cats[0].slug;
+    navLinks = [...root.querySelectorAll(".series-nav a")];
     document.querySelectorAll("[data-product]").forEach(updateCard);
     setOffsets(); setActive();
+    // jump to an anchor from the URL once the menu exists (e.g. camilanika.github.io/#camilan)
+    if (location.hash && !renderMenu.jumped) { renderMenu.jumped = true; document.getElementById(location.hash.slice(1))?.scrollIntoView(); }
   }
 
   const productById = (id) => menu.products.find((p) => p.id === +id);
@@ -134,7 +153,7 @@
       priceEl.innerHTML = "–"; btn.disabled = true; btn.textContent = "Tidak tersedia"; tag.textContent = ""; if (wrap) wrap.hidden = true;
       return;
     }
-    const sub = usesSize(p) ? SIZES[size] || size : (variant.attrs.Kondisi || "").toLowerCase();
+    const sub = usesSize(p) ? SIZES[size] || size : "";
     priceEl.innerHTML = `${rp(variant.price)}${sub ? `<small>${esc(sub)}</small>` : ""}`;
     if (wrap) {
       wrap.hidden = variant.addon_price == null;
@@ -174,21 +193,24 @@
   });
   document.addEventListener("change", (e) => { if (e.target.matches("[data-addon]")) updateCard(e.target.closest("[data-product]")); });
 
-  document.querySelectorAll(".size-switch button").forEach((b) => b.addEventListener("click", () => {
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest(".size-switch button"); if (!b) return;
     size = b.dataset.size;
     document.querySelectorAll(".size-switch button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.size === size));
     document.querySelectorAll("[data-product]").forEach(updateCard);
-  }));
+  });
 
-  // sticky series nav
-  const hdr = document.querySelector("header"), bar = document.querySelector(".menu-bar");
+  // sticky submenu bar
+  const hdr = document.querySelector("header");
   let navLinks = [];
   function setOffsets() {
+    const bar = document.querySelector(".menu-bar");
     document.documentElement.style.setProperty("--hdr", hdr.offsetHeight + "px");
-    document.documentElement.style.setProperty("--bar", bar.offsetHeight + "px");
+    document.documentElement.style.setProperty("--bar", (bar ? bar.offsetHeight : 0) + "px");
   }
   function setActive() {
-    const line = hdr.offsetHeight + bar.offsetHeight + 40;
+    const bar = document.querySelector(".menu-bar");
+    const line = hdr.offsetHeight + (bar ? bar.offsetHeight : 0) + 40;
     let cur = null;
     document.querySelectorAll(".series").forEach((sec) => { if (sec.getBoundingClientRect().top <= line) cur = sec.id; });
     navLinks.forEach((a) => a.setAttribute("aria-current", a.getAttribute("href") === "#" + cur));
@@ -625,7 +647,7 @@
     renderCart();
     try { await refreshMenu(); }
     catch (e) {
-      $("drink-grid").innerHTML = `<p class="menu-status">Menu belum bisa dimuat. Coba muat ulang halaman, atau pesan langsung lewat <a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a>.</p>`;
+      $("menu-root").innerHTML = `<section class="block"><div class="wrap"><p class="menu-status">Menu belum bisa dimuat. Coba muat ulang halaman, atau pesan langsung lewat <a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a>.</p></div></section>`;
     }
     if (cart.length) scheduleQuote();
     // back from a Midtrans redirect (e.g. GoPay app): ?order=CN-...

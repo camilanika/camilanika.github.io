@@ -22,6 +22,7 @@
 :root{
   --bg:#FBF3EA; --paper:#FFFAF4; --fg:#4A2A1C; --muted:#7D5F52; --line:#EBD7C8;
   --rose:#D9586F; --rose-ink:#FFFFFF; --rose-soft:#FBE1E6; --caramel:#B9763A; --wa:#1F9D55; --go:#D9232B;
+  --matcha:#6E9A3E; --berry:#8E4EA8; --ocean:#2F7FA8; --charcoal:#5B4A42;
   --shadow:0 10px 30px -12px rgba(74,42,28,.28);
   --f-display:"Baloo 2","Nunito",system-ui,sans-serif;
   --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -30,10 +31,12 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#1C1411; --paper:#271C18; --fg:#F6E6DA; --muted:#C9AE9F; --line:#3E2E27;
   --rose:#EE7F95; --rose-ink:#2A0F16; --rose-soft:#3A2128; --caramel:#E0A266; --wa:#36C075;
+  --matcha:#9CC56A; --berry:#C08ADB; --ocean:#6DB7DE; --charcoal:#BBA79C;
   --shadow:0 10px 30px -12px rgba(0,0,0,.6); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#1C1411; --paper:#271C18; --fg:#F6E6DA; --muted:#C9AE9F; --line:#3E2E27;
   --rose:#EE7F95; --rose-ink:#2A0F16; --rose-soft:#3A2128; --caramel:#E0A266; --wa:#36C075;
+  --matcha:#9CC56A; --berry:#C08ADB; --ocean:#6DB7DE; --charcoal:#BBA79C;
   --shadow:0 10px 30px -12px rgba(0,0,0,.6); color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -131,9 +134,8 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .size-switch button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
 
 /* menu cards (label style) */
-.menu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}
-@media (max-width:960px){.menu-grid{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:600px){.menu-grid{grid-template-columns:1fr}}
+/* cards fill as many ~300px columns as fit, so any number of products lays out cleanly */
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:1.1rem}
 .menu-bar{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--hdr,64px));z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1rem;padding:.6rem 0;margin-bottom:.4rem;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(8px)}
 .menu-bar .size-switch{margin-bottom:0}
 .series-nav{display:flex;gap:.4rem;flex-wrap:wrap}
@@ -142,10 +144,8 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .series{scroll-margin-top:calc(env(safe-area-inset-top,0px) + var(--hdr,64px) + var(--bar,60px) + 12px)}
 @media (max-width:600px){.series-nav a{padding:.45rem .75rem;font-size:.85rem}.size-switch button{padding:.45rem .7rem;font-size:.85rem}.size-switch{flex-wrap:nowrap}.size-switch .hemat{display:none}.menu-bar{gap:.45rem;padding:.45rem 0}}
 .series{--accent:var(--caramel);border:2px dashed color-mix(in srgb,var(--accent) 45%,transparent);border-radius:26px;padding:1.2rem;margin-top:1.4rem;background:color-mix(in srgb,var(--accent) 7%,transparent)}
-.series-choco{--accent:var(--rose)}
-.series-matcha{--accent:#6E9A3E}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .series-matcha{--accent:#9CC56A}}
-:root[data-theme="dark"] .series-matcha{--accent:#9CC56A}
+.acc-caramel{--accent:var(--caramel)} .acc-rose{--accent:var(--rose)} .acc-matcha{--accent:var(--matcha)}
+.acc-berry{--accent:var(--berry)} .acc-ocean{--accent:var(--ocean)} .acc-charcoal{--accent:var(--charcoal)}
 .series-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4rem 1rem;margin:0 0 1rem}
 .series-head h3{background:var(--accent);color:#fff;font-size:clamp(1.3rem,2.6vw,1.7rem);padding:.35rem 1.1rem;border-radius:12px 999px 999px 12px}
 .series-head p{margin:0;color:var(--muted);font-weight:700;font-style:italic}
@@ -174,9 +174,15 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .note-row svg{width:20px;height:20px;color:var(--rose)}
 
 /* cireng */
-.cireng{background:var(--paper);border-block:1px solid var(--line)}
-.cireng-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:clamp(1.5rem,4vw,3rem);align-items:start}
-@media (max-width:860px){.cireng-grid{grid-template-columns:1fr}}
+/* main menus: alternate bands; a "side" showcase sits in a left column */
+.cat.alt{background:var(--paper);border-block:1px solid var(--line)}
+.cat.alt .series .item,.cat.alt .fillings div{background:var(--bg)}
+.cat-main{min-width:0;display:grid;align-content:start}
+.cat-side{display:grid;grid-template-columns:1fr 1.1fr;gap:clamp(1.5rem,4vw,3rem);align-items:start}
+@media (max-width:860px){.cat-side{grid-template-columns:1fr}}
+.cat-side .sec-head{margin-bottom:1rem}
+.cat-empty{color:var(--muted);font-weight:700}
+.cat.alt .menu-bar{background:color-mix(in srgb,var(--paper) 94%,transparent)}
 .mosaic{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:repeat(4,170px) auto;gap:.7rem;min-width:0;position:relative}
 @media (min-width:861px){.mosaic{position:sticky;top:calc(env(safe-area-inset-top,0px) + 90px)}}
 .mosaic figure.wide{grid-column:span 2;grid-row:span 1}
@@ -308,8 +314,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
       <span>Camila<b>Nika</b></span>
     </a>
     <nav aria-label="Menu utama">
-      <a href="#minuman">Minuman</a>
-      <a href="#cireng">Cireng Isi</a>
+      <span id="nav-menus" style="display:contents"><a href="#minuman">Minuman</a><a href="#camilan">Camilan</a></span>
       <a href="#cara-order">Cara Order</a>
     </nav>
     <button class="btn btn-ghost acct-btn" type="button" id="acct-btn" aria-label="Akun saya">
@@ -332,7 +337,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
         <h1>Lagi pengen ngopi tapi mager keluar?<span class="script">Good coffee, better mood.</span></h1>
         <p class="lead">Kopi botolan enak dan cireng isi gurih. Homemade, dibuat dengan cinta pakai bahan premium. Tinggal chat, kami antar.</p>
         <div class="hero-cta">
-          <a class="btn btn-rose" href="#minuman">Lihat menu</a>
+          <a class="btn btn-rose" id="see-menu" href="#minuman">Lihat menu</a>
           <a class="btn btn-ghost wa-link" href="https://wa.me/628567412578" target="_blank" rel="noopener">Order via WhatsApp</a>
           <a class="btn btn-go" href="https://gofood.link/a/UCuoiHJ" target="_blank" rel="noopener">Order di GoFood</a>
         </div>
@@ -355,15 +360,13 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
     </ul>
   </div>
 
-  <!-- DRINKS -->
-  <section class="block" id="minuman">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Our Menu</p>
-        <h2>Coffee &amp; Drinks <span class="script" style="font-size:.6em">dalam botol</span></h2>
-        <p>Dari yang strong sampai yang creamy dan manis, tinggal pilih sesuai mood kamu. Diseduh langsung dari mesin espresso dan pakai susu segar.</p>
-      </div>
+  <!-- MENU: main menus, submenus and products are loaded from the database (js/shop.js) -->
+  <div id="menu-root">
+    <section class="block"><div class="wrap"><p class="menu-status" id="menu-status">Memuat menu…</p></div></section>
+  </div>
 
+  <!-- Optional decorations for a main menu, matched by its slug. A main menu without one simply has none. -->
+  <template id="showcase-minuman" data-layout="stack">
       <div class="bottle-row">
         <figure class="bottle"><img src="img/aren-latte.jpg" alt="Botol Aren Latte 1000 ml" loading="lazy"><figcaption>Aren Latte<span>L</span></figcaption></figure>
         <figure class="bottle"><img src="img/iced-latte.jpg" alt="Latte botolan dituang ke gelas berisi es" loading="lazy"><figcaption>Tinggal tuang es</figcaption></figure>
@@ -374,33 +377,15 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
         <figure class="bottle"><img src="img/salted-caramel.jpg" alt="Botol Salted Caramel Latte 250 ml" loading="lazy"><figcaption>Salted Caramel<span>S</span></figcaption></figure>
       </div>
       <p class="swipe-hint">Geser untuk lihat foto lainnya →</p>
-
-      <div class="menu-bar">
-        <nav class="series-nav" aria-label="Lompat ke seri menu">
-          <a href="#series-coffee-sec" data-series="coffee">☕ Coffee</a>
-          <a href="#series-choco-sec" data-series="choco">🍫 Chocolate</a>
-          <a href="#series-matcha-sec" data-series="matcha">🍵 Matcha</a>
-        </nav>
-        <div class="size-switch" role="group" aria-label="Pilih ukuran">
-          <button type="button" data-size="S" aria-pressed="false">S · 250 ml</button>
-          <button type="button" data-size="M" aria-pressed="true">M · 500 ml</button>
-          <button type="button" data-size="L" aria-pressed="false">L · 1000 ml<span class="hemat"> · lebih hemat</span></button>
-        </div>
-      </div>
-
-      <div id="drink-grid"><p class="menu-status" id="menu-status">Memuat menu…</p></div>
-
+  </template>
+  <template id="after-minuman">
       <div class="note-row">
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8h11v6a5 5 0 0 1-5 5H11a5 5 0 0 1-5-5zM17 10h1.5a2.5 2.5 0 0 1 0 5H17"/></svg>Extra shot: S Rp2.000 · M Rp4.000 · L Rp8.000</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Simpan di kulkas, tahan hingga 7 hari</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 4h10l-1.5 16h-7z"/><rect x="9" y="9" width="3.5" height="3.5" rx=".8"/><rect x="12" y="13.5" width="3" height="3" rx=".8"/></svg>Tinggal tuang es, langsung nikmat</span>
       </div>
-    </div>
-  </section>
-
-  <!-- CIRENG -->
-  <section class="block cireng" id="cireng">
-    <div class="wrap cireng-grid">
+  </template>
+  <template id="showcase-camilan" data-layout="side">
       <div class="mosaic">
         <figure><img src="img/cireng-isi.jpg" alt="Cireng isi ayam suwir dibelah, terlihat isian" loading="lazy"><figcaption>Ayam Suwir</figcaption></figure>
         <figure><img src="img/keju-lumer.jpg" alt="Cireng isi keju lumer dibelah" loading="lazy"><figcaption>Keju Lumer</figcaption></figure>
@@ -411,24 +396,18 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
         <div class="note" aria-hidden="true">Gurih di luar, nagih di dalam!</div>
         <img class="sticker" src="img/logo-cireng.jpg" alt="">
       </div>
-      <div>
-        <div class="sec-head" style="margin-bottom:0">
-          <p class="eyebrow">Camilan</p>
-          <h2>Cireng Isi</h2>
-          <p>Gurih di luar, nagih di dalam. Beli frozen untuk stok di rumah, atau matang siap santap.</p>
+  </template>
+  <template id="intro-camilan">
           <p class="deliv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 4l3 2 3-2M9 20l3-2 3 2"/></svg>Frozen tahan lama, goreng kapan saja</p>
           <p class="deliv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>Dikemas rapi dan higienis</p>
-        </div>
         <div class="fillings">
           <div><i style="background:#E8C07A"></i>Ayam Suwir Original</div>
           <div><i style="background:#D9586F"></i>Ayam Suwir Pedas</div>
           <div><i style="background:#F2D46B"></i>Keju Lumer</div>
           <div><i style="background:#A14A2E"></i>Jando Pedas</div>
         </div>
-        <div class="cireng-cards" id="cireng-grid"></div>
-      </div>
-    </div>
-  </section>
+  </template>
+
 
   <!-- PROMO + HOW TO -->
   <section class="block" id="cara-order">

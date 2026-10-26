@@ -5,7 +5,7 @@ The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, ord
 | File | What it is |
 |---|---|
 | `index.html`, `js/shop.js` | Shop page: menu from the database, cart, promo codes, login, online payment, order history |
-| `admin.html` | Admin dashboard: orders, stock, products and variants, promos |
+| `admin.html` | Admin dashboard: orders, stock, main menus and submenus, products and variants, promos |
 | `js/config.js` | Public settings: Supabase URL and key, Midtrans client key |
 | `supabase/schema.sql` | Database tables, security rules and functions |
 | `supabase/seed.sql` | The current menu, loaded as products and variants |
@@ -14,7 +14,7 @@ The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, ord
 
 ## 1. Database (Supabase → SQL Editor)
 1. Run `supabase/schema.sql`.
-2. Run `supabase/seed.sql`. Every variant starts with **stock = 10**, which is a placeholder; set the real numbers in the admin page.
+2. Run `supabase/seed.sql`, then `supabase/migrations/002_menu_structure.sql` (main menus and submenus). Every variant starts with **stock = 10**, which is a placeholder; set the real numbers in the admin page.
 3. Recommended: under Database → Extensions, enable **pg_cron**, then run this. It releases stock held by checkouts that were never paid:
    ```sql
    select cron.schedule('release-expired-orders', '*/5 * * * *', 'select public.release_expired_orders()');
@@ -66,3 +66,10 @@ Open `https://camilanika.github.io/admin.html`.
 - **Cancelling a paid order** in the admin page doesn't refund it. Do the refund in the Midtrans dashboard, and adjust stock in the Stok tab if the items go back on sale.
 - **Guests** can check out without an account. Their order status is saved on that device. Logged-in customers see their full history under Akun.
 - WhatsApp and GoFood ordering still work as before.
+
+## Menu structure
+- **Main menus** (Minuman, Camilan) each become a section of the page and a link in the header. **Submenus** (Coffee Series, Cireng Isi Frozen…) group products inside them.
+- Manage both in the admin page's **Menu** tab: add, rename, hide, delete, and reorder with ↑ ↓. Pick each product's submenu in the **Produk** tab.
+- The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
+- Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
+- The bottle photo row and the cireng photo mosaic are attached to the main menus with the slugs `minuman` and `camilan` (see the `<template>` blocks in `index.html`).
