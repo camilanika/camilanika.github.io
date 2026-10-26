@@ -106,7 +106,7 @@ td.num,th.num{text-align:right}
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/config.js?v=202610262020"></script>
+<script src="js/config.js?v=202610262034"></script>
 <script src="js/vendor/supabase.js"></script>
 <script>
 (() => {
@@ -247,8 +247,8 @@ td.num,th.num{text-align:right}
   let lowOnly = false;
   async function renderStock() {
     app.innerHTML = `<div class="bar"><h2>Stok</h2><label class="chk"><input type="checkbox" id="lowonly"> Hanya stok menipis / habis</label><button class="btn btn-ghost" id="sref">Muat ulang</button></div>
-      <p class="muted" style="margin:-.4rem 0 1rem">Tersedia = stok − dipesan (pesanan belum dibayar). Isi angka + untuk menambah, − untuk mengurangi.</p>
-      <div class="tbl-wrap"><table><thead><tr><th>Varian</th><th class="num">Tersedia</th><th class="num">Stok</th><th class="num">Dipesan</th><th class="num">Batas menipis</th><th class="num">Ubah stok</th></tr></thead><tbody id="stbody"><tr><td colspan="6" class="muted">Memuat…</td></tr></tbody></table></div>`;
+      <p class="muted" style="margin:-.4rem 0 1rem">Ketik jumlah yang tersedia lalu <b>Simpan</b>. <b>Kosongkan</b> = habis. <b>Tak terbatas</b> = selalu tersedia tanpa dihitung. Varian baru otomatis tak terbatas.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Varian</th><th>Status</th><th class="num">Tersedia</th><th class="num">Dipesan</th><th class="num">Batas menipis</th><th class="num"></th></tr></thead><tbody id="stbody"><tr><td colspan="6" class="muted">Memuat…</td></tr></tbody></table></div>`;
     $("lowonly").checked = lowOnly;
     $("lowonly").onchange = () => { lowOnly = $("lowonly").checked; loadStock(); };
     $("sref").onclick = loadStock;
@@ -256,7 +256,7 @@ td.num,th.num{text-align:right}
   }
   async function loadStock() {
     const { data, error } = await sb.from("products")
-      .select("id,name,is_active,sort_order,product_variants(id,name,is_active,sort_order,inventory(stock,reserved,low_stock_threshold))")
+      .select("id,name,is_active,sort_order,product_variants(id,name,is_active,sort_order,inventory(stock,reserved,low_stock_threshold,unlimited))")
       .order("sort_order").order("id");
     const tb = $("stbody"); if (!tb) return;
     if (error) { tb.innerHTML = `<tr><td colspan="6" class="msg err">${esc(err(error))}</td></tr>`; return; }
@@ -264,33 +264,41 @@ td.num,th.num{text-align:right}
     for (const p of data) {
       const vs = p.product_variants.sort((a, b) => a.sort_order - b.sort_order || a.id - b.id).map((v) => {
         const inv = Array.isArray(v.inventory) ? v.inventory[0] : v.inventory;
-        return { ...v, inv: inv || { stock: 0, reserved: 0, low_stock_threshold: 5 } };
-      }).filter((v) => !lowOnly || v.inv.stock - v.inv.reserved <= v.inv.low_stock_threshold);
+        return { ...v, inv: inv || { stock: 0, reserved: 0, low_stock_threshold: 5, unlimited: false } };
+      }).filter((v) => !lowOnly || (!v.inv.unlimited && v.inv.stock - v.inv.reserved <= v.inv.low_stock_threshold));
       if (!vs.length) continue;
       html += `<tr class="group"><td colspan="6">${esc(p.name)} ${p.is_active ? "" : '<span class="badge off">nonaktif</span>'}</td></tr>`;
       html += vs.map((v) => {
-        const av = v.inv.stock - v.inv.reserved;
-        const cls = av <= 0 ? "out" : av <= v.inv.low_stock_threshold ? "low" : "on";
+        const unl = !!v.inv.unlimited, av = v.inv.stock - v.inv.reserved;
+        const [cls, label] = unl ? ["on", "Tak terbatas"] : av <= 0 ? ["out", "Habis"] : av <= v.inv.low_stock_threshold ? ["low", "Menipis"] : ["on", "Tersedia"];
         return `<tr><td>${esc(v.name)} ${v.is_active ? "" : '<span class="badge off">nonaktif</span>'}</td>
-          <td class="num"><span class="badge ${cls}">${av}</span></td><td class="num">${v.inv.stock}</td><td class="num">${v.inv.reserved}</td>
-          <td class="num"><input type="number" min="0" value="${v.inv.low_stock_threshold}" data-th="${v.id}" style="width:70px;text-align:right"></td>
-          <td><div class="adj"><input type="number" step="1" placeholder="+10" data-chg="${v.id}" aria-label="Ubah stok ${esc(v.name)}">
-            <select data-rsn="${v.id}"><option value="restock">Tambah stok</option><option value="adjustment">Koreksi</option><option value="waste">Rusak/basi</option></select>
-            <button class="btn btn-rose btn-sm" data-save="${v.id}">Simpan</button></div></td></tr>`;
+          <td><span class="badge ${cls}">${label}</span></td>
+          <td class="num"><input type="number" min="0" step="1" value="${unl ? "" : av}" placeholder="∞" data-av="${v.id}" aria-label="Jumlah tersedia ${esc(v.name)}" style="width:80px;text-align:right"></td>
+          <td class="num">${v.inv.reserved || 0}</td>
+          <td class="num">${unl ? '<span class="muted">–</span>' : `<input type="number" min="0" value="${v.inv.low_stock_threshold}" data-th="${v.id}" style="width:70px;text-align:right" aria-label="Batas menipis ${esc(v.name)}">`}</td>
+          <td><div class="adj">
+            <button class="btn btn-rose btn-sm" data-save="${v.id}">Simpan</button>
+            ${!unl && av <= 0 ? "" : `<button class="btn btn-ghost btn-sm" data-empty="${v.id}">Kosongkan</button>`}
+            ${unl ? "" : `<button class="btn btn-ok btn-sm" data-unl="${v.id}">Tak terbatas</button>`}
+          </div></td></tr>`;
       }).join("");
     }
     tb.innerHTML = html || `<tr><td colspan="6" class="muted">Tidak ada varian${lowOnly ? " yang menipis" : ""}.</td></tr>`;
-    tb.querySelectorAll("[data-save]").forEach((b) => b.onclick = async () => {
-      const id = b.dataset.save, chg = parseInt(tb.querySelector(`[data-chg="${id}"]`).value, 10);
-      let rsn = tb.querySelector(`[data-rsn="${id}"]`).value;
-      if (!chg) return toast("Isi jumlah perubahan dulu");
-      if (rsn === "restock" && chg < 0) rsn = "adjustment";
-      if (rsn === "waste" && chg > 0) return toast("Rusak/basi harus angka minus");
+    const setStock = async (b, id, available, msg) => {
       b.disabled = true;
-      const { error } = await sb.rpc("admin_adjust_stock", { p_variant_id: +id, p_change: chg, p_reason: rsn, p_note: null });
-      if (error) { toast(/reserved|check/i.test(error.message) ? "Stok tidak boleh kurang dari jumlah yang sedang dipesan" : err(error)); b.disabled = false; }
-      else { toast("Stok tersimpan"); loadStock(); }
+      const { error } = await sb.rpc("admin_set_stock", { p_variant_id: +id, p_available: available });
+      if (error) { toast(err(error)); b.disabled = false; } else { toast(msg); loadStock(); }
+    };
+    tb.querySelectorAll("[data-save]").forEach((b) => b.onclick = () => {
+      const raw = tb.querySelector(`[data-av="${b.dataset.save}"]`).value.trim();
+      if (raw === "") return toast("Ketik jumlahnya dulu, atau pakai Tak terbatas");
+      const n = parseInt(raw, 10);
+      if (!(n >= 0)) return toast("Jumlah harus 0 atau lebih");
+      setStock(b, b.dataset.save, n, n === 0 ? "Stok dikosongkan" : `Tersedia ${n}`);
     });
+    tb.querySelectorAll("[data-av]").forEach((i) => i.onkeydown = (e) => { if (e.key === "Enter") tb.querySelector(`[data-save="${i.dataset.av}"]`).click(); });
+    tb.querySelectorAll("[data-empty]").forEach((b) => b.onclick = () => setStock(b, b.dataset.empty, 0, "Stok dikosongkan"));
+    tb.querySelectorAll("[data-unl]").forEach((b) => b.onclick = () => setStock(b, b.dataset.unl, null, "Stok tak terbatas"));
     tb.querySelectorAll("[data-th]").forEach((i) => i.onchange = async () => {
       const { error } = await sb.from("inventory").update({ low_stock_threshold: Math.max(0, +i.value || 0) }).eq("variant_id", +i.dataset.th);
       toast(error ? err(error) : "Batas menipis tersimpan");
