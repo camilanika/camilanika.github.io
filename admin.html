@@ -90,6 +90,7 @@ td.num,th.num{text-align:right}
     <nav class="tabs" id="tabs">
       <button type="button" data-tab="orders" aria-pressed="true">Pesanan</button>
       <button type="button" data-tab="stock" aria-pressed="false">Stok</button>
+      <button type="button" data-tab="menu" aria-pressed="false">Menu</button>
       <button type="button" data-tab="products" aria-pressed="false">Produk</button>
       <button type="button" data-tab="promos" aria-pressed="false">Promo</button>
     </nav>
@@ -117,7 +118,23 @@ td.num,th.num{text-align:right}
   const fmtDate = (d) => d ? new Date(d).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "";
   const toast = (t) => { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (el.hidden = true), 2500); };
   const STATUS = { pending: "Menunggu bayar", paid: "Dibayar", processing: "Diproses", completed: "Selesai", cancelled: "Dibatalkan", expired: "Kedaluwarsa", failed: "Gagal" };
-  const SERIES = { coffee: "Coffee", choco: "Chocolate", matcha: "Matcha", cireng: "Cireng / camilan" };
+  const ACCENTS = { caramel: ["Karamel", "#B9763A"], rose: ["Pink", "#D9586F"], matcha: ["Matcha", "#6E9A3E"], berry: ["Berry", "#8E4EA8"], ocean: ["Biru", "#2F7FA8"], charcoal: ["Cokelat tua", "#5B4A42"] };
+  // main menus + submenus, loaded when needed
+  let tree = { cats: [], secs: [] };
+  async function loadTree() {
+    const [c, s] = await Promise.all([
+      sb.from("menu_categories").select("*").order("sort_order").order("id"),
+      sb.from("menu_sections").select("*").order("sort_order").order("id"),
+    ]);
+    if (c.error || s.error) throw c.error || s.error;
+    tree = { cats: c.data, secs: s.data };
+    return tree;
+  }
+  const secLabel = (sid) => {
+    const s = tree.secs.find((x) => x.id === sid); if (!s) return null;
+    const c = tree.cats.find((x) => x.id === s.category_id);
+    return `${c ? c.name + " › " : ""}${s.name}`;
+  };
   const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const err = (e) => (e?.message || String(e)).replace(/^.*?([A-Z_]{5,}.*)$/s, "$1");
 
@@ -163,7 +180,7 @@ td.num,th.num{text-align:right}
   function show(t) {
     tab = t; clearInterval(refreshTimer);
     document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === t));
-    ({ orders: renderOrders, stock: renderStock, products: renderProducts, promos: renderPromos })[t]();
+    ({ orders: renderOrders, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos })[t]();
   }
 
   // modal
@@ -271,11 +288,156 @@ td.num,th.num{text-align:right}
     });
   }
 
+  // ---------------------------------------------------------------- MENU (main menus + submenus)
+  async function renderMenuTab() {
+    app.innerHTML = `<div class="bar"><h2>Menu</h2><button class="btn btn-rose" id="newcat">+ Menu utama</button></div>
+      <p class="muted" style="margin:-.4rem 0 1rem">Menu utama tampil sebagai bagian besar di toko dan di link atas. Submenu mengelompokkan produk di dalamnya. Urutan di sini = urutan di toko.</p>
+      <div class="list" id="mlist"><p class="muted">Memuat…</p></div>`;
+    $("newcat").onclick = () => editCategory(null);
+    await loadMenuTab();
+  }
+  async function loadMenuTab() {
+    const el = $("mlist"); if (!el) return;
+    let counts = {};
+    try {
+      await loadTree();
+      const { data, error } = await sb.from("products").select("id,section_id,is_active");
+      if (error) throw error;
+      data.forEach((p) => { counts[p.section_id] = (counts[p.section_id] || 0) + 1; });
+    } catch (e) { el.innerHTML = `<p class="msg err">${esc(err(e))}</p>`; return; }
+    if (!tree.cats.length) { el.innerHTML = `<div class="card"><p class="muted" style="margin:0">Belum ada menu utama. Tambahkan, misalnya <b>Minuman</b>.</p></div>`; return; }
+    el.innerHTML = tree.cats.map((c, ci) => {
+      const secs = tree.secs.filter((s) => s.category_id === c.id);
+      return `<div class="card" style="display:grid;gap:.8rem">
+        <div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center">
+          <h3 style="font-size:1.35rem">${esc(c.name)}</h3>
+          <span class="badge ${c.is_active ? "on" : "off"}">${c.is_active ? "Tampil" : "Disembunyikan"}</span>
+          <span class="muted" style="font-size:.85rem">#${esc(c.slug)}</span>
+          <span style="margin-left:auto;display:flex;gap:.35rem;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" data-cmove="${c.id}" data-dir="-1" ${ci === 0 ? "disabled" : ""} aria-label="Naikkan ${esc(c.name)}">↑</button>
+            <button class="btn btn-ghost btn-sm" data-cmove="${c.id}" data-dir="1" ${ci === tree.cats.length - 1 ? "disabled" : ""} aria-label="Turunkan ${esc(c.name)}">↓</button>
+            <button class="btn btn-ghost btn-sm" data-cedit="${c.id}">Ubah</button>
+            <button class="btn btn-rose btn-sm" data-snew="${c.id}">+ Submenu</button>
+          </span>
+        </div>
+        ${secs.length ? `<div class="tbl-wrap"><table><thead><tr><th>Submenu</th><th>Keterangan</th><th class="num">Produk</th><th>Status</th><th></th></tr></thead><tbody>
+          ${secs.map((s, si) => `<tr>
+            <td><span style="display:inline-flex;gap:.45rem;align-items:center"><i style="width:12px;height:12px;border-radius:50%;background:${ACCENTS[s.accent]?.[1] || "#999"};display:inline-block"></i>${s.icon ? esc(s.icon) + " " : ""}<b>${esc(s.name)}</b></span></td>
+            <td class="muted" style="font-size:.88rem">${esc(s.tagline || "")}</td>
+            <td class="num">${counts[s.id] || 0}</td>
+            <td><span class="badge ${s.is_active ? "on" : "off"}">${s.is_active ? "Tampil" : "Disembunyikan"}</span></td>
+            <td><div class="adj">
+              <button class="btn btn-ghost btn-sm" data-smove="${s.id}" data-dir="-1" ${si === 0 ? "disabled" : ""} aria-label="Naikkan ${esc(s.name)}">↑</button>
+              <button class="btn btn-ghost btn-sm" data-smove="${s.id}" data-dir="1" ${si === secs.length - 1 ? "disabled" : ""} aria-label="Turunkan ${esc(s.name)}">↓</button>
+              <button class="btn btn-ghost btn-sm" data-sedit="${s.id}">Ubah</button></div></td></tr>`).join("")}
+        </tbody></table></div>` : `<p class="muted" style="margin:0">Belum ada submenu. Menu utama tanpa submenu berisi produk tidak tampil di toko.</p>`}
+      </div>`;
+    }).join("") + (counts.null ? `<p class="msg">${counts.null} produk belum punya submenu dan tidak tampil di toko. Atur di tab Produk.</p>` : "");
+    el.querySelectorAll("[data-cedit]").forEach((b) => b.onclick = () => editCategory(tree.cats.find((c) => c.id === +b.dataset.cedit)));
+    el.querySelectorAll("[data-snew]").forEach((b) => b.onclick = () => editSection(null, +b.dataset.snew, counts));
+    el.querySelectorAll("[data-sedit]").forEach((b) => b.onclick = () => editSection(tree.secs.find((s) => s.id === +b.dataset.sedit), null, counts));
+    el.querySelectorAll("[data-cmove]").forEach((b) => b.onclick = () => move("menu_categories", tree.cats, +b.dataset.cmove, +b.dataset.dir));
+    el.querySelectorAll("[data-smove]").forEach((b) => b.onclick = () => {
+      const s = tree.secs.find((x) => x.id === +b.dataset.smove);
+      move("menu_sections", tree.secs.filter((x) => x.category_id === s.category_id), s.id, +b.dataset.dir);
+    });
+  }
+  // swap positions with the neighbour; renumber 10, 20, 30… so the order is always clean
+  async function move(table, list, id, dir) {
+    const arr = [...list];
+    const i = arr.findIndex((x) => x.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    for (let k = 0; k < arr.length; k++) {
+      if (arr[k].sort_order === (k + 1) * 10) continue;
+      const { error } = await sb.from(table).update({ sort_order: (k + 1) * 10 }).eq("id", arr[k].id);
+      if (error) return toast(err(error));
+    }
+    loadMenuTab();
+  }
+
+  function editCategory(c) {
+    const isNew = !c;
+    c = c || { name: "", slug: "", eyebrow: "", heading: "", heading_script: "", description: "", is_active: true };
+    openModal(`<div class="modal-head"><h2>${isNew ? "Menu utama baru" : "Ubah " + esc(c.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <div class="grid2">
+        <label class="f">Nama (link di atas halaman)<input id="cn" value="${esc(c.name)}" placeholder="mis. Minuman"></label>
+        <label class="f">Slug (alamat #, unik)<input id="cs" value="${esc(c.slug)}" placeholder="minuman"></label>
+        <label class="f">Label kecil di atas judul (opsional)<input id="ce" value="${esc(c.eyebrow || "")}" placeholder="mis. Our Menu"></label>
+        <label class="f">Judul besar (kosong = pakai nama)<input id="ch" value="${esc(c.heading || "")}" placeholder="mis. Coffee & Drinks"></label>
+        <label class="f">Tulisan tangan setelah judul (opsional)<input id="cscr" value="${esc(c.heading_script || "")}" placeholder="mis. dalam botol"></label>
+        <label class="chk" style="align-self:end"><input type="checkbox" id="ca" ${c.is_active ? "checked" : ""}> Tampilkan di toko</label>
+      </div>
+      <label class="f">Deskripsi<textarea id="cd" rows="3">${esc(c.description || "")}</textarea></label>
+      <p class="muted" style="margin:0;font-size:.85rem">Foto dekorasi (deretan botol untuk <b>minuman</b>, mosaik cireng untuk <b>camilan</b>) muncul otomatis berdasarkan slug.</p>
+      <p class="msg" id="cmsg"></p>
+      <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="cdel" style="margin-right:auto">Hapus menu utama</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="csave">Simpan</button></div>`);
+    $("cn").oninput = () => { if (isNew) $("cs").value = slugify($("cn").value); };
+    const fail = (m) => { $("cmsg").textContent = m; $("cmsg").className = "msg err"; };
+    $("csave").onclick = async () => {
+      const row = { name: $("cn").value.trim(), slug: slugify($("cs").value || $("cn").value), eyebrow: $("ce").value.trim() || null,
+        heading: $("ch").value.trim() || null, heading_script: $("cscr").value.trim() || null, description: $("cd").value.trim() || null, is_active: $("ca").checked };
+      if (!row.name || !row.slug) return fail("Nama wajib diisi.");
+      if (isNew) row.sort_order = ((tree.cats.at(-1)?.sort_order) || 0) + 10;
+      $("csave").disabled = true;
+      const { error } = isNew ? await sb.from("menu_categories").insert(row) : await sb.from("menu_categories").update(row).eq("id", c.id);
+      $("csave").disabled = false;
+      if (error) return fail(/duplicate key/i.test(error.message) ? "Slug sudah dipakai menu lain." : "Gagal menyimpan: " + error.message);
+      closeModal(); toast("Menu utama tersimpan"); loadMenuTab();
+    };
+    if (!isNew) $("cdel").onclick = async () => {
+      const secs = tree.secs.filter((s) => s.category_id === c.id);
+      if (!confirm(`Hapus menu utama "${c.name}"?${secs.length ? ` ${secs.length} submenu di dalamnya ikut terhapus, dan produknya disembunyikan dari toko sampai dipindah ke submenu lain.` : ""} Produk dan riwayat pesanan tidak dihapus.`)) return;
+      const { error } = await sb.from("menu_categories").delete().eq("id", c.id);
+      if (error) return fail("Gagal menghapus: " + error.message);
+      closeModal(); toast("Menu utama dihapus"); loadMenuTab();
+    };
+  }
+
+  function editSection(s, catId, counts) {
+    const isNew = !s;
+    s = s || { category_id: catId, name: "", slug: "", tagline: "", icon: "", accent: "caramel", is_active: true };
+    openModal(`<div class="modal-head"><h2>${isNew ? "Submenu baru" : "Ubah " + esc(s.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <div class="grid2">
+        <label class="f">Menu utama<select id="sc">${tree.cats.map((c) => `<option value="${c.id}" ${c.id === s.category_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+        <label class="f">Nama submenu<input id="sn" value="${esc(s.name)}" placeholder="mis. Coffee Series"></label>
+        <label class="f">Slug (unik)<input id="ss" value="${esc(s.slug)}"></label>
+        <label class="f">Emoji di tombol lompat (opsional)<input id="si" value="${esc(s.icon || "")}" maxlength="4" placeholder="mis. ☕"></label>
+        <label class="f">Warna<select id="sa">${Object.entries(ACCENTS).map(([k, [n]]) => `<option value="${k}" ${k === s.accent ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label class="chk" style="align-self:end"><input type="checkbox" id="sact" ${s.is_active ? "checked" : ""}> Tampilkan di toko</label>
+      </div>
+      <label class="f">Keterangan singkat<input id="st" value="${esc(s.tagline || "")}" placeholder="mis. Rasa kopi yang selalu jadi pilihan."></label>
+      <p class="muted" style="margin:0;font-size:.85rem">Submenu tanpa produk aktif tidak tampil di toko. Pindahkan produk ke submenu ini dari tab <b>Produk</b>.</p>
+      <p class="msg" id="smsg"></p>
+      <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="sdel" style="margin-right:auto">Hapus submenu</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="ssave">Simpan</button></div>`);
+    $("sn").oninput = () => { if (isNew) $("ss").value = slugify($("sn").value); };
+    const fail = (m) => { $("smsg").textContent = m; $("smsg").className = "msg err"; };
+    $("ssave").onclick = async () => {
+      const row = { category_id: +$("sc").value, name: $("sn").value.trim(), slug: slugify($("ss").value || $("sn").value),
+        tagline: $("st").value.trim() || null, icon: $("si").value.trim() || null, accent: $("sa").value, is_active: $("sact").checked };
+      if (!row.name || !row.slug) return fail("Nama submenu wajib diisi.");
+      if (isNew || row.category_id !== s.category_id) row.sort_order = (Math.max(0, ...tree.secs.filter((x) => x.category_id === row.category_id).map((x) => x.sort_order))) + 10;
+      $("ssave").disabled = true;
+      const { error } = isNew ? await sb.from("menu_sections").insert(row) : await sb.from("menu_sections").update(row).eq("id", s.id);
+      $("ssave").disabled = false;
+      if (error) return fail(/duplicate key/i.test(error.message) ? "Slug sudah dipakai submenu lain." : "Gagal menyimpan: " + error.message);
+      closeModal(); toast("Submenu tersimpan"); loadMenuTab();
+    };
+    if (!isNew) $("sdel").onclick = async () => {
+      const n = counts[s.id] || 0;
+      if (!confirm(`Hapus submenu "${s.name}"?${n ? ` ${n} produk di dalamnya disembunyikan dari toko sampai dipindah ke submenu lain.` : ""} Produk dan riwayat pesanan tidak dihapus.`)) return;
+      const { error } = await sb.from("menu_sections").delete().eq("id", s.id);
+      if (error) return fail("Gagal menghapus: " + error.message);
+      closeModal(); toast("Submenu dihapus"); loadMenuTab();
+    };
+  }
+
   // ---------------------------------------------------------------- PRODUCTS
   let products = [];
   async function renderProducts() {
     app.innerHTML = `<div class="bar"><h2>Produk</h2><button class="btn btn-rose" id="newp">+ Produk baru</button></div>
-      <div class="tbl-wrap"><table><thead><tr><th></th><th>Nama</th><th>Seri</th><th class="num">Varian</th><th class="num">Harga</th><th>Status</th><th class="num">Urutan</th><th></th></tr></thead><tbody id="pbody"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
+      <p class="muted" style="margin:-.4rem 0 1rem">Produk dikelompokkan per submenu. Atur menu utama dan submenu di tab <b>Menu</b>.</p>
+      <div class="tbl-wrap"><table><thead><tr><th></th><th>Nama</th><th>Submenu</th><th class="num">Varian</th><th class="num">Harga</th><th>Status</th><th class="num">Urutan</th><th></th></tr></thead><tbody id="pbody"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
     $("newp").onclick = () => editProduct(null);
     await loadProducts();
   }
@@ -283,30 +445,46 @@ td.num,th.num{text-align:right}
     const { data, error } = await sb.from("products").select("*, product_variants(*)").order("sort_order").order("id");
     const tb = $("pbody"); if (!tb) return;
     if (error) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    try { await loadTree(); } catch (e) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(err(e))}</td></tr>`; return; }
     products = data;
-    tb.innerHTML = data.map((p) => {
+    // order: by main menu, then submenu, then product; products without a submenu last
+    const secOrder = [];
+    tree.cats.forEach((c) => tree.secs.filter((s) => s.category_id === c.id).forEach((s) => secOrder.push(s.id)));
+    const rank = (p) => { const i = secOrder.indexOf(p.section_id); return i < 0 ? 1e6 : i; };
+    const sorted = [...data].sort((a, b) => rank(a) - rank(b) || a.sort_order - b.sort_order || a.id - b.id);
+    let lastGroup;
+    tb.innerHTML = sorted.map((p) => {
+      const label = secLabel(p.section_id);
+      const group = label ? `<tr class="group"><td colspan="8">${esc(label)}</td></tr>` : `<tr class="group"><td colspan="8">Belum ada submenu <span class="badge off">tidak tampil di toko</span></td></tr>`;
+      const gh = (label || "-") !== lastGroup ? group : ""; lastGroup = label || "-";
+      return gh + rowHTML(p);
+    }).join("") || `<tr><td colspan="8" class="muted">Belum ada produk.</td></tr>`;
+    tb.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => editProduct(products.find((p) => p.id === +b.dataset.edit)));
+  }
+  function rowHTML(p) {
+    {
       const prices = p.product_variants.filter((v) => v.is_active).map((v) => v.price);
       const range = prices.length ? (Math.min(...prices) === Math.max(...prices) ? rp(prices[0]) : `${rp(Math.min(...prices))} – ${rp(Math.max(...prices))}`) : "–";
       return `<tr><td>${p.image_url ? `<img class="thumb" src="${esc(p.image_url)}" alt="">` : ""}</td><td><b>${esc(p.name)}</b><br><span class="muted" style="font-size:.85rem">${esc(p.subtitle || "")}</span></td>
-        <td>${esc(SERIES[p.series] || p.series)}</td><td class="num">${p.product_variants.length}</td><td class="num">${range}</td>
+        <td>${esc(secLabel(p.section_id) || "–")}</td><td class="num">${p.product_variants.length}</td><td class="num">${range}</td>
         <td><span class="badge ${p.is_active ? "on" : "off"}">${p.is_active ? "Aktif" : "Nonaktif"}</span></td><td class="num">${p.sort_order}</td>
         <td><button class="btn btn-ghost btn-sm" data-edit="${p.id}">Ubah</button></td></tr>`;
-    }).join("") || `<tr><td colspan="8" class="muted">Belum ada produk.</td></tr>`;
-    tb.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => editProduct(products.find((p) => p.id === +b.dataset.edit)));
+    }
   }
 
   function editProduct(p) {
     const isNew = !p;
-    p = p ? structuredClone(p) : { name: "", slug: "", series: "coffee", subtitle: "", note: "", image_url: "", attr_names: ["Ukuran"], choices: [], addon_label: "", is_active: true, sort_order: (products.at(-1)?.sort_order || 0) + 10, product_variants: [] };
+    p = p ? structuredClone(p) : { name: "", slug: "", section_id: tree.secs[0]?.id ?? null, subtitle: "", note: "", image_url: "", attr_names: ["Ukuran"], choices: [], addon_label: "", is_active: true, sort_order: (products.at(-1)?.sort_order || 0) + 10, product_variants: [] };
     let variants = p.product_variants.sort((a, b) => a.sort_order - b.sort_order || a.id - b.id).map((v) => ({ ...v }));
     let attrs = [...p.attr_names];
-    const seriesOpts = Object.entries(SERIES).concat(SERIES[p.series] ? [] : [[p.series, p.series]]);
+    const secOpts = tree.cats.map((c) => `<optgroup label="${esc(c.name)}">${tree.secs.filter((s) => s.category_id === c.id)
+      .map((s) => `<option value="${s.id}" ${s.id === p.section_id ? "selected" : ""}>${esc(s.name)}${s.is_active ? "" : " (nonaktif)"}</option>`).join("")}</optgroup>`).join("");
 
     openModal(`<div class="modal-head"><h2>${isNew ? "Produk baru" : "Ubah " + esc(p.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
       <div class="grid3">
         <label class="f">Nama<input id="pn" value="${esc(p.name)}" required></label>
         <label class="f">Slug (unik, untuk sistem)<input id="ps" value="${esc(p.slug)}"></label>
-        <label class="f">Seri<select id="pser">${seriesOpts.map(([k, v]) => `<option value="${esc(k)}" ${k === p.series ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+        <label class="f">Submenu<select id="psec"><option value="" ${p.section_id ? "" : "selected"}>— Pilih submenu —</option>${secOpts}</select></label>
         <label class="f">Deskripsi singkat<input id="psub" value="${esc(p.subtitle || "")}"></label>
         <label class="f">Label kecil (opsional)<input id="pnote" value="${esc(p.note || "")}" placeholder="mis. Mengandung kopi"></label>
         <label class="f">Urutan tampil<input id="pso" type="number" value="${p.sort_order}"></label>
@@ -418,12 +596,13 @@ td.num,th.num{text-align:right}
       const msg = $("pmsg"); const fail = (t) => { msg.textContent = t; msg.className = "msg err"; };
       const live = variants.filter((v) => !v._del);
       const prod = {
-        name: $("pn").value.trim(), slug: slugify($("ps").value || $("pn").value), series: $("pser").value,
+        name: $("pn").value.trim(), slug: slugify($("ps").value || $("pn").value), section_id: $("psec").value ? +$("psec").value : null,
         subtitle: $("psub").value.trim() || null, note: $("pnote").value.trim() || null, image_url: $("pimg").value.trim() || null,
         attr_names: attrs, choices: p.choices, addon_label: $("padd").value.trim() || null,
         is_active: $("pact").checked, sort_order: parseInt($("pso").value, 10) || 0,
       };
       if (!prod.name || !prod.slug) return fail("Nama produk wajib diisi.");
+      if (!prod.section_id) return fail("Pilih submenu supaya produk tampil di toko.");
       if (!live.length) return fail("Tambahkan minimal satu varian.");
       for (const v of live) {
         if (!Number.isInteger(v.price) || v.price < 0) return fail("Setiap varian harus punya harga.");
