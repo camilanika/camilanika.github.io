@@ -73,3 +73,8 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - The bottle photo row and the cireng photo mosaic are attached to the main menus with the slugs `minuman` and `camilan` (see the `<template>` blocks in `index.html`).
+
+## Customer accounts
+- Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
+- The admin page's **Pelanggan** tab lists everyone who registered: name, email, WhatsApp, paid orders, total spent and last order. Search by name, email or number, open a customer's orders, and make someone admin or remove admin access. You can't remove your own admin access.
+- **Confirmation emails:** Supabase's built-in email sender is only for testing and may not reach customers. Either turn off **Confirm email** (Authentication → Sign In / Providers) so new customers can log in right away, or connect your own email sender under Authentication → Emails → SMTP Settings.

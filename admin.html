@@ -93,6 +93,7 @@ td.num,th.num{text-align:right}
       <button type="button" data-tab="menu" aria-pressed="false">Menu</button>
       <button type="button" data-tab="products" aria-pressed="false">Produk</button>
       <button type="button" data-tab="promos" aria-pressed="false">Promo</button>
+      <button type="button" data-tab="customers" aria-pressed="false">Pelanggan</button>
     </nav>
     <div class="me"><span id="me"></span><button class="btn btn-ghost btn-sm" type="button" id="logout">Keluar</button></div>
   </div>
@@ -180,7 +181,7 @@ td.num,th.num{text-align:right}
   function show(t) {
     tab = t; clearInterval(refreshTimer);
     document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === t));
-    ({ orders: renderOrders, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos })[t]();
+    ({ orders: renderOrders, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers })[t]();
   }
 
   // modal
@@ -633,6 +634,60 @@ td.num,th.num{text-align:right}
         fail(/duplicate key.*slug/i.test(e.message) ? "Slug sudah dipakai produk lain." : /duplicate key.*sku/i.test(e.message) ? "SKU sudah dipakai varian lain." : "Gagal menyimpan: " + e.message);
       } finally { const b = $("psave"); if (b) b.disabled = false; }
     };
+  }
+
+  // ---------------------------------------------------------------- CUSTOMERS (accounts)
+  let custSearch = "";
+  async function renderCustomers() {
+    app.innerHTML = `<div class="bar"><h2>Pelanggan</h2>
+      <input id="cq" type="search" placeholder="Cari nama, email, atau no. WA" style="min-width:min(100%,280px)" aria-label="Cari pelanggan">
+      <button class="btn btn-ghost" id="cref">Muat ulang</button></div>
+      <p class="muted" style="margin:-.4rem 0 1rem">Akun yang mendaftar di toko. Pesanan tamu (tanpa akun) ada di tab Pesanan.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Pelanggan</th><th>Kontak</th><th class="num">Pesanan</th><th class="num">Total belanja</th><th>Terakhir pesan</th><th>Peran</th><th></th></tr></thead>
+      <tbody id="cbody"><tr><td colspan="7" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("cq").value = custSearch;
+    let t; $("cq").oninput = () => { clearTimeout(t); t = setTimeout(() => { custSearch = $("cq").value.trim(); loadCustomers(); }, 300); };
+    $("cref").onclick = loadCustomers;
+    await loadCustomers();
+  }
+  async function loadCustomers() {
+    const tb = $("cbody"); if (!tb) return;
+    const { data, error } = await sb.rpc("admin_list_customers", { p_search: custSearch || null });
+    if (error) { tb.innerHTML = `<tr><td colspan="7" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    const me = (await sb.auth.getUser()).data.user?.id;
+    tb.innerHTML = data.map((c) => {
+      const wa = (c.phone || "").replace(/\D/g, "").replace(/^0/, "62");
+      return `<tr>
+        <td><b>${esc(c.full_name || "(tanpa nama)")}</b>${c.id === me ? ' <span class="muted">(kamu)</span>' : ""}<br>
+          <span class="muted" style="font-size:.82rem">Daftar ${fmtDate(c.created_at)}${c.confirmed ? "" : ' · <span class="badge pending">email belum dikonfirmasi</span>'}</span></td>
+        <td>${esc(c.email || "")}${wa ? `<br><a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(c.phone)}</a>` : ""}</td>
+        <td class="num">${c.paid_count}${c.orders_count > c.paid_count ? ` <span class="muted">/ ${c.orders_count}</span>` : ""}</td>
+        <td class="num">${rp(c.total_spent)}</td>
+        <td>${c.last_order_at ? fmtDate(c.last_order_at) : '<span class="muted">–</span>'}</td>
+        <td><span class="badge ${c.role === "admin" ? "processing" : ""}">${c.role === "admin" ? "Admin" : "Pelanggan"}</span></td>
+        <td><div class="adj">
+          ${c.orders_count ? `<button class="btn btn-ghost btn-sm" data-corders="${c.id}">Pesanan</button>` : ""}
+          ${c.id === me ? "" : `<button class="btn btn-ghost btn-sm" data-role="${c.id}" data-to="${c.role === "admin" ? "customer" : "admin"}" data-name="${esc(c.full_name || c.email)}">${c.role === "admin" ? "Cabut admin" : "Jadikan admin"}</button>`}
+        </div></td></tr>`;
+    }).join("") || `<tr><td colspan="7" class="muted">${custSearch ? "Tidak ada yang cocok." : "Belum ada pelanggan terdaftar."}</td></tr>`;
+    tb.querySelectorAll("[data-role]").forEach((b) => b.onclick = async () => {
+      const toAdmin = b.dataset.to === "admin";
+      if (!confirm(toAdmin
+        ? `Jadikan ${b.dataset.name} admin? Admin bisa melihat semua pesanan dan data pelanggan, serta mengubah menu, stok dan promo.`
+        : `Cabut akses admin ${b.dataset.name}?`)) return;
+      b.disabled = true;
+      const { error } = await sb.rpc("admin_set_role", { p_user_id: b.dataset.role, p_role: b.dataset.to });
+      if (error) { toast(err(error)); b.disabled = false; } else { toast(toAdmin ? "Sekarang admin" : "Akses admin dicabut"); loadCustomers(); }
+    });
+    tb.querySelectorAll("[data-corders]").forEach((b) => b.onclick = () => customerOrders(data.find((c) => c.id === b.dataset.corders)));
+  }
+  async function customerOrders(c) {
+    openModal(`<div class="modal-head"><h2>Pesanan ${esc(c.full_name || c.email)}</h2><button class="x" data-close aria-label="Tutup">×</button></div><div class="list" id="colist"><p class="muted">Memuat…</p></div>`);
+    const { data, error } = await sb.from("orders").select("order_number,status,total,discount,created_at,order_items(product_name,variant_name,quantity)").eq("user_id", c.id).order("created_at", { ascending: false }).limit(50);
+    const el = $("colist"); if (!el) return;
+    if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
+    el.innerHTML = data.map((o) => `<div class="card"><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span><span class="muted" style="margin-left:auto;font-size:.85rem">${fmtDate(o.created_at)}</span></div>
+      <div class="muted" style="font-size:.9rem">${o.order_items.map((i) => `${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}`).join("<br>")}</div><b>${rp(o.total)}</b></div>`).join("") || `<p class="muted">Belum ada pesanan.</p>`;
   }
 
   // ---------------------------------------------------------------- PROMOS
