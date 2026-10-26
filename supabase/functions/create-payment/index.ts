@@ -137,6 +137,12 @@ Deno.serve(async (req) => {
     return reply({ error: "PAYMENT_GATEWAY_ERROR" }, 502);
   }
 
+  // Save the payment link so the customer can continue paying later from "Pesanan saya"
+  const { error: saveErr } = await admin.from("orders")
+    .update({ snap_token: snap.token, snap_redirect_url: snap.redirect_url ?? null })
+    .eq("order_number", order.order_number);
+  if (saveErr) console.error("Could not save payment link", saveErr.message);
+
   return reply({
     token: snap.token,
     redirect_url: snap.redirect_url,
