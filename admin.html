@@ -87,8 +87,10 @@ td.num,th.num{text-align:right}
 <header class="top" id="topbar" hidden>
   <div class="wrap">
     <a class="brand" href="./"><img src="img/logo-cireng.jpg" alt="">CamilaNika Admin</a>
+    <button type="button" class="badge" id="shop-pill" hidden style="border:0;cursor:pointer" title="Atur buka/tutup toko"></button>
     <nav class="tabs" id="tabs">
       <button type="button" data-tab="orders" aria-pressed="true">Pesanan</button>
+      <button type="button" data-tab="shop" aria-pressed="false">Toko</button>
       <button type="button" data-tab="stock" aria-pressed="false">Stok</button>
       <button type="button" data-tab="menu" aria-pressed="false">Menu</button>
       <button type="button" data-tab="products" aria-pressed="false">Produk</button>
@@ -106,7 +108,7 @@ td.num,th.num{text-align:right}
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/config.js?v=202610262034"></script>
+<script src="js/config.js?v=202610262045"></script>
 <script src="js/vendor/supabase.js"></script>
 <script>
 (() => {
@@ -161,7 +163,9 @@ td.num,th.num{text-align:right}
       return;
     }
     $("topbar").hidden = false;
-    $("me").textContent = prof.full_name || session.user.email;
+    $("me").textContent = prof.full_name || realEmail(session.user.email) || "Admin";
+    refreshShopPill(); if (!gate.timer) gate.timer = setInterval(refreshShopPill, 60000);
+    $("shop-pill").onclick = () => show("shop");
     show(tab);
   }
   function showLogin() {
@@ -189,7 +193,7 @@ td.num,th.num{text-align:right}
   function show(t) {
     tab = t; clearInterval(refreshTimer);
     document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === t));
-    ({ orders: renderOrders, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers })[t]();
+    ({ orders: renderOrders, shop: renderShopTab, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers })[t]();
   }
 
   // modal
@@ -827,6 +831,70 @@ td.num,th.num{text-align:right}
     if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
     el.innerHTML = data.map((o) => `<div class="card"><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span><span class="muted" style="margin-left:auto;font-size:.85rem">${fmtDate(o.created_at)}</span></div>
       <div class="muted" style="font-size:.9rem">${o.order_items.map((i) => `${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}`).join("<br>")}</div><b>${rp(o.total)}</b></div>`).join("") || `<p class="muted">Belum ada pesanan.</p>`;
+  }
+
+  // ---------------------------------------------------------------- SHOP (open / closed / hours)
+  async function refreshShopPill() {
+    const { data } = await sb.rpc("shop_status");
+    const el = $("shop-pill"); if (!el || !data) return data;
+    el.hidden = false;
+    el.className = "badge " + (data.open ? "on" : "off");
+    el.textContent = data.open ? "Toko buka" : "Toko tutup";
+    return data;
+  }
+  async function renderShopTab() {
+    app.innerHTML = `<div class="bar"><h2>Toko</h2></div><div id="shopbox" class="list"><p class="muted">Memuat…</p></div>`;
+    const [{ data: st }, { data: cfg, error }] = await Promise.all([
+      sb.rpc("shop_status"),
+      sb.from("shop_settings").select("*").eq("id", 1).maybeSingle(),
+    ]);
+    const box = $("shopbox"); if (!box) return;
+    if (error || !cfg) { box.innerHTML = `<p class="msg err">${esc(err(error || "Pengaturan toko belum ada. Jalankan migration 007."))}</p>`; return; }
+    refreshShopPill();
+    const statusText = st?.open
+      ? (cfg.schedule_enabled ? `Buka sekarang. Tutup otomatis pukul ${st.close_time} WIB.` : "Buka sekarang, tanpa jadwal (buka terus).")
+      : cfg.is_closed ? "Tutup sampai kamu buka lagi." : `Tutup sesuai jadwal. Buka lagi pukul ${st.open_time} WIB.`;
+    box.innerHTML = `
+      <div class="card" style="display:grid;gap:.8rem">
+        <div style="display:flex;flex-wrap:wrap;gap:.8rem;align-items:center">
+          <span class="badge ${st?.open ? "on" : "off"}" style="font-size:1rem;padding:.35rem .9rem">${st?.open ? "BUKA" : "TUTUP"}</span>
+          <span style="font-weight:700">${esc(statusText)}</span>
+          <span class="muted" style="margin-left:auto;font-size:.85rem">Sekarang ${esc(st?.now || "")} WIB</span>
+        </div>
+        <div class="row-actions" style="justify-content:flex-start">
+          ${cfg.is_closed
+            ? `<button class="btn btn-ok" id="sh-open">Buka toko</button>`
+            : `<button class="btn btn-rose" id="sh-close">Tutup toko (sampai dibuka lagi)</button>`}
+        </div>
+        <p class="muted" style="margin:0;font-size:.88rem">Saat tutup, pembeli tetap bisa melihat menu, tapi tidak bisa menambah ke keranjang, bayar, atau kirim pesanan lewat WhatsApp.</p>
+      </div>
+      <div class="card" style="display:grid;gap:.8rem">
+        <h3>Jadwal buka (WIB, GMT+7)</h3>
+        <label class="chk"><input type="checkbox" id="sh-sched" ${cfg.schedule_enabled ? "checked" : ""}> Buka & tutup otomatis setiap hari</label>
+        <div class="grid3">
+          <label class="f">Jam buka<input type="time" id="sh-ot" value="${esc(String(cfg.open_time).slice(0, 5))}"></label>
+          <label class="f">Jam tutup<input type="time" id="sh-ct" value="${esc(String(cfg.close_time).slice(0, 5))}"></label>
+        </div>
+        <p class="muted" style="margin:0;font-size:.85rem">Jam tutup lebih awal dari jam buka berarti buka sampai lewat tengah malam (mis. 17:00–02:00). Tombol <b>Tutup toko</b> di atas tetap berlaku di luar jadwal.</p>
+        <label class="f">Pesan untuk pembeli saat tutup (opsional)<input id="sh-msg" value="${esc(cfg.closed_message || "")}" placeholder="mis. Lagi libur Lebaran, buka lagi 15 April ya!"></label>
+        <div><button class="btn btn-rose" id="sh-save">Simpan jadwal</button></div>
+        <p class="msg" id="sh-m"></p>
+      </div>`;
+    const save = async (patch, msg) => {
+      const { error } = await sb.from("shop_settings").update(patch).eq("id", 1);
+      if (error) { toast(err(error)); return; }
+      toast(msg); renderShopTab();
+    };
+    $("sh-open")?.addEventListener("click", () => save({ is_closed: false }, "Toko dibuka"));
+    $("sh-close")?.addEventListener("click", () => {
+      if (!confirm("Tutup toko sekarang? Pembeli tidak bisa memesan sampai kamu menekan Buka toko.")) return;
+      save({ is_closed: true }, "Toko ditutup");
+    });
+    $("sh-save").onclick = () => {
+      const ot = $("sh-ot").value, ct = $("sh-ct").value;
+      if ($("sh-sched").checked && (!ot || !ct)) { $("sh-m").textContent = "Isi jam buka dan jam tutup."; $("sh-m").className = "msg err"; return; }
+      save({ schedule_enabled: $("sh-sched").checked, open_time: ot || "08:00", close_time: ct || "21:00", closed_message: $("sh-msg").value.trim() || null }, "Jadwal tersimpan");
+    };
   }
 
   // ---------------------------------------------------------------- PROMOS
