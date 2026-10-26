@@ -554,7 +554,7 @@
   const closeAll = () => { document.querySelectorAll(".drawer.open").forEach((d) => { d.classList.remove("open"); d.setAttribute("aria-hidden", "true"); }); bg.hidden = true; };
   document.querySelectorAll("[data-open-cart]").forEach((b) => b.addEventListener("click", () => { openDrawer($("drawer")); scheduleQuote(); }));
   $("close-cart").addEventListener("click", closeAll); bg.addEventListener("click", closeAll);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeAll(); closeStatus(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("orders-page").hidden) closeOrders(); else closeAll(); } });
 
   // ------------------------------------------------------------------ payment
   let snapLoading = null;
@@ -574,7 +574,7 @@
   const rememberOrder = (o) => {
     const list = store.get("cn-orders", []).filter((x) => x.order_number !== o.order_number);
     list.unshift({ order_number: o.order_number, access_token: o.access_token, token: o.token || null, at: Date.now() });
-    store.set("cn-orders", list.slice(0, 10));
+    store.set("cn-orders", list.slice(0, 30));
   };
   const findOrder = (num) => store.get("cn-orders", []).find((x) => x.order_number === num);
 
@@ -629,11 +629,31 @@
     }
   });
 
-  // ------------------------------------------------------------------ order status
-  let pollTimer = null;
-  const closeStatus = () => { $("status-modal").hidden = true; clearTimeout(pollTimer); };
-  $("close-status").addEventListener("click", closeStatus);
-  $("status-modal").addEventListener("click", (e) => { if (e.target.id === "status-modal") closeStatus(); });
+  // ------------------------------------------------------------------ orders page  (#pesanan  and  #pesanan/CN-...)
+  const OP = $("orders-page");
+  let pollTimer = null, opFilter = "all", opCache = [];
+  const ORDER_COLS = "order_number,status,total,subtotal,discount,promo_code,gifts,created_at,paid_at,expires_at,payment_method,customer_name,phone,address,notes,delivery_fee,delivery_km,delivery_lat,delivery_lng,snap_token,order_items(product_name,variant_name,choices,addon,quantity,unit_price,line_total)";
+  // an unpaid order whose 30 minutes are up counts as expired, even before the server tidies it up
+  const effStatus = (o) => (o.status === "pending" && o.expires_at && new Date(o.expires_at) <= new Date() ? "expired" : o.status);
+  const payToken = (o) => (effStatus(o) === "pending" ? o.snap_token || findOrder(o.order_number)?.token || null : null);
+  const fmtDate = (d) => new Date(d).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+  const fmtTime = (d) => new Date(d).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  const itemsOf = (o) => o.items || o.order_items || [];
+  const PAY_METHOD = { credit_card: "Kartu kredit/debit", gopay: "GoPay", qris: "QRIS", shopeepay: "ShopeePay", bank_transfer: "Transfer bank (VA)",
+    echannel: "Mandiri Bill", permata: "Permata VA", cstore: "Indomaret/Alfamart", akulaku: "Akulaku", kredivo: "Kredivo", free: "Gratis (promo)" };
+  const STATUS_MSG = {
+    pending: "Pembayaran belum kami terima. Kalau sudah bayar, status berubah otomatis dalam beberapa saat.",
+    paid: "Terima kasih! Pembayaran diterima, pesanan segera kami siapkan.",
+    processing: "Pesanan sedang disiapkan.", completed: "Pesanan selesai. Selamat menikmati!",
+    expired: "Waktu pembayaran habis, jadi pesanan ini batal otomatis. Silakan pesan lagi.",
+    failed: "Pembayaran gagal. Silakan pesan lagi.", cancelled: "Pesanan dibatalkan.",
+  };
+  const FILTERS = [["all", "Semua"], ["pending", "Belum dibayar"], ["active", "Diproses"], ["completed", "Selesai"], ["closed", "Batal"]];
+  const inFilter = (o, f) => {
+    const st = effStatus(o);
+    return f === "all" || (f === "pending" && st === "pending") || (f === "active" && ["paid", "processing"].includes(st)) ||
+      (f === "completed" && st === "completed") || (f === "closed" && ["expired", "failed", "cancelled"].includes(st));
+  };
 
   async function fetchOrder(num) {
     const saved = findOrder(num);
@@ -642,48 +662,174 @@
       if (data) return data;
     }
     if (session) {
-      const { data } = await sb.from("orders").select("order_number,status,total,subtotal,discount,gifts,created_at,paid_at,address,delivery_fee,delivery_km,delivery_lat,delivery_lng,order_items(product_name,variant_name,choices,addon,quantity,line_total)").eq("order_number", num).maybeSingle();
+      const { data } = await sb.from("orders").select(ORDER_COLS).eq("order_number", num).maybeSingle();
       if (data) return { ...data, items: data.order_items };
     }
     return null;
   }
 
-  const orderCard = (o) => `
-    <div class="order-card">
-      <div class="oc-head"><b>${esc(o.order_number)}</b><span class="badge-st ${esc(o.status)}">${esc(STATUS[o.status] || o.status)}</span></div>
-      <small style="color:var(--muted)">${new Date(o.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</small>
-      <ul>${(o.items || o.order_items || []).map((i) => `<li>${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}${Object.values(i.choices || {}).map((c) => " · " + esc(c)).join("")}${i.addon ? " · " + esc(i.addon) : ""}</li>`).join("")}</ul>
-      ${(o.gifts || []).map((g) => `<span class="gift-msg">🎁 ${esc(g.gift)}</span>`).join("")}
-      ${o.discount ? `<span style="color:var(--wa);font-weight:700">Diskon −${rp(o.discount)}</span>` : ""}
-      ${o.delivery_fee ? `<span>Ongkir ${rp(o.delivery_fee)}${o.delivery_km ? ` (${fmtKm(Number(o.delivery_km))})` : ""}</span>` : ""}
-      <span class="tot">Total ${rp(o.total)}</span>
-      ${["paid", "processing"].includes(o.status) ? `<a class="btn btn-wa" style="justify-content:center;margin-top:.3rem" target="_blank" rel="noopener" href="${deliveryChatLink(o)}">Chat admin untuk pengiriman</a>` : ""}
-    </div>`;
+  // the customer's orders: from their account (any device) + orders made on this device without logging in
+  async function loadOrders() {
+    const byNum = new Map();
+    if (session) {
+      const { data, error } = await sb.from("orders").select(ORDER_COLS).eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(50);
+      if (error) throw error;
+      data.forEach((o) => byNum.set(o.order_number, { ...o, items: o.order_items }));
+    }
+    const saved = store.get("cn-orders", []).filter((r) => !byNum.has(r.order_number));
+    const extra = await Promise.all(saved.map((r) => sb.rpc("get_order_status", { p_order_number: r.order_number, p_access_token: r.access_token }).then(({ data }) => data, () => null)));
+    extra.filter(Boolean).forEach((o) => byNum.set(o.order_number, o));
+    return [...byNum.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
 
-  async function showStatus(num, poll = false) {
-    $("status-modal").hidden = false;
-    $("status-title").textContent = "Pesanan " + num;
-    $("status-body").innerHTML = `<p class="form-msg">Memuat status…</p>`;
+  const itemSummary = (o) => {
+    const it = itemsOf(o), n = it.reduce((a, i) => a + i.quantity, 0);
+    if (!it.length) return "";
+    return `${it[0].quantity}× ${it[0].product_name} ${it[0].variant_name}${it.length > 1 ? ` · +${n - it[0].quantity} lainnya` : ""}`;
+  };
+  const orderRow = (o) => {
+    const st = effStatus(o), tok = payToken(o);
+    return `<button type="button" class="op-row" data-order="${esc(o.order_number)}">
+      <b>${esc(o.order_number)}</b><span class="badge-st ${esc(st)}">${esc(STATUS[st] || st)}</span>
+      <span class="meta">${fmtDate(o.created_at)} · ${esc(itemSummary(o))}</span><span class="amt">${rp(o.total)}</span>
+      ${tok && o.expires_at ? `<span class="due">Bayar sebelum ${fmtTime(o.expires_at)} →</span>` : ""}
+    </button>`;
+  };
+
+  // navigation: each view is a history entry, so the phone's back button works
+  const opDepth = () => (history.state && history.state.cnOrders) || 0;
+  function navOrders(num) {
+    const h = num ? "#pesanan/" + encodeURIComponent(num) : "#pesanan";
+    if (location.hash === h) return route();
+    history.pushState({ cnOrders: opDepth() + 1 }, "", location.pathname + location.search + h);
+    route();
+  }
+  function closeOrders() {
+    const d = opDepth();
+    if (d) history.go(-d);
+    else { history.replaceState(null, "", location.pathname + location.search); route(); }
+  }
+  function backOrders() {
+    if (!/^#pesanan\//.test(location.hash)) return closeOrders();
+    if (opDepth() >= 2) return history.back();
+    history.replaceState({ cnOrders: Math.max(opDepth(), 1) }, "", location.pathname + location.search + "#pesanan");
+    route();
+  }
+  function route() {
     clearTimeout(pollTimer);
+    const m = location.hash.match(/^#pesanan(?:\/(.+))?$/);
+    if (!m) { if (!OP.hidden) { OP.hidden = true; document.body.style.overflow = ""; } return; }
+    closeAll();
+    OP.hidden = false; document.body.style.overflow = "hidden"; OP.scrollTop = 0;
+    if (m[1]) renderOrderDetail(decodeURIComponent(m[1])); else renderOrderList();
+  }
+  window.addEventListener("popstate", route);
+  window.addEventListener("hashchange", route);
+  $("op-close").addEventListener("click", closeOrders);
+  $("op-back").addEventListener("click", backOrders);
+  document.addEventListener("click", (e) => {
+    const row = e.target.closest("[data-order]");
+    if (row) { e.preventDefault(); navOrders(row.dataset.order); return; }
+    if (e.target.closest("[data-open-orders]")) { e.preventDefault(); navOrders(); }
+  });
+  // after paying (or closing the payment popup) show that order's page
+  const showStatus = (num) => navOrders(num);
+
+  async function renderOrderList() {
+    $("op-title").textContent = "Pesanan saya";
+    const body = $("op-body");
+    body.innerHTML = `<p class="form-msg">Memuat pesanan…</p>`;
+    try { opCache = await loadOrders(); }
+    catch (e) { body.innerHTML = `<p class="form-msg err">Gagal memuat pesanan. Coba lagi sebentar.</p>`; return; }
+    if (!/^#pesanan$/.test(location.hash)) return;
+    const guestNote = session ? "" : `<p class="op-note">Pesanan tanpa akun hanya tersimpan di perangkat ini. <button type="button" class="linkish" data-open-account>Masuk</button> untuk melihat pesanan dari akun kamu.</p>`;
+    if (!opCache.length) {
+      body.innerHTML = `<div class="op-empty"><p>Belum ada pesanan.</p><button type="button" class="btn btn-rose" id="op-shop">Lihat menu</button></div>${guestNote}`;
+      $("op-shop").addEventListener("click", closeOrders);
+      return;
+    }
+    const draw = () => {
+      const list = opCache.filter((o) => inFilter(o, opFilter));
+      const count = (f) => opCache.filter((o) => inFilter(o, f)).length;
+      body.innerHTML = `
+        <div class="op-filters" role="group" aria-label="Saring pesanan">${FILTERS.filter(([f]) => f === "all" || count(f)).map(([f, label]) =>
+          `<button type="button" class="chip" data-f="${f}" aria-pressed="${opFilter === f}">${label}${f === "all" ? "" : ` (${count(f)})`}</button>`).join("")}</div>
+        <div class="op-list">${list.length ? list.map(orderRow).join("") : `<p class="op-empty">Tidak ada pesanan di sini.</p>`}</div>
+        ${guestNote}`;
+      body.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", () => { opFilter = b.dataset.f; draw(); }));
+    };
+    if (opFilter !== "all" && !opCache.some((o) => inFilter(o, opFilter))) opFilter = "all";
+    draw();
+  }
+
+  async function renderOrderDetail(num) {
+    $("op-title").textContent = "Detail pesanan";
+    const body = $("op-body");
+    body.innerHTML = `<p class="form-msg">Memuat pesanan…</p>`;
     let tries = 0;
     const load = async () => {
       const o = await fetchOrder(num);
-      if (!o) { $("status-body").innerHTML = `<p class="form-msg">Pesanan tidak ditemukan di perangkat ini. Masuk ke akun kamu, atau hubungi kami lewat WhatsApp dengan nomor pesanan <b>${esc(num)}</b>.</p>`; return; }
-      const saved = findOrder(num);
-      const msg = {
-        pending: "Pembayaran belum kami terima. Kalau sudah bayar, status akan berubah otomatis dalam beberapa saat.",
-        paid: "Terima kasih! Pembayaran diterima, pesanan segera kami siapkan.",
-        processing: "Pesanan sedang disiapkan.", completed: "Pesanan selesai. Selamat menikmati!",
-        expired: "Waktu pembayaran habis. Silakan pesan lagi.", failed: "Pembayaran gagal. Silakan coba lagi.",
-        cancelled: "Pesanan dibatalkan.",
-      }[o.status] || "";
-      $("status-body").innerHTML = `<p>${esc(msg)}</p>${orderCard(o)}
-        ${o.status === "pending" && saved?.token ? `<button class="btn btn-rose" type="button" id="resume-pay" style="justify-content:center">Lanjutkan pembayaran</button>` : ""}
-        ${["paid", "processing"].includes(o.status) ? "" : `<a class="btn btn-wa" style="justify-content:center" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya mau tanya pesanan " + num)}">Tanya lewat WhatsApp</a>`}`;
-      $("resume-pay")?.addEventListener("click", async () => { await loadSnap(); closeStatus(); openSnap(saved.token, num); });
-      if (poll && o.status === "pending" && ++tries < 40) pollTimer = setTimeout(load, 5000);
+      if (location.hash !== "#pesanan/" + encodeURIComponent(num)) return;
+      if (!o) {
+        body.innerHTML = `<p class="form-msg">Pesanan <b>${esc(num)}</b> tidak ditemukan di perangkat ini. Masuk ke akun yang dipakai saat memesan, atau tanya kami lewat WhatsApp.</p>
+          <a class="btn btn-wa" style="justify-content:center" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya mau tanya pesanan " + num)}">Tanya lewat WhatsApp</a>`;
+        return;
+      }
+      const st = effStatus(o), tok = payToken(o), it = itemsOf(o);
+      const ask = `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya mau tanya pesanan " + num)}">Tanya lewat WhatsApp</a>`;
+      const actions = st === "pending"
+        ? (tok ? `<button class="btn btn-rose" type="button" id="od-pay">Lanjutkan pembayaran · ${rp(o.total)}</button>${ask}`
+               : `<p class="form-msg">Link pembayaran untuk pesanan ini tidak tersedia di perangkat ini. Kalau sudah bayar, statusnya berubah otomatis; kalau belum, chat kami.</p>${ask}`)
+        : ["paid", "processing"].includes(st) ? `<a class="btn btn-wa" target="_blank" rel="noopener" href="${deliveryChatLink(o)}">Chat admin untuk pengiriman</a>`
+        : ask;
+      const line = (l, r, cls = "") => `<div class="od-line ${cls}"><span>${l}</span><span>${r}</span></div>`;
+      body.innerHTML = `
+        <div class="od-sec">
+          <div class="oc-head"><b>${esc(o.order_number)}</b><span class="badge-st ${esc(st)}">${esc(STATUS[st] || st)}</span></div>
+          <small class="od-muted">Dipesan ${fmtDate(o.created_at)}${o.paid_at ? ` · dibayar ${fmtDate(o.paid_at)}` : ""}</small>
+          <p class="od-msg">${esc(STATUS_MSG[st] || "")}</p>
+          ${tok && o.expires_at ? `<p class="due">Bayar sebelum pukul ${fmtTime(o.expires_at)}, setelah itu pesanan batal otomatis.</p>` : ""}
+          <div class="od-actions">${actions}</div>
+        </div>
+        <div class="od-sec">
+          <h4>Rincian</h4>
+          ${it.map((i) => line(`${esc(i.product_name)}<small>${esc(i.variant_name)}${Object.values(i.choices || {}).map((c) => " · " + esc(c)).join("")}${i.addon ? " · " + esc(i.addon) : ""} · ${i.quantity}×${i.unit_price ? " " + rp(i.unit_price) : ""}</small>`, rp(i.line_total))).join("")}
+          ${(o.gifts || []).map((g) => `<span class="gift-msg">🎁 ${esc(g.gift)}</span>`).join("")}
+          ${o.subtotal != null ? line("Subtotal", rp(o.subtotal), "sub") : ""}
+          ${o.discount ? line(`Diskon${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}`, "−" + rp(o.discount), "disc") : ""}
+          ${line(`Ongkir${o.delivery_km ? ` <small style="display:inline">(${fmtKm(Number(o.delivery_km))})</small>` : ""}`, o.delivery_fee ? rp(o.delivery_fee) : "Gratis")}
+          ${line("Total", rp(o.total), "total")}
+        </div>
+        <div class="od-sec">
+          <h4>Pengiriman</h4>
+          ${o.customer_name ? `<div>${esc(o.customer_name)}${o.phone ? " · " + esc(o.phone) : ""}</div>` : ""}
+          <div>${o.address ? esc(o.address) : `<span class="od-muted">Alamat belum diisi</span>`}</div>
+          ${o.delivery_lat != null ? `<a href="${mapsLink(o.delivery_lat, o.delivery_lng)}" target="_blank" rel="noopener">📍 Lihat lokasi di peta</a>` : ""}
+          ${o.notes ? `<div class="od-muted">Catatan: ${esc(o.notes)}</div>` : ""}
+        </div>
+        ${o.payment_method ? `<div class="od-sec"><h4>Pembayaran</h4><div>${esc(PAY_METHOD[o.payment_method] || o.payment_method)}</div></div>` : ""}
+        <button type="button" class="linkish" data-open-orders style="justify-self:start">← Semua pesanan</button>`;
+      $("od-pay")?.addEventListener("click", async (e) => {
+        const b = e.currentTarget; b.disabled = true;
+        try { await loadSnap(); openSnap(tok, num); }
+        catch (err) { b.insertAdjacentHTML("afterend", `<p class="form-msg err">Halaman pembayaran gagal dibuka. Coba lagi.</p>`); }
+        finally { b.disabled = false; }
+      });
+      if (st === "pending" && ++tries < 60) pollTimer = setTimeout(load, 5000);
     };
     await load();
+  }
+
+  // a short list for the account panel: latest orders + a link to the full page
+  async function fillOrderPreview(el) {
+    let list;
+    try { list = await loadOrders(); } catch (e) { el.innerHTML = `<p class="form-msg err">Gagal memuat pesanan.</p>`; return; }
+    if (!el.isConnected) return;
+    const due = list.filter((o) => payToken(o)).length;
+    el.innerHTML = list.length
+      ? `${list.slice(0, 3).map(orderRow).join("")}
+         <button type="button" class="btn btn-ghost" data-open-orders style="justify-content:center">Lihat semua pesanan (${list.length})${due ? ` · ${due} belum dibayar` : ""}</button>`
+      : `<p class="form-msg">Belum ada pesanan.</p>`;
   }
 
   // ------------------------------------------------------------------ account
@@ -730,20 +876,10 @@
         <p class="form-msg" id="f-msg"></p>
       </form>`}
       <p class="form-msg">Dengan akun, riwayat pesanan kamu tersimpan dan data pengiriman terisi otomatis.</p>
-      ${recent.length ? `<div class="acct-sec"><h4>Pesanan di perangkat ini</h4><div id="recent-orders"><p class="form-msg">Memuat…</p></div></div>` : ""}`;
+      ${recent.length ? `<div class="acct-sec"><h4>Pesanan di perangkat ini</h4><div id="recent-orders" class="op-list"><p class="form-msg">Memuat…</p></div></div>` : ""}`;
     body.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => renderAccount(b.dataset.mode)));
     $("f-auth")?.addEventListener("submit", onAuthSubmit);
-    if (recent.length) loadRecent(recent);
-  }
-
-  async function loadRecent(recent) {
-    const out = [];
-    for (const r of recent.slice(0, 5)) {
-      const { data } = await sb.rpc("get_order_status", { p_order_number: r.order_number, p_access_token: r.access_token });
-      if (data) out.push(data);
-    }
-    const el = $("recent-orders"); if (!el) return;
-    el.innerHTML = out.length ? out.map(orderCard).join("") : `<p class="form-msg">Belum ada.</p>`;
+    if (recent.length) fillOrderPreview($("recent-orders"));
   }
 
   const formMsg = (t, err) => { const m = $("f-msg"); if (m) { m.textContent = t; m.className = "form-msg" + (err ? " err" : ""); } };
@@ -805,7 +941,7 @@
       <details class="acct-sec"><summary style="cursor:pointer;font-weight:800">Ganti password</summary>
         <form class="acct-form" id="f-pass" style="margin-top:.6rem"><div class="field"><label for="p-pass">Password baru (minimal 8 karakter)</label><input id="p-pass" type="password" minlength="8" autocomplete="new-password" required></div>
         <button class="btn btn-ghost" type="submit">Simpan password</button><p class="form-msg" id="f-pmsg"></p></form></details>
-      <div class="acct-sec"><h4>Riwayat pesanan</h4><div id="my-orders"><p class="form-msg">Memuat…</p></div></div>
+      <div class="acct-sec"><h4>Riwayat pesanan</h4><div id="my-orders" class="op-list"><p class="form-msg">Memuat…</p></div></div>
       <button class="btn btn-ghost" type="button" id="logout" style="justify-content:center">Keluar</button>`;
     $("f-profile").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -821,11 +957,7 @@
       const m = $("f-pmsg"); m.textContent = error ? "Gagal menyimpan password." : "Password baru tersimpan."; m.className = "form-msg" + (error ? " err" : "");
       if (!error) $("p-pass").value = "";
     });
-    const { data, error } = await sb.from("orders")
-      .select("order_number,status,total,discount,gifts,created_at,address,delivery_fee,delivery_km,delivery_lat,delivery_lng,order_items(product_name,variant_name,choices,addon,quantity,line_total)")
-      .eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(30);
-    const el = $("my-orders"); if (!el) return;
-    el.innerHTML = error ? `<p class="form-msg err">Gagal memuat pesanan.</p>` : data.length ? data.map(orderCard).join("") : `<p class="form-msg">Belum ada pesanan.</p>`;
+    fillOrderPreview($("my-orders"));
   }
 
   function prefill(force) {
@@ -848,6 +980,7 @@
     }
     $("acct-label").textContent = s ? (profile?.full_name?.split(" ")[0] || "Akun") : "Masuk";
     if (acct.classList.contains("open") && acctMode !== "recovery") renderAccount();
+    if (!$("orders-page").hidden) route();
   }
   sb.auth.onAuthStateChange((event, s) => {
     if (event === "PASSWORD_RECOVERY") { session = s; renderAccount("recovery"); openDrawer(acct); return; }
@@ -902,6 +1035,6 @@
       const st = params.get("transaction_status");
       if (st === "settlement" || st === "capture" || st === "pending") clearCart();
       showStatus(num, true);
-    }
+    } else if (/^#pesanan/.test(location.hash)) route();
   })();
 })();
