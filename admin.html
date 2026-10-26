@@ -49,7 +49,7 @@ label.f input,label.f select,label.f textarea{font-size:.95rem;font-weight:600}
 .list{display:grid;gap:.7rem}
 .muted{color:var(--muted)}
 .badge{display:inline-block;padding:.15rem .6rem;border-radius:999px;font-weight:800;font-size:.75rem;background:var(--line)}
-.badge.paid,.badge.processing,.badge.on{background:var(--ok-soft);color:var(--ok)}
+.badge.paid,.badge.processing,.badge.ready,.badge.shipping,.badge.on{background:var(--ok-soft);color:var(--ok)}
 .badge.completed{background:var(--line);color:var(--fg)}
 .badge.pending,.badge.low{background:var(--warn-soft);color:var(--caramel)}
 .badge.expired,.badge.failed,.badge.cancelled,.badge.off,.badge.out{background:var(--rose-soft);color:var(--rose)}
@@ -108,7 +108,7 @@ td.num,th.num{text-align:right}
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/config.js?v=202610262222"></script>
+<script src="js/config.js?v=202610270554"></script>
 <script src="js/vendor/supabase.js"></script>
 <script>
 (() => {
@@ -120,7 +120,7 @@ td.num,th.num{text-align:right}
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtDate = (d) => d ? new Date(d).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "";
   const toast = (t) => { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (el.hidden = true), 2500); };
-  const STATUS = { pending: "Menunggu bayar", paid: "Dibayar", processing: "Diproses", completed: "Selesai", cancelled: "Dibatalkan", expired: "Kedaluwarsa", failed: "Gagal" };
+  const STATUS = { pending: "Menunggu bayar", paid: "Dibayar", processing: "Diproses", ready: "Siap diantar", shipping: "Sedang diantar", completed: "Selesai", cancelled: "Dibatalkan", expired: "Kedaluwarsa", failed: "Gagal" };
   const ACCENTS = { caramel: ["Karamel", "#B9763A"], rose: ["Pink", "#D9586F"], matcha: ["Matcha", "#6E9A3E"], berry: ["Berry", "#8E4EA8"], ocean: ["Biru", "#2F7FA8"], charcoal: ["Cokelat tua", "#5B4A42"] };
   // main menus + seriess, loaded when needed
   let tree = { cats: [], secs: [] };
@@ -205,7 +205,7 @@ td.num,th.num{text-align:right}
   let orderFilter = "todo";
   async function renderOrders() {
     app.innerHTML = `<div class="bar"><h2>Pesanan</h2>
-      <select id="of"><option value="todo">Perlu diproses (dibayar / diproses)</option><option value="pending">Menunggu pembayaran</option><option value="completed">Selesai</option><option value="closed">Batal / kedaluwarsa / gagal</option><option value="all">Semua</option></select>
+      <select id="of"><option value="todo">Perlu diproses (dibayar / disiapkan / diantar)</option><option value="pending">Menunggu pembayaran</option><option value="completed">Selesai</option><option value="closed">Batal / kedaluwarsa / gagal</option><option value="all">Semua</option></select>
       <button class="btn btn-ghost" id="oref">Muat ulang</button></div><div class="list" id="olist"><p class="muted">Memuat…</p></div>`;
     $("of").value = orderFilter;
     $("of").onchange = () => { orderFilter = $("of").value; loadOrders(); };
@@ -214,7 +214,7 @@ td.num,th.num{text-align:right}
     refreshTimer = setInterval(loadOrders, 30000);
   }
   async function loadOrders() {
-    const groups = { todo: ["paid", "processing"], pending: ["pending"], completed: ["completed"], closed: ["cancelled", "expired", "failed"] };
+    const groups = { todo: ["paid", "processing", "ready", "shipping"], pending: ["pending"], completed: ["completed"], closed: ["cancelled", "expired", "failed"] };
     let q = sb.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(100);
     if (groups[orderFilter]) q = q.in("status", groups[orderFilter]);
     const { data, error } = await q;
@@ -224,9 +224,11 @@ td.num,th.num{text-align:right}
     el.innerHTML = data.map((o) => {
       const wa = (o.phone || "").replace(/\D/g, "").replace(/^0/, "62");
       const acts = [];
-      if (o.status === "paid") acts.push(`<button class="btn btn-rose btn-sm" data-st="processing" data-id="${o.id}">Proses</button>`);
-      if (["paid", "processing"].includes(o.status)) acts.push(`<button class="btn btn-ok btn-sm" data-st="completed" data-id="${o.id}">Selesai</button>`);
-      if (["pending", "paid", "processing"].includes(o.status)) acts.push(`<button class="btn btn-ghost btn-sm" data-st="cancelled" data-id="${o.id}" data-paid="${o.status !== "pending"}">Batalkan</button>`);
+      const next = { paid: ["processing", "Proses"], processing: ["ready", "Siap diantar"], ready: ["shipping", "Sedang diantar"] }[o.status];
+      if (next) acts.push(`<button class="btn btn-rose btn-sm" data-st="${next[0]}" data-id="${o.id}">${next[1]}</button>`);
+      if (["paid", "processing", "ready", "shipping"].includes(o.status)) acts.push(`<button class="btn btn-ok btn-sm" data-st="completed" data-id="${o.id}">Selesai</button>`);
+      if (["pending", "paid", "processing", "ready", "shipping"].includes(o.status)) acts.push(`<button class="btn btn-ghost btn-sm" data-st="cancelled" data-id="${o.id}" data-paid="${o.status !== "pending"}">Batalkan</button>`);
+      acts.push(`<button class="btn btn-ghost btn-sm" data-chat="${o.id}">💬 Chat Customer</button>`);
       return `<div class="card order">
         <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span></div>
           <div class="muted" style="font-size:.85rem">${fmtDate(o.created_at)}${o.payment_method ? " · " + esc(o.payment_method) : ""}${o.user_id ? "" : " · tamu"}</div>
@@ -238,6 +240,7 @@ td.num,th.num{text-align:right}
           <div style="margin-top:.3rem">${o.discount ? `Subtotal ${rp(o.subtotal)} · Diskon −${rp(o.discount)}${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}<br>` : ""}${o.delivery_fee ? `Ongkir ${rp(o.delivery_fee)}<br>` : ""}<b>Total ${rp(o.total)}</b></div></div>
         <div class="acts">${acts.join("")}</div></div>`;
     }).join("");
+    el.querySelectorAll("[data-chat]").forEach((b) => b.onclick = () => chatCustomer(b.dataset.chat));
     el.querySelectorAll("[data-st]").forEach((b) => b.onclick = async () => {
       if (b.dataset.st === "cancelled" && !confirm(b.dataset.paid === "true"
         ? "Batalkan pesanan yang SUDAH DIBAYAR? Refund dilakukan manual di dashboard Midtrans, dan stok tidak dikembalikan otomatis."
@@ -246,6 +249,75 @@ td.num,th.num{text-align:right}
       const { error } = await sb.rpc("admin_set_order_status", { p_order_id: b.dataset.id, p_status: b.dataset.st });
       if (error) { toast(err(error)); b.disabled = false; } else { toast("Status diperbarui"); loadOrders(); }
     });
+  }
+
+  // ---------------------------------------------------------------- CHAT CUSTOMER (WhatsApp, pre-filled, admin sends)
+  // WhatsApp number in international form (62...), or null when it can't be used
+  const waNumber = (raw) => {
+    let d = String(raw || "").replace(/\D/g, "");
+    if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d;
+    return /^62\d{8,13}$/.test(d) ? d : null;
+  };
+  function customerMessage(o) {
+    const items = (o.order_items || []).slice().sort((a, b) => a.id - b.id);
+    const detail = (i) => [i.variant_name, ...Object.values(i.choices || {}), i.addon ? "+ " + i.addon : null].filter(Boolean).join(", ");
+    let dest = (o.address || "").trim().replace(/\s*\n\s*/g, ", ");
+    const pin = o.delivery_lat != null ? `https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}` : "";
+    if (!dest) dest = pin ? "(see map pin below)" : "(not provided yet)";
+    const lines = [
+      `Hello ${(o.customer_name || "").trim() || "there"}! 👋`,
+      "Thank you for ordering from CamilaNika Foods & Drinks.",
+      "",
+      "Here are your order details:",
+      "",
+      `📦 Order Number: ${o.order_number}`,
+      `📍 Delivery Destination: ${dest}`,
+      ...(pin ? [`🗺️ Map: ${pin}`] : []),
+      "",
+      "🛒 Order Summary:",
+      ...items.map((i) => `• ${i.product_name}${detail(i) ? ` (${detail(i)})` : ""} × ${i.quantity} — ${rp(i.line_total)}`),
+      ...(o.gifts || []).map((g) => `🎁 Bonus: ${g.gift}`),
+      "",
+      ...(o.discount ? [`Discount${o.promo_code ? " (" + o.promo_code + ")" : ""}: −${rp(o.discount)}`] : []),
+      ...(o.delivery_fee ? [`Delivery fee: ${rp(o.delivery_fee)}`] : []),
+      `Total: ${rp(o.total)}`,
+      "",
+      "If you have any questions about your order, feel free to contact us. Thank you for choosing CamilaNika! ❤️",
+    ];
+    return lines.join("\n");
+  }
+  async function chatCustomer(orderId) {
+    openModal(`<div class="modal-head"><h2>Chat Customer</h2><button class="x" data-close aria-label="Tutup">×</button></div><p class="muted" id="cc-load">Memuat pesanan…</p>`);
+    const { data: o, error } = await sb.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle();
+    if ($("modal").hidden) return;
+    if (error || !o) {
+      $("modal-box").innerHTML = `<div class="modal-head"><h2>Chat Customer</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+        <p class="msg err">${error ? "Pesanan gagal dimuat: " + esc(err(error)) : "Pesanan tidak ditemukan. Mungkin sudah dihapus."}</p>
+        <div class="row-actions"><button class="btn btn-ghost" data-close>Tutup</button></div>`;
+      return;
+    }
+    // the number on the order; if it isn't usable, fall back to the customer's saved profile number
+    let wa = waNumber(o.phone), source = "pesanan";
+    if (!wa && o.user_id) {
+      const { data: pf } = await sb.from("profiles").select("phone").eq("id", o.user_id).maybeSingle();
+      if (waNumber(pf?.phone)) { wa = waNumber(pf.phone); source = "profil"; }
+    }
+    const msg = customerMessage(o);
+    $("modal-box").innerHTML = `<div class="modal-head"><h2>Chat Customer · ${esc(o.order_number)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <p style="margin:0"><b>${esc(o.customer_name)}</b> · ${wa ? `+${esc(wa)} <span class="muted">(dari ${source})</span>` : `<span class="muted">${esc(o.phone || "tanpa nomor")}</span>`}</p>
+      ${wa ? "" : `<p class="msg err" id="cc-err">Nomor WhatsApp pelanggan tidak ada atau tidak valid, jadi WhatsApp tidak bisa dibuka. Salin pesannya dan kirim lewat jalur lain.</p>`}
+      <label class="f">Pesan (bisa diedit sebelum dikirim)<textarea id="cc-msg" rows="16" style="font-family:inherit;line-height:1.45">${esc(msg)}</textarea></label>
+      <p class="muted" style="margin:0;font-size:.85rem">WhatsApp terbuka dengan pesan ini sudah terisi. Pesan baru terkirim setelah kamu menekan kirim di WhatsApp.</p>
+      <div class="row-actions"><button class="btn btn-ghost" id="cc-copy">Salin pesan</button>
+        ${wa ? `<a class="btn btn-ok" id="cc-open" target="_blank" rel="noopener" href="#">Buka WhatsApp</a>` : ""}</div>`;
+    const ta = $("cc-msg");
+    const sync = () => { const a = $("cc-open"); if (a) a.href = `https://wa.me/${wa}?text=${encodeURIComponent(ta.value)}`; };
+    ta.addEventListener("input", sync); sync();
+    $("cc-open")?.addEventListener("click", (e) => { if (!ta.value.trim()) { e.preventDefault(); toast("Pesan masih kosong."); } });
+    $("cc-copy").onclick = async () => {
+      try { await navigator.clipboard.writeText(ta.value); toast("Pesan disalin"); }
+      catch (e) { ta.select(); toast("Tekan Ctrl+C untuk menyalin"); }
+    };
   }
 
   // ---------------------------------------------------------------- STOCK
@@ -1012,6 +1084,8 @@ td.num,th.num{text-align:right}
         <label class="f">Berakhir (opsional)<input id="qe" type="datetime-local" value="${dt(p.ends_at)}"></label>
         <label class="chk" style="align-self:end"><input type="checkbox" id="qa" ${p.is_active ? "checked" : ""}> Aktif</label>
       </div>
+      <label class="chk"><input type="checkbox" id="qann" ${p.announce !== false ? "checked" : ""}> Umumkan ke semua pelanggan terdaftar (notifikasi${isNew ? "" : ", kalau belum pernah dikirim"})</label>
+      <p class="muted" style="margin:-.3rem 0 0;font-size:.85rem">Notifikasi terkirim saat promo aktif & sudah mulai. Untuk kode khusus yang tidak boleh tersebar, hilangkan centangnya.</p>
       <label class="chk"><input type="checkbox" id="qall" ${p.applies_to_all ? "checked" : ""}> Berlaku untuk semua produk</label>
       <div class="pchk" id="qprods" ${p.applies_to_all ? "hidden" : ""}>${products.map((x) => `<label class="chk"><input type="checkbox" value="${x.id}" ${sel.has(x.id) ? "checked" : ""}> ${esc(x.name)}</label>`).join("")}</div>
       <p class="muted" style="margin:0;font-size:.85rem">Minimal belanja dihitung dari produk yang ikut promo.</p>
@@ -1035,7 +1109,7 @@ td.num,th.num{text-align:right}
         discount_type: t, value: t === "free_item" ? 0 : num("qv") || 0, gift_text: t === "free_item" ? $("qg").value.trim() : null,
         max_discount: t === "percent" ? num("qm") : null, min_spend: num("qmin") || 0, usage_limit: num("ql"),
         starts_at: $("qs").value ? new Date($("qs").value).toISOString() : null, ends_at: $("qe").value ? new Date($("qe").value).toISOString() : null,
-        is_active: $("qa").checked, applies_to_all: $("qall").checked,
+        is_active: $("qa").checked, applies_to_all: $("qall").checked, announce: $("qann").checked,
       };
       const fail = (m) => { $("qmsg").textContent = m; $("qmsg").className = "msg err"; };
       if (!row.name) return fail("Nama promo wajib diisi.");
