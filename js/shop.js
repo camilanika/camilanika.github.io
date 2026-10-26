@@ -382,7 +382,8 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${s?.session?.access_token || CFG.SUPABASE_ANON_KEY}`,
+          Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}`,
+          ...(s?.session?.access_token ? { "x-user-token": s.session.access_token } : {}),
         },
         body: JSON.stringify({
           items: cartItems(), promo_code: promoCode || null,
