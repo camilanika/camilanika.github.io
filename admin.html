@@ -119,7 +119,7 @@ td.num,th.num{text-align:right}
   const toast = (t) => { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (el.hidden = true), 2500); };
   const STATUS = { pending: "Menunggu bayar", paid: "Dibayar", processing: "Diproses", completed: "Selesai", cancelled: "Dibatalkan", expired: "Kedaluwarsa", failed: "Gagal" };
   const ACCENTS = { caramel: ["Karamel", "#B9763A"], rose: ["Pink", "#D9586F"], matcha: ["Matcha", "#6E9A3E"], berry: ["Berry", "#8E4EA8"], ocean: ["Biru", "#2F7FA8"], charcoal: ["Cokelat tua", "#5B4A42"] };
-  // main menus + submenus, loaded when needed
+  // main menus + seriess, loaded when needed
   let tree = { cats: [], secs: [] };
   async function loadTree() {
     const [c, s] = await Promise.all([
@@ -288,10 +288,10 @@ td.num,th.num{text-align:right}
     });
   }
 
-  // ---------------------------------------------------------------- MENU (main menus + submenus)
+  // ---------------------------------------------------------------- MENU (main menus + seriess)
   async function renderMenuTab() {
     app.innerHTML = `<div class="bar"><h2>Menu</h2><button class="btn btn-rose" id="newcat">+ Menu utama</button></div>
-      <p class="muted" style="margin:-.4rem 0 1rem">Menu utama tampil sebagai bagian besar di toko dan di link atas. Submenu mengelompokkan produk di dalamnya. Urutan di sini = urutan di toko.</p>
+      <p class="muted" style="margin:-.4rem 0 1rem">Menu utama tampil sebagai bagian besar di toko dan di link atas. Series mengelompokkan produk di dalamnya. Urutan di sini = urutan di toko.</p>
       <div class="list" id="mlist"><p class="muted">Memuat…</p></div>`;
     $("newcat").onclick = () => editCategory(null);
     await loadMenuTab();
@@ -317,10 +317,10 @@ td.num,th.num{text-align:right}
             <button class="btn btn-ghost btn-sm" data-cmove="${c.id}" data-dir="-1" ${ci === 0 ? "disabled" : ""} aria-label="Naikkan ${esc(c.name)}">↑</button>
             <button class="btn btn-ghost btn-sm" data-cmove="${c.id}" data-dir="1" ${ci === tree.cats.length - 1 ? "disabled" : ""} aria-label="Turunkan ${esc(c.name)}">↓</button>
             <button class="btn btn-ghost btn-sm" data-cedit="${c.id}">Ubah</button>
-            <button class="btn btn-rose btn-sm" data-snew="${c.id}">+ Submenu</button>
+            <button class="btn btn-rose btn-sm" data-snew="${c.id}">+ Series</button>
           </span>
         </div>
-        ${secs.length ? `<div class="tbl-wrap"><table><thead><tr><th>Submenu</th><th>Keterangan</th><th class="num">Produk</th><th>Status</th><th></th></tr></thead><tbody>
+        ${secs.length ? `<div class="tbl-wrap"><table><thead><tr><th>Series</th><th>Keterangan</th><th class="num">Produk</th><th>Status</th><th></th></tr></thead><tbody>
           ${secs.map((s, si) => `<tr>
             <td><span style="display:inline-flex;gap:.45rem;align-items:center"><i style="width:12px;height:12px;border-radius:50%;background:${ACCENTS[s.accent]?.[1] || "#999"};display:inline-block"></i>${s.icon ? esc(s.icon) + " " : ""}<b>${esc(s.name)}</b></span></td>
             <td class="muted" style="font-size:.88rem">${esc(s.tagline || "")}</td>
@@ -330,9 +330,9 @@ td.num,th.num{text-align:right}
               <button class="btn btn-ghost btn-sm" data-smove="${s.id}" data-dir="-1" ${si === 0 ? "disabled" : ""} aria-label="Naikkan ${esc(s.name)}">↑</button>
               <button class="btn btn-ghost btn-sm" data-smove="${s.id}" data-dir="1" ${si === secs.length - 1 ? "disabled" : ""} aria-label="Turunkan ${esc(s.name)}">↓</button>
               <button class="btn btn-ghost btn-sm" data-sedit="${s.id}">Ubah</button></div></td></tr>`).join("")}
-        </tbody></table></div>` : `<p class="muted" style="margin:0">Belum ada submenu. Menu utama tanpa submenu berisi produk tidak tampil di toko.</p>`}
+        </tbody></table></div>` : `<p class="muted" style="margin:0">Belum ada series. Menu utama tanpa series berisi produk tidak tampil di toko.</p>`}
       </div>`;
-    }).join("") + (counts.null ? `<p class="msg">${counts.null} produk belum punya submenu dan tidak tampil di toko. Atur di tab Produk.</p>` : "");
+    }).join("") + (counts.null ? `<p class="msg">${counts.null} produk belum punya series dan tidak tampil di toko. Atur di tab Produk.</p>` : "");
     el.querySelectorAll("[data-cedit]").forEach((b) => b.onclick = () => editCategory(tree.cats.find((c) => c.id === +b.dataset.cedit)));
     el.querySelectorAll("[data-snew]").forEach((b) => b.onclick = () => editSection(null, +b.dataset.snew, counts));
     el.querySelectorAll("[data-sedit]").forEach((b) => b.onclick = () => editSection(tree.secs.find((s) => s.id === +b.dataset.sedit), null, counts));
@@ -387,7 +387,7 @@ td.num,th.num{text-align:right}
     };
     if (!isNew) $("cdel").onclick = async () => {
       const secs = tree.secs.filter((s) => s.category_id === c.id);
-      if (!confirm(`Hapus menu utama "${c.name}"?${secs.length ? ` ${secs.length} submenu di dalamnya ikut terhapus, dan produknya disembunyikan dari toko sampai dipindah ke submenu lain.` : ""} Produk dan riwayat pesanan tidak dihapus.`)) return;
+      if (!confirm(`Hapus menu utama "${c.name}"?${secs.length ? ` ${secs.length} series di dalamnya ikut terhapus, dan produknya disembunyikan dari toko sampai dipindah ke series lain.` : ""} Produk dan riwayat pesanan tidak dihapus.`)) return;
       const { error } = await sb.from("menu_categories").delete().eq("id", c.id);
       if (error) return fail("Gagal menghapus: " + error.message);
       closeModal(); toast("Menu utama dihapus"); loadMenuTab();
@@ -397,38 +397,38 @@ td.num,th.num{text-align:right}
   function editSection(s, catId, counts) {
     const isNew = !s;
     s = s || { category_id: catId, name: "", slug: "", tagline: "", icon: "", accent: "caramel", is_active: true };
-    openModal(`<div class="modal-head"><h2>${isNew ? "Submenu baru" : "Ubah " + esc(s.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+    openModal(`<div class="modal-head"><h2>${isNew ? "Series baru" : "Ubah " + esc(s.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
       <div class="grid2">
         <label class="f">Menu utama<select id="sc">${tree.cats.map((c) => `<option value="${c.id}" ${c.id === s.category_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
-        <label class="f">Nama submenu<input id="sn" value="${esc(s.name)}" placeholder="mis. Coffee Series"></label>
+        <label class="f">Nama series<input id="sn" value="${esc(s.name)}" placeholder="mis. Coffee Series"></label>
         <label class="f">Slug (unik)<input id="ss" value="${esc(s.slug)}"></label>
         <label class="f">Emoji di tombol lompat (opsional)<input id="si" value="${esc(s.icon || "")}" maxlength="4" placeholder="mis. ☕"></label>
         <label class="f">Warna<select id="sa">${Object.entries(ACCENTS).map(([k, [n]]) => `<option value="${k}" ${k === s.accent ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         <label class="chk" style="align-self:end"><input type="checkbox" id="sact" ${s.is_active ? "checked" : ""}> Tampilkan di toko</label>
       </div>
       <label class="f">Keterangan singkat<input id="st" value="${esc(s.tagline || "")}" placeholder="mis. Rasa kopi yang selalu jadi pilihan."></label>
-      <p class="muted" style="margin:0;font-size:.85rem">Submenu tanpa produk aktif tidak tampil di toko. Pindahkan produk ke submenu ini dari tab <b>Produk</b>.</p>
+      <p class="muted" style="margin:0;font-size:.85rem">Series tanpa produk aktif tidak tampil di toko. Pindahkan produk ke series ini dari tab <b>Produk</b>.</p>
       <p class="msg" id="smsg"></p>
-      <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="sdel" style="margin-right:auto">Hapus submenu</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="ssave">Simpan</button></div>`);
+      <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="sdel" style="margin-right:auto">Hapus series</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="ssave">Simpan</button></div>`);
     $("sn").oninput = () => { if (isNew) $("ss").value = slugify($("sn").value); };
     const fail = (m) => { $("smsg").textContent = m; $("smsg").className = "msg err"; };
     $("ssave").onclick = async () => {
       const row = { category_id: +$("sc").value, name: $("sn").value.trim(), slug: slugify($("ss").value || $("sn").value),
         tagline: $("st").value.trim() || null, icon: $("si").value.trim() || null, accent: $("sa").value, is_active: $("sact").checked };
-      if (!row.name || !row.slug) return fail("Nama submenu wajib diisi.");
+      if (!row.name || !row.slug) return fail("Nama series wajib diisi.");
       if (isNew || row.category_id !== s.category_id) row.sort_order = (Math.max(0, ...tree.secs.filter((x) => x.category_id === row.category_id).map((x) => x.sort_order))) + 10;
       $("ssave").disabled = true;
       const { error } = isNew ? await sb.from("menu_sections").insert(row) : await sb.from("menu_sections").update(row).eq("id", s.id);
       $("ssave").disabled = false;
-      if (error) return fail(/duplicate key/i.test(error.message) ? "Slug sudah dipakai submenu lain." : "Gagal menyimpan: " + error.message);
-      closeModal(); toast("Submenu tersimpan"); loadMenuTab();
+      if (error) return fail(/duplicate key/i.test(error.message) ? "Slug sudah dipakai series lain." : "Gagal menyimpan: " + error.message);
+      closeModal(); toast("Series tersimpan"); loadMenuTab();
     };
     if (!isNew) $("sdel").onclick = async () => {
       const n = counts[s.id] || 0;
-      if (!confirm(`Hapus submenu "${s.name}"?${n ? ` ${n} produk di dalamnya disembunyikan dari toko sampai dipindah ke submenu lain.` : ""} Produk dan riwayat pesanan tidak dihapus.`)) return;
+      if (!confirm(`Hapus series "${s.name}"?${n ? ` ${n} produk di dalamnya disembunyikan dari toko sampai dipindah ke series lain.` : ""} Produk dan riwayat pesanan tidak dihapus.`)) return;
       const { error } = await sb.from("menu_sections").delete().eq("id", s.id);
       if (error) return fail("Gagal menghapus: " + error.message);
-      closeModal(); toast("Submenu dihapus"); loadMenuTab();
+      closeModal(); toast("Series dihapus"); loadMenuTab();
     };
   }
 
@@ -436,8 +436,8 @@ td.num,th.num{text-align:right}
   let products = [];
   async function renderProducts() {
     app.innerHTML = `<div class="bar"><h2>Produk</h2><button class="btn btn-rose" id="newp">+ Produk baru</button></div>
-      <p class="muted" style="margin:-.4rem 0 1rem">Produk dikelompokkan per submenu. Atur menu utama dan submenu di tab <b>Menu</b>.</p>
-      <div class="tbl-wrap"><table><thead><tr><th></th><th>Nama</th><th>Submenu</th><th class="num">Varian</th><th class="num">Harga</th><th>Status</th><th class="num">Urutan</th><th></th></tr></thead><tbody id="pbody"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
+      <p class="muted" style="margin:-.4rem 0 1rem">Produk dikelompokkan per series. Atur menu utama dan series di tab <b>Menu</b>.</p>
+      <div class="tbl-wrap"><table><thead><tr><th></th><th>Nama</th><th>Series</th><th class="num">Varian</th><th class="num">Harga</th><th>Status</th><th class="num">Urutan</th><th></th></tr></thead><tbody id="pbody"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
     $("newp").onclick = () => editProduct(null);
     await loadProducts();
   }
@@ -447,7 +447,7 @@ td.num,th.num{text-align:right}
     if (error) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(err(error))}</td></tr>`; return; }
     try { await loadTree(); } catch (e) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(err(e))}</td></tr>`; return; }
     products = data;
-    // order: by main menu, then submenu, then product; products without a submenu last
+    // order: by main menu, then series, then product; products without a series last
     const secOrder = [];
     tree.cats.forEach((c) => tree.secs.filter((s) => s.category_id === c.id).forEach((s) => secOrder.push(s.id)));
     const rank = (p) => { const i = secOrder.indexOf(p.section_id); return i < 0 ? 1e6 : i; };
@@ -455,7 +455,7 @@ td.num,th.num{text-align:right}
     let lastGroup;
     tb.innerHTML = sorted.map((p) => {
       const label = secLabel(p.section_id);
-      const group = label ? `<tr class="group"><td colspan="8">${esc(label)}</td></tr>` : `<tr class="group"><td colspan="8">Belum ada submenu <span class="badge off">tidak tampil di toko</span></td></tr>`;
+      const group = label ? `<tr class="group"><td colspan="8">${esc(label)}</td></tr>` : `<tr class="group"><td colspan="8">Belum ada series <span class="badge off">tidak tampil di toko</span></td></tr>`;
       const gh = (label || "-") !== lastGroup ? group : ""; lastGroup = label || "-";
       return gh + rowHTML(p);
     }).join("") || `<tr><td colspan="8" class="muted">Belum ada produk.</td></tr>`;
@@ -484,7 +484,7 @@ td.num,th.num{text-align:right}
       <div class="grid3">
         <label class="f">Nama<input id="pn" value="${esc(p.name)}" required></label>
         <label class="f">Slug (unik, untuk sistem)<input id="ps" value="${esc(p.slug)}"></label>
-        <label class="f">Submenu<select id="psec"><option value="" ${p.section_id ? "" : "selected"}>— Pilih submenu —</option>${secOpts}</select></label>
+        <label class="f">Series<select id="psec"><option value="" ${p.section_id ? "" : "selected"}>— Pilih series —</option>${secOpts}</select></label>
         <label class="f">Deskripsi singkat<input id="psub" value="${esc(p.subtitle || "")}"></label>
         <label class="f">Label kecil (opsional)<input id="pnote" value="${esc(p.note || "")}" placeholder="mis. Mengandung kopi"></label>
         <label class="f">Urutan tampil<input id="pso" type="number" value="${p.sort_order}"></label>
@@ -602,7 +602,7 @@ td.num,th.num{text-align:right}
         is_active: $("pact").checked, sort_order: parseInt($("pso").value, 10) || 0,
       };
       if (!prod.name || !prod.slug) return fail("Nama produk wajib diisi.");
-      if (!prod.section_id) return fail("Pilih submenu supaya produk tampil di toko.");
+      if (!prod.section_id) return fail("Pilih series supaya produk tampil di toko.");
       if (!live.length) return fail("Tambahkan minimal satu varian.");
       for (const v of live) {
         if (!Number.isInteger(v.price) || v.price < 0) return fail("Setiap varian harus punya harga.");
