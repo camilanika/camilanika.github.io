@@ -137,6 +137,14 @@ td.num,th.num{text-align:right}
     return `${c ? c.name + " › " : ""}${s.name}`;
   };
   const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  // accounts made with a WhatsApp number log in with <62number>@phone.camilanika.invalid (see phone-signup function)
+  const PHONE_DOMAIN = "phone.camilanika.invalid";
+  const loginId = (raw) => {
+    raw = String(raw || "").trim(); if (raw.includes("@")) return raw;
+    let d = raw.replace(/\D/g, ""); if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d;
+    return `${d}@${PHONE_DOMAIN}`;
+  };
+  const realEmail = (e) => (e && !e.endsWith("@" + PHONE_DOMAIN) ? e : "");
   const err = (e) => (e?.message || String(e)).replace(/^.*?([A-Z_]{5,}.*)$/s, "$1");
 
   let tab = "orders", refreshTimer = null;
@@ -159,12 +167,12 @@ td.num,th.num{text-align:right}
   function showLogin() {
     $("topbar").hidden = true;
     app.innerHTML = `<form class="login card" id="lf"><h2>Masuk admin</h2>
-      <label class="f">Email<input id="le" type="email" autocomplete="email" required></label>
+      <label class="f">Email atau No. WhatsApp<input id="le" autocomplete="username" required></label>
       <label class="f">Password<input id="lp" type="password" autocomplete="current-password" required></label>
       <button class="btn btn-rose" type="submit">Masuk</button><p class="msg" id="lm"></p></form>`;
     $("lf").onsubmit = async (e) => {
       e.preventDefault();
-      const { error } = await sb.auth.signInWithPassword({ email: $("le").value.trim(), password: $("lp").value });
+      const { error } = await sb.auth.signInWithPassword({ email: loginId($("le").value), password: $("lp").value });
       if (error) { $("lm").textContent = "Email atau password salah."; $("lm").className = "msg err"; }
     };
   }
@@ -660,13 +668,14 @@ td.num,th.num{text-align:right}
       return `<tr>
         <td><b>${esc(c.full_name || "(tanpa nama)")}</b>${c.id === me ? ' <span class="muted">(kamu)</span>' : ""}<br>
           <span class="muted" style="font-size:.82rem">Daftar ${fmtDate(c.created_at)}${c.confirmed ? "" : ' · <span class="badge pending">email belum dikonfirmasi</span>'}</span></td>
-        <td>${esc(c.email || "")}${wa ? `<br><a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(c.phone)}</a>` : ""}</td>
+        <td>${realEmail(c.email) ? esc(c.email) + "<br>" : '<span class="muted" style="font-size:.82rem">Daftar pakai No. WA</span><br>'}${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(c.phone)}</a>` : ""}</td>
         <td class="num">${c.paid_count}${c.orders_count > c.paid_count ? ` <span class="muted">/ ${c.orders_count}</span>` : ""}</td>
         <td class="num">${rp(c.total_spent)}</td>
         <td>${c.last_order_at ? fmtDate(c.last_order_at) : '<span class="muted">–</span>'}</td>
         <td><span class="badge ${c.role === "admin" ? "processing" : ""}">${c.role === "admin" ? "Admin" : "Pelanggan"}</span></td>
         <td><div class="adj">
           ${c.orders_count ? `<button class="btn btn-ghost btn-sm" data-corders="${c.id}">Pesanan</button>` : ""}
+          <button class="btn btn-ghost btn-sm" data-reset="${c.id}">Reset password</button>
           ${c.id === me ? "" : `<button class="btn btn-ghost btn-sm" data-role="${c.id}" data-to="${c.role === "admin" ? "customer" : "admin"}" data-name="${esc(c.full_name || c.email)}">${c.role === "admin" ? "Cabut admin" : "Jadikan admin"}</button>`}
         </div></td></tr>`;
     }).join("") || `<tr><td colspan="7" class="muted">${custSearch ? "Tidak ada yang cocok." : "Belum ada pelanggan terdaftar."}</td></tr>`;
@@ -680,6 +689,36 @@ td.num,th.num{text-align:right}
       if (error) { toast(err(error)); b.disabled = false; } else { toast(toAdmin ? "Sekarang admin" : "Akses admin dicabut"); loadCustomers(); }
     });
     tb.querySelectorAll("[data-corders]").forEach((b) => b.onclick = () => customerOrders(data.find((c) => c.id === b.dataset.corders)));
+    tb.querySelectorAll("[data-reset]").forEach((b) => b.onclick = () => resetPassword(data.find((c) => c.id === b.dataset.reset)));
+  }
+  function resetPassword(c) {
+    const words = "kopi,latte,aren,cireng,keju,mocha,matcha,gula,susu,botol".split(",");
+    const pick = () => words[crypto.getRandomValues(new Uint32Array(1))[0] % words.length];
+    const temp = `${pick()}-${pick()}-${String(crypto.getRandomValues(new Uint32Array(1))[0] % 9000 + 1000)}`;
+    const wa = (c.phone || "").replace(/\D/g, "").replace(/^0/, "62");
+    openModal(`<div class="modal-head"><h2>Reset password</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <p style="margin:0">Buat password baru untuk <b>${esc(c.full_name || c.phone || c.email)}</b>. Password lama langsung tidak berlaku.</p>
+      <label class="f">Password baru (minimal 8 karakter)<input id="rp1" value="${esc(temp)}" autocomplete="off"></label>
+      <p class="msg" id="rpm"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="rpsave">Simpan password baru</button></div>`);
+    $("rpsave").onclick = async () => {
+      const pw = $("rp1").value.trim();
+      if (pw.length < 8) { $("rpm").textContent = "Minimal 8 karakter."; $("rpm").className = "msg err"; return; }
+      $("rpsave").disabled = true;
+      const { data: s } = await sb.auth.getSession();
+      const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/admin-users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}`, "x-user-token": s?.session?.access_token || "" },
+        body: JSON.stringify({ action: "reset_password", user_id: c.id, password: pw }),
+      });
+      const out = await res.json().catch(() => ({ error: "RESET_FAILED" }));
+      $("rpsave").disabled = false;
+      if (!res.ok || out.error) { $("rpm").textContent = out.error === "NOT_ADMIN" ? "Hanya admin yang bisa reset password." : "Gagal menyimpan. Coba lagi."; $("rpm").className = "msg err"; return; }
+      const msg = `Halo ${c.full_name || ""}, password akun CamilaNika kamu sudah kami ganti. Password baru: ${pw}\nMasuk di camilanika.github.io pakai nomor WhatsApp ini, lalu ganti password lewat menu Akun kalau mau.`;
+      $("modal-box").innerHTML = `<div class="modal-head"><h2>Password diganti</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+        <p style="margin:0">Password baru: <code style="font-size:1.05rem;user-select:all">${esc(pw)}</code></p>
+        <div class="row-actions">${wa ? `<a class="btn btn-ok" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Kirim lewat WhatsApp</a>` : ""}<button class="btn btn-ghost" data-close>Selesai</button></div>`;
+    };
   }
   async function customerOrders(c) {
     openModal(`<div class="modal-head"><h2>Pesanan ${esc(c.full_name || c.email)}</h2><button class="x" data-close aria-label="Tutup">×</button></div><div class="list" id="colist"><p class="muted">Memuat…</p></div>`);
