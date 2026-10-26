@@ -1,6 +1,18 @@
 // CamilaNika storefront: menu from Supabase, cart, promos, accounts, Midtrans payment, order status.
 (() => {
   const CFG = window.CN_CONFIG;
+  // ONLINE_PAYMENT: true = on for everyone, false = off, "test" = only after opening the site with ?test=1
+  // (remembered in this browser tab; ?test=0 turns it off again)
+  const ONLINE = (() => {
+    if (CFG.ONLINE_PAYMENT === true) return true;
+    if (CFG.ONLINE_PAYMENT !== "test") return false;
+    const t = new URLSearchParams(location.search).get("test");
+    try {
+      if (t === "1") sessionStorage.setItem("cn-test", "1");
+      if (t === "0") sessionStorage.removeItem("cn-test");
+      return sessionStorage.getItem("cn-test") === "1";
+    } catch { return t === "1"; }
+  })();
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
   const WA = CFG.WHATSAPP;
   const $ = (id) => document.getElementById(id);
@@ -861,7 +873,13 @@
   }
 
   // Online payment can be switched off in config.js (WhatsApp / GoFood ordering still works)
-  if (!CFG.ONLINE_PAYMENT) {
+  if (ONLINE && CFG.ONLINE_PAYMENT === "test") {
+    const b = document.createElement("div");
+    b.textContent = "MODE TES · pembayaran online (Sandbox) aktif · buka ?test=0 untuk keluar";
+    b.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9999;background:#b45309;color:#fff;font:600 12px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:8px;opacity:.92;pointer-events:none";
+    document.body.appendChild(b);
+  }
+  if (!ONLINE) {
     $("pay-btn").hidden = true;
     document.querySelector(".pay-note").hidden = true;
     $("to-checkout").textContent = "Lanjut isi data & pesan";
