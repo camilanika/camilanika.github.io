@@ -93,6 +93,7 @@ td.num,th.num{text-align:right}
       <button type="button" data-tab="menu" aria-pressed="false">Menu</button>
       <button type="button" data-tab="products" aria-pressed="false">Produk</button>
       <button type="button" data-tab="promos" aria-pressed="false">Promo</button>
+      <button type="button" data-tab="customers" aria-pressed="false">Pelanggan</button>
     </nav>
     <div class="me"><span id="me"></span><button class="btn btn-ghost btn-sm" type="button" id="logout">Keluar</button></div>
   </div>
@@ -136,6 +137,14 @@ td.num,th.num{text-align:right}
     return `${c ? c.name + " › " : ""}${s.name}`;
   };
   const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  // accounts made with a WhatsApp number log in with <62number>@phone.camilanika.invalid (see phone-signup function)
+  const PHONE_DOMAIN = "phone.camilanika.invalid";
+  const loginId = (raw) => {
+    raw = String(raw || "").trim(); if (raw.includes("@")) return raw;
+    let d = raw.replace(/\D/g, ""); if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d;
+    return `${d}@${PHONE_DOMAIN}`;
+  };
+  const realEmail = (e) => (e && !e.endsWith("@" + PHONE_DOMAIN) ? e : "");
   const err = (e) => (e?.message || String(e)).replace(/^.*?([A-Z_]{5,}.*)$/s, "$1");
 
   let tab = "orders", refreshTimer = null;
@@ -158,12 +167,12 @@ td.num,th.num{text-align:right}
   function showLogin() {
     $("topbar").hidden = true;
     app.innerHTML = `<form class="login card" id="lf"><h2>Masuk admin</h2>
-      <label class="f">Email<input id="le" type="email" autocomplete="email" required></label>
+      <label class="f">Email atau No. WhatsApp<input id="le" autocomplete="username" required></label>
       <label class="f">Password<input id="lp" type="password" autocomplete="current-password" required></label>
       <button class="btn btn-rose" type="submit">Masuk</button><p class="msg" id="lm"></p></form>`;
     $("lf").onsubmit = async (e) => {
       e.preventDefault();
-      const { error } = await sb.auth.signInWithPassword({ email: $("le").value.trim(), password: $("lp").value });
+      const { error } = await sb.auth.signInWithPassword({ email: loginId($("le").value), password: $("lp").value });
       if (error) { $("lm").textContent = "Email atau password salah."; $("lm").className = "msg err"; }
     };
   }
@@ -180,7 +189,7 @@ td.num,th.num{text-align:right}
   function show(t) {
     tab = t; clearInterval(refreshTimer);
     document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === t));
-    ({ orders: renderOrders, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos })[t]();
+    ({ orders: renderOrders, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers })[t]();
   }
 
   // modal
@@ -359,6 +368,7 @@ td.num,th.num{text-align:right}
   function editCategory(c) {
     const isNew = !c;
     c = c || { name: "", slug: "", eyebrow: "", heading: "", heading_script: "", description: "", is_active: true };
+    let shots = (Array.isArray(c.showcase_images) ? c.showcase_images : []).map((i) => ({ ...i }));
     openModal(`<div class="modal-head"><h2>${isNew ? "Menu utama baru" : "Ubah " + esc(c.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
       <div class="grid2">
         <label class="f">Nama (link di atas halaman)<input id="cn" value="${esc(c.name)}" placeholder="mis. Minuman"></label>
@@ -369,14 +379,76 @@ td.num,th.num{text-align:right}
         <label class="chk" style="align-self:end"><input type="checkbox" id="ca" ${c.is_active ? "checked" : ""}> Tampilkan di toko</label>
       </div>
       <label class="f">Deskripsi<textarea id="cd" rows="3">${esc(c.description || "")}</textarea></label>
-      <p class="muted" style="margin:0;font-size:.85rem">Foto dekorasi (deretan botol untuk <b>minuman</b>, mosaik cireng untuk <b>camilan</b>) muncul otomatis berdasarkan slug.</p>
+      <div class="grid2">
+        <label class="f">Info singkat di bawah deskripsi (satu per baris)<textarea id="chl" rows="3" placeholder="mis. Simpan di kulkas, tahan hingga 7 hari">${esc((c.highlights || []).join("\n"))}</textarea></label>
+        <label class="f">Label bulat (pisahkan koma, opsional)<textarea id="ctg" rows="3" placeholder="mis. Keju Lumer, Jando Pedas">${esc((c.tags || []).join(", "))}</textarea></label>
+      </div>
+      <div class="card" style="display:grid;gap:.7rem">
+        <h3>Foto showcase</h3>
+        <div class="grid2">
+          <label class="f">Tampilan<select id="cly">
+            <option value="none">Tanpa foto</option>
+            <option value="row">Deretan foto (geser), di atas menu</option>
+            <option value="mosaic">Mosaik foto, di samping menu</option></select></label>
+          <label class="f" id="cnw">Tulisan di bawah mosaik (opsional)<input id="cnote" value="${esc(c.showcase_note || "")}" placeholder="mis. Gurih di luar, nagih di dalam!"></label>
+        </div>
+        <div id="cshots" style="display:grid;gap:.5rem"></div>
+        <label class="f">Tambah foto (bisa pilih beberapa, maks 3 MB per foto)<input type="file" id="cfile" accept="image/*" multiple></label>
+        <p class="muted" style="margin:0;font-size:.85rem">Mosaik: foto pertama tampil besar. Deretan: foto tegak (3:4) paling bagus.</p>
+      </div>
       <p class="msg" id="cmsg"></p>
       <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="cdel" style="margin-right:auto">Hapus menu utama</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="csave">Simpan</button></div>`);
     $("cn").oninput = () => { if (isNew) $("cs").value = slugify($("cn").value); };
     const fail = (m) => { $("cmsg").textContent = m; $("cmsg").className = "msg err"; };
+    $("cly").value = c.showcase_layout || "none";
+    const readShots = () => $("cshots").querySelectorAll("[data-shot]").forEach((r) => {
+      const i = shots[+r.dataset.shot];
+      i.url = r.querySelector("[data-u]").value.trim(); i.caption = r.querySelector("[data-c]").value.trim();
+      i.tag = r.querySelector("[data-t]").value.trim();
+    });
+    const drawShots = () => {
+      const lay = $("cly").value;
+      $("cnw").hidden = lay !== "mosaic";
+      $("cshots").innerHTML = shots.map((i, n) => `<div data-shot="${n}" style="display:grid;grid-template-columns:56px minmax(0,2fr) minmax(0,1.4fr) ${lay === "row" ? "70px" : ""} auto;gap:.4rem;align-items:center">
+        <img class="thumb" src="${esc(i.url)}" alt="" style="width:56px;height:56px">
+        <input data-u value="${esc(i.url)}" aria-label="Alamat foto ${n + 1}">
+        <input data-c value="${esc(i.caption || "")}" placeholder="Keterangan" aria-label="Keterangan foto ${n + 1}">
+        <input data-t value="${esc(i.tag || "")}" placeholder="mis. L" aria-label="Label kecil foto ${n + 1}" ${lay === "row" ? "" : "hidden"}>
+        <span style="display:flex;gap:.25rem"><button class="btn btn-ghost btn-sm" data-up="${n}" ${n ? "" : "disabled"} aria-label="Naikkan">↑</button><button class="btn btn-ghost btn-sm" data-dn="${n}" ${n < shots.length - 1 ? "" : "disabled"} aria-label="Turunkan">↓</button><button class="btn btn-ghost btn-sm" data-rm="${n}" aria-label="Hapus foto">✕</button></span>
+      </div>`).join("") || `<p class="muted" style="margin:0">Belum ada foto.</p>`;
+      const swap = (a, b) => { readShots(); [shots[a], shots[b]] = [shots[b], shots[a]]; drawShots(); };
+      $("cshots").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => swap(+b.dataset.up, +b.dataset.up - 1));
+      $("cshots").querySelectorAll("[data-dn]").forEach((b) => b.onclick = () => swap(+b.dataset.dn, +b.dataset.dn + 1));
+      $("cshots").querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { readShots(); shots.splice(+b.dataset.rm, 1); drawShots(); });
+      $("cshots").querySelectorAll("[data-u]").forEach((inp) => inp.onchange = () => { inp.parentElement.querySelector("img").src = inp.value; });
+    };
+    $("cly").onchange = () => { readShots(); drawShots(); };
+    drawShots();
+    $("cfile").onchange = async () => {
+      readShots();
+      const files = [...$("cfile").files];
+      for (const f of files) {
+        if (f.size > 3 * 1024 * 1024) { toast(`${f.name}: maks 3 MB`); continue; }
+        const path = `showcase/${Date.now()}-${slugify(f.name.replace(/\.[^.]+$/, ""))}.${(f.name.split(".").pop() || "jpg").toLowerCase()}`;
+        toast(`Mengunggah ${f.name}…`);
+        const { error } = await sb.storage.from("product-images").upload(path, f, { contentType: f.type, upsert: false });
+        if (error) { toast("Gagal unggah: " + error.message); continue; }
+        shots.push({ url: sb.storage.from("product-images").getPublicUrl(path).data.publicUrl, caption: "" });
+      }
+      $("cfile").value = "";
+      if ($("cly").value === "none" && shots.length) $("cly").value = "mosaic";
+      drawShots(); toast("Foto ditambahkan. Jangan lupa Simpan.");
+    };
     $("csave").onclick = async () => {
       const row = { name: $("cn").value.trim(), slug: slugify($("cs").value || $("cn").value), eyebrow: $("ce").value.trim() || null,
         heading: $("ch").value.trim() || null, heading_script: $("cscr").value.trim() || null, description: $("cd").value.trim() || null, is_active: $("ca").checked };
+      readShots();
+      row.showcase_layout = $("cly").value;
+      row.showcase_images = shots.filter((i) => i.url).map((i) => ({ url: i.url, caption: i.caption || undefined, tag: i.tag || undefined, alt: i.alt || i.caption || undefined }));
+      row.showcase_note = $("cnote").value.trim() || null;
+      row.highlights = $("chl").value.split("\n").map((x) => x.trim()).filter(Boolean);
+      row.tags = $("ctg").value.split(",").map((x) => x.trim()).filter(Boolean);
+      if (row.showcase_layout !== "none" && !row.showcase_images.length) return fail("Tambahkan foto, atau pilih Tampilan: Tanpa foto.");
       if (!row.name || !row.slug) return fail("Nama wajib diisi.");
       if (isNew) row.sort_order = ((tree.cats.at(-1)?.sort_order) || 0) + 10;
       $("csave").disabled = true;
@@ -633,6 +705,91 @@ td.num,th.num{text-align:right}
         fail(/duplicate key.*slug/i.test(e.message) ? "Slug sudah dipakai produk lain." : /duplicate key.*sku/i.test(e.message) ? "SKU sudah dipakai varian lain." : "Gagal menyimpan: " + e.message);
       } finally { const b = $("psave"); if (b) b.disabled = false; }
     };
+  }
+
+  // ---------------------------------------------------------------- CUSTOMERS (accounts)
+  let custSearch = "";
+  async function renderCustomers() {
+    app.innerHTML = `<div class="bar"><h2>Pelanggan</h2>
+      <input id="cq" type="search" placeholder="Cari nama, email, atau no. WA" style="min-width:min(100%,280px)" aria-label="Cari pelanggan">
+      <button class="btn btn-ghost" id="cref">Muat ulang</button></div>
+      <p class="muted" style="margin:-.4rem 0 1rem">Akun yang mendaftar di toko. Pesanan tamu (tanpa akun) ada di tab Pesanan.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Pelanggan</th><th>Kontak</th><th class="num">Pesanan</th><th class="num">Total belanja</th><th>Terakhir pesan</th><th>Peran</th><th></th></tr></thead>
+      <tbody id="cbody"><tr><td colspan="7" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("cq").value = custSearch;
+    let t; $("cq").oninput = () => { clearTimeout(t); t = setTimeout(() => { custSearch = $("cq").value.trim(); loadCustomers(); }, 300); };
+    $("cref").onclick = loadCustomers;
+    await loadCustomers();
+  }
+  async function loadCustomers() {
+    const tb = $("cbody"); if (!tb) return;
+    const { data, error } = await sb.rpc("admin_list_customers", { p_search: custSearch || null });
+    if (error) { tb.innerHTML = `<tr><td colspan="7" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    const me = (await sb.auth.getUser()).data.user?.id;
+    tb.innerHTML = data.map((c) => {
+      const wa = (c.phone || "").replace(/\D/g, "").replace(/^0/, "62");
+      return `<tr>
+        <td><b>${esc(c.full_name || "(tanpa nama)")}</b>${c.id === me ? ' <span class="muted">(kamu)</span>' : ""}<br>
+          <span class="muted" style="font-size:.82rem">Daftar ${fmtDate(c.created_at)}${c.confirmed ? "" : ' · <span class="badge pending">email belum dikonfirmasi</span>'}</span></td>
+        <td>${realEmail(c.email) ? esc(c.email) + "<br>" : '<span class="muted" style="font-size:.82rem">Daftar pakai No. WA</span><br>'}${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(c.phone)}</a>` : ""}</td>
+        <td class="num">${c.paid_count}${c.orders_count > c.paid_count ? ` <span class="muted">/ ${c.orders_count}</span>` : ""}</td>
+        <td class="num">${rp(c.total_spent)}</td>
+        <td>${c.last_order_at ? fmtDate(c.last_order_at) : '<span class="muted">–</span>'}</td>
+        <td><span class="badge ${c.role === "admin" ? "processing" : ""}">${c.role === "admin" ? "Admin" : "Pelanggan"}</span></td>
+        <td><div class="adj">
+          ${c.orders_count ? `<button class="btn btn-ghost btn-sm" data-corders="${c.id}">Pesanan</button>` : ""}
+          <button class="btn btn-ghost btn-sm" data-reset="${c.id}">Reset password</button>
+          ${c.id === me ? "" : `<button class="btn btn-ghost btn-sm" data-role="${c.id}" data-to="${c.role === "admin" ? "customer" : "admin"}" data-name="${esc(c.full_name || c.email)}">${c.role === "admin" ? "Cabut admin" : "Jadikan admin"}</button>`}
+        </div></td></tr>`;
+    }).join("") || `<tr><td colspan="7" class="muted">${custSearch ? "Tidak ada yang cocok." : "Belum ada pelanggan terdaftar."}</td></tr>`;
+    tb.querySelectorAll("[data-role]").forEach((b) => b.onclick = async () => {
+      const toAdmin = b.dataset.to === "admin";
+      if (!confirm(toAdmin
+        ? `Jadikan ${b.dataset.name} admin? Admin bisa melihat semua pesanan dan data pelanggan, serta mengubah menu, stok dan promo.`
+        : `Cabut akses admin ${b.dataset.name}?`)) return;
+      b.disabled = true;
+      const { error } = await sb.rpc("admin_set_role", { p_user_id: b.dataset.role, p_role: b.dataset.to });
+      if (error) { toast(err(error)); b.disabled = false; } else { toast(toAdmin ? "Sekarang admin" : "Akses admin dicabut"); loadCustomers(); }
+    });
+    tb.querySelectorAll("[data-corders]").forEach((b) => b.onclick = () => customerOrders(data.find((c) => c.id === b.dataset.corders)));
+    tb.querySelectorAll("[data-reset]").forEach((b) => b.onclick = () => resetPassword(data.find((c) => c.id === b.dataset.reset)));
+  }
+  function resetPassword(c) {
+    const words = "kopi,latte,aren,cireng,keju,mocha,matcha,gula,susu,botol".split(",");
+    const pick = () => words[crypto.getRandomValues(new Uint32Array(1))[0] % words.length];
+    const temp = `${pick()}-${pick()}-${String(crypto.getRandomValues(new Uint32Array(1))[0] % 9000 + 1000)}`;
+    const wa = (c.phone || "").replace(/\D/g, "").replace(/^0/, "62");
+    openModal(`<div class="modal-head"><h2>Reset password</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <p style="margin:0">Buat password baru untuk <b>${esc(c.full_name || c.phone || c.email)}</b>. Password lama langsung tidak berlaku.</p>
+      <label class="f">Password baru (minimal 8 karakter)<input id="rp1" value="${esc(temp)}" autocomplete="off"></label>
+      <p class="msg" id="rpm"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="rpsave">Simpan password baru</button></div>`);
+    $("rpsave").onclick = async () => {
+      const pw = $("rp1").value.trim();
+      if (pw.length < 8) { $("rpm").textContent = "Minimal 8 karakter."; $("rpm").className = "msg err"; return; }
+      $("rpsave").disabled = true;
+      const { data: s } = await sb.auth.getSession();
+      const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/admin-users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}`, "x-user-token": s?.session?.access_token || "" },
+        body: JSON.stringify({ action: "reset_password", user_id: c.id, password: pw }),
+      });
+      const out = await res.json().catch(() => ({ error: "RESET_FAILED" }));
+      $("rpsave").disabled = false;
+      if (!res.ok || out.error) { $("rpm").textContent = out.error === "NOT_ADMIN" ? "Hanya admin yang bisa reset password." : "Gagal menyimpan. Coba lagi."; $("rpm").className = "msg err"; return; }
+      const msg = `Halo ${c.full_name || ""}, password akun CamilaNika kamu sudah kami ganti. Password baru: ${pw}\nMasuk di camilanika.github.io pakai nomor WhatsApp ini, lalu ganti password lewat menu Akun kalau mau.`;
+      $("modal-box").innerHTML = `<div class="modal-head"><h2>Password diganti</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+        <p style="margin:0">Password baru: <code style="font-size:1.05rem;user-select:all">${esc(pw)}</code></p>
+        <div class="row-actions">${wa ? `<a class="btn btn-ok" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Kirim lewat WhatsApp</a>` : ""}<button class="btn btn-ghost" data-close>Selesai</button></div>`;
+    };
+  }
+  async function customerOrders(c) {
+    openModal(`<div class="modal-head"><h2>Pesanan ${esc(c.full_name || c.email)}</h2><button class="x" data-close aria-label="Tutup">×</button></div><div class="list" id="colist"><p class="muted">Memuat…</p></div>`);
+    const { data, error } = await sb.from("orders").select("order_number,status,total,discount,created_at,order_items(product_name,variant_name,quantity)").eq("user_id", c.id).order("created_at", { ascending: false }).limit(50);
+    const el = $("colist"); if (!el) return;
+    if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
+    el.innerHTML = data.map((o) => `<div class="card"><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span><span class="muted" style="margin-left:auto;font-size:.85rem">${fmtDate(o.created_at)}</span></div>
+      <div class="muted" style="font-size:.9rem">${o.order_items.map((i) => `${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}`).join("<br>")}</div><b>${rp(o.total)}</b></div>`).join("") || `<p class="muted">Belum ada pesanan.</p>`;
   }
 
   // ---------------------------------------------------------------- PROMOS

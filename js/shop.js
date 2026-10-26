@@ -73,7 +73,30 @@
     return `<article class="item kuah" data-product="${p.id}"><img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" onerror="this.remove()"><div style="display:grid;gap:.6rem;min-width:0">${head}${chips}${addon}${btn}</div></article>`;
   };
 
-  const tpl = (id) => document.getElementById(id)?.innerHTML || "";
+  // ---- photo showcase + info lines for a main menu (all configured in the admin page)
+  const TAG_COLORS = ["#E8C07A", "#D9586F", "#F2D46B", "#A14A2E", "#6E9A3E", "#2F7FA8"];
+  const ICON_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></svg>';
+  const showcaseImages = (c) => (Array.isArray(c.showcase_images) ? c.showcase_images : []).filter((i) => i && i.url);
+  function showcaseHTML(c) {
+    const imgs = showcaseImages(c);
+    if (!imgs.length || c.showcase_layout === "none") return "";
+    const img = (i, extra = "") => `<img src="${esc(i.url)}" alt="${esc(i.alt || i.caption || "")}" loading="lazy"${extra}>`;
+    if (c.showcase_layout === "row") {
+      return `<div class="bottle-row">${imgs.map((i) => `<figure class="bottle">${img(i)}${i.caption ? `<figcaption>${esc(i.caption)}${i.tag ? `<span>${esc(i.tag)}</span>` : ""}</figcaption>` : ""}</figure>`).join("")}</div>
+        ${imgs.length > 3 ? '<p class="swipe-hint">Geser untuk lihat foto lainnya →</p>' : ""}`;
+    }
+    // mosaic: first photo is tall; if the grid would leave a gap, the last photo goes full width
+    const k = imgs.length, solo = k === 1, lastWide = !solo && (k + 1) % 2 === 1;
+    const rows = solo ? 2 : Math.ceil((k + 1 + (lastWide ? 1 : 0)) / 2);
+    return `<div class="mosaic" style="grid-template-rows:repeat(${rows},var(--mosaic-row)) auto">
+      ${imgs.map((i, n) => `<figure class="${solo ? "solo" : n === k - 1 && lastWide ? "wide" : ""}">${img(i)}${i.caption ? `<figcaption>${esc(i.caption)}</figcaption>` : ""}</figure>`).join("")}
+      ${c.showcase_note ? `<div class="note" aria-hidden="true">${esc(c.showcase_note)}</div>` : ""}
+      <img class="sticker" src="img/logo-cireng.jpg" alt="">
+    </div>`;
+  }
+  const infoHTML = (c) =>
+    (c.highlights || []).filter(Boolean).map((h) => `<p class="deliv">${ICON_INFO}${esc(h)}</p>`).join("") +
+    ((c.tags || []).filter(Boolean).length ? `<div class="fillings">${c.tags.filter(Boolean).map((t, i) => `<div><i style="background:${TAG_COLORS[i % TAG_COLORS.length]}"></i>${esc(t)}</div>`).join("")}</div>` : "");
   const sizesIn = (c) => {
     const all = new Set();
     c.sections.forEach((s) => s.products.filter(usesSize).forEach((p) => attrValues(p, SIZE_ATTR).forEach((v) => all.add(v))));
@@ -81,16 +104,15 @@
   };
 
   function catHTML(c, i) {
-    const showT = document.getElementById("showcase-" + c.slug);
-    const showcase = showT ? showT.innerHTML : "";
-    const side = !!showcase && showT.dataset.layout === "side";
+    const showcase = showcaseHTML(c);
+    const side = !!showcase && c.showcase_layout === "mosaic";
     const sizes = sizesIn(c);
     if (sizes.length && !sizes.includes(size)) size = sizes.includes("M") ? "M" : sizes[0];
     const head = `<div class="sec-head">
         ${c.eyebrow ? `<p class="eyebrow">${esc(c.eyebrow)}</p>` : ""}
         <h2 id="cat-${esc(c.slug)}">${esc(c.heading || c.name)}${c.heading_script ? ` <span class="script" style="font-size:.6em">${esc(c.heading_script)}</span>` : ""}</h2>
         ${c.description ? `<p>${esc(c.description)}</p>` : ""}
-      </div>${tpl("intro-" + c.slug)}`;
+      </div>${infoHTML(c) ? `<div class="cat-info">${infoHTML(c)}</div>` : ""}`;
     const nav = c.sections.length > 1
       ? `<nav class="series-nav" aria-label="Submenu ${esc(c.name)}">${c.sections.map((s) => `<a href="#sub-${esc(s.slug)}">${s.icon ? esc(s.icon) + " " : ""}${esc(s.name.replace(/ Series$/, ""))}</a>`).join("")}</nav>` : "<span></span>";
     const sw = sizes.length
@@ -101,7 +123,7 @@
         <div class="series-head"><h3 id="sub-h-${esc(s.slug)}">${esc(s.name)}</h3>${s.tagline ? `<p>${esc(s.tagline)}</p>` : ""}</div>
         <div class="menu-grid">${s.products.map(cardHTML).join("")}</div>
       </section>`).join("");
-    const main = head + (side ? "" : showcase) + bar + secs + tpl("after-" + c.slug);
+    const main = head + (side ? "" : showcase) + bar + secs;
     return `<section class="block cat${i % 2 ? " alt" : ""}" id="${esc(c.slug)}" aria-labelledby="cat-${esc(c.slug)}">
       <div class="wrap${side ? " cat-side" : ""}">${side ? `<div class="cat-media">${showcase}</div>` : ""}<div class="cat-main">${main}</div></div>
     </section>`;
@@ -509,17 +531,30 @@
     if (session) return renderProfile();
     $("acct-title").textContent = "Akun";
     const recent = store.get("cn-orders", []);
+    const waHelp = `https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya lupa password akun saya.")}`;
     body.innerHTML = `
-      <div class="acct-tabs"><button type="button" data-mode="login" aria-pressed="${acctMode === "login"}">Masuk</button><button type="button" data-mode="signup" aria-pressed="${acctMode === "signup"}">Daftar</button></div>
+      <div class="acct-tabs"><button type="button" data-mode="login" aria-pressed="${acctMode !== "signup"}">Masuk</button><button type="button" data-mode="signup" aria-pressed="${acctMode === "signup"}">Daftar</button></div>
+      ${acctMode === "reset" ? `
+      <div class="acct-form">
+        <p>Daftar pakai <b>nomor WhatsApp</b>? Chat kami, nanti kami buatkan password baru.</p>
+        <a class="btn btn-wa" href="${waHelp}" target="_blank" rel="noopener" style="justify-content:center">Minta reset lewat WhatsApp</a>
+        <form class="acct-form" id="f-auth">
+          <p class="form-msg">Daftar pakai <b>email</b>? Kami kirim link reset ke email kamu.</p>
+          <div class="field"><label for="a-id">Email</label><input id="a-id" type="email" autocomplete="email" required></div>
+          <button class="btn btn-ghost" type="submit">Kirim link reset</button>
+          <p class="form-msg" id="f-msg"></p>
+        </form>
+        <button type="button" class="linkish" data-mode="login">Kembali ke Masuk</button>
+      </div>` : `
       <form class="acct-form" id="f-auth">
-        ${acctMode === "signup" ? `<div class="field"><label for="a-name">Nama</label><input id="a-name" autocomplete="name" required></div>
-          <div class="field"><label for="a-phone">No. WhatsApp</label><input id="a-phone" type="tel" autocomplete="tel" required></div>` : ""}
-        <div class="field"><label for="a-email">Email</label><input id="a-email" type="email" autocomplete="email" required></div>
-        ${acctMode !== "reset" ? `<div class="field"><label for="a-pass">Password</label><input id="a-pass" type="password" minlength="8" autocomplete="${acctMode === "signup" ? "new-password" : "current-password"}" required></div>` : ""}
-        <button class="btn btn-rose" type="submit">${acctMode === "signup" ? "Daftar" : acctMode === "reset" ? "Kirim link reset" : "Masuk"}</button>
-        ${acctMode === "login" ? `<button type="button" class="linkish" data-mode="reset">Lupa password?</button>` : ""}
+        ${acctMode === "signup" ? `<div class="field"><label for="a-name">Nama</label><input id="a-name" autocomplete="name" required></div>` : ""}
+        <div class="field"><label for="a-id">${acctMode === "signup" ? "No. WhatsApp" : "No. WhatsApp atau email"}</label>
+          <input id="a-id" ${acctMode === "signup" ? 'type="tel" inputmode="tel" autocomplete="tel" placeholder="08xxxxxxxxxx"' : 'autocomplete="username" placeholder="08xxxxxxxxxx"'} required></div>
+        <div class="field"><label for="a-pass">Password${acctMode === "signup" ? " <small>(minimal 8 karakter)</small>" : ""}</label><input id="a-pass" type="password" minlength="8" autocomplete="${acctMode === "signup" ? "new-password" : "current-password"}" required></div>
+        <button class="btn btn-rose" type="submit">${acctMode === "signup" ? "Daftar" : "Masuk"}</button>
+        ${acctMode === "signup" ? "" : `<button type="button" class="linkish" data-mode="reset">Lupa password?</button>`}
         <p class="form-msg" id="f-msg"></p>
-      </form>
+      </form>`}
       <p class="form-msg">Dengan akun, riwayat pesanan kamu tersimpan dan data pengiriman terisi otomatis.</p>
       ${recent.length ? `<div class="acct-sec"><h4>Pesanan di perangkat ini</h4><div id="recent-orders"><p class="form-msg">Memuat…</p></div></div>` : ""}`;
     body.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => renderAccount(b.dataset.mode)));
@@ -539,24 +574,47 @@
 
   const formMsg = (t, err) => { const m = $("f-msg"); if (m) { m.textContent = t; m.className = "form-msg" + (err ? " err" : ""); } };
 
+  // Accounts made with a WhatsApp number log in with a private address <62number>@phone.camilanika.invalid
+  const PHONE_DOMAIN = "phone.camilanika.invalid";
+  const normPhone = (raw) => {
+    let d = String(raw || "").replace(/\D/g, "");
+    if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d;
+    return /^62\d{8,13}$/.test(d) ? d : null;
+  };
+  const loginId = (raw) => (raw.includes("@") ? raw.trim() : normPhone(raw) ? `${normPhone(raw)}@${PHONE_DOMAIN}` : null);
+  const realEmail = (e) => (e && !e.endsWith("@" + PHONE_DOMAIN) ? e : "");
+
   async function onAuthSubmit(e) {
     e.preventDefault();
     const btn = e.submitter || e.target.querySelector("[type=submit]"); btn.disabled = true;
-    const email = $("a-email").value.trim();
+    const id = $("a-id").value.trim();
     try {
       if (acctMode === "signup") {
-        const { data, error } = await sb.auth.signUp({
-          email, password: $("a-pass").value,
-          options: { data: { full_name: $("a-name").value.trim(), phone: $("a-phone").value.trim() }, emailRedirectTo: CFG.SITE_URL },
+        if (!normPhone(id)) return formMsg("Nomor WhatsApp belum benar. Contoh: 081234567890", true);
+        const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/phone-signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ name: $("a-name").value.trim(), phone: id, password: $("a-pass").value }),
         });
-        if (error) return formMsg(/registered/i.test(error.message) ? "Email sudah terdaftar. Silakan masuk." : "Gagal mendaftar: " + error.message, true);
-        if (!data.session) return formMsg("Cek email kamu untuk konfirmasi akun, lalu masuk.");
+        const out = await res.json().catch(() => ({ error: "SIGNUP_FAILED" }));
+        if (out.error === "PHONE_TAKEN") {
+          renderAccount("login"); $("a-id").value = id;
+          return formMsg("Nomor ini sudah terdaftar. Silakan masuk, atau pakai \"Lupa password?\" kalau lupa.", true);
+        }
+        if (!res.ok || out.error) {
+          return formMsg({ PHONE_INVALID: "Nomor WhatsApp belum benar.", PASSWORD_TOO_SHORT: "Password minimal 8 karakter.", NAME_REQUIRED: "Isi nama dulu ya." }[out.error] || "Gagal mendaftar. Coba lagi sebentar.", true);
+        }
+        // account exists and is ready: log straight in
+        const { error } = await sb.auth.signInWithPassword({ email: out.login, password: $("a-pass").value });
+        if (error) return formMsg("Akun dibuat, tapi gagal masuk otomatis. Silakan masuk.", true);
       } else if (acctMode === "reset") {
-        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: CFG.SITE_URL });
+        const { error } = await sb.auth.resetPasswordForEmail(id, { redirectTo: CFG.SITE_URL });
         return formMsg(error ? "Gagal mengirim email." : "Link reset password sudah dikirim ke email kamu.", !!error);
       } else {
+        const email = loginId(id);
+        if (!email) return formMsg("Isi nomor WhatsApp atau email yang benar.", true);
         const { error } = await sb.auth.signInWithPassword({ email, password: $("a-pass").value });
-        if (error) return formMsg(/confirm/i.test(error.message) ? "Konfirmasi email kamu dulu ya." : "Email atau password salah.", true);
+        if (error) return formMsg(/confirm/i.test(error.message) ? "Konfirmasi email kamu dulu ya." : "Nomor/email atau password salah.", true);
       }
     } finally { btn.disabled = false; }
   }
@@ -566,14 +624,16 @@
     const body = $("acct-body");
     body.innerHTML = `
       <form class="acct-form" id="f-profile">
-        <p class="form-msg">${esc(session.user.email)}</p>
+        <p class="form-msg">${esc(realEmail(session.user.email) || profile?.phone || "")}</p>
         <div class="field"><label for="p-name">Nama</label><input id="p-name" autocomplete="name" value="${esc(profile?.full_name)}"></div>
         <div class="field"><label for="p-phone">No. WhatsApp</label><input id="p-phone" type="tel" autocomplete="tel" value="${esc(profile?.phone)}"></div>
         <div class="field"><label for="p-addr">Alamat</label><textarea id="p-addr" rows="2">${esc(profile?.address)}</textarea></div>
         <button class="btn btn-ghost" type="submit">Simpan profil</button>
         <p class="form-msg" id="f-msg"></p>
       </form>
-      ${profile?.role === "admin" ? `<a class="btn btn-rose" href="admin.html" style="justify-content:center">Buka dashboard admin</a>` : ""}
+      <details class="acct-sec"><summary style="cursor:pointer;font-weight:800">Ganti password</summary>
+        <form class="acct-form" id="f-pass" style="margin-top:.6rem"><div class="field"><label for="p-pass">Password baru (minimal 8 karakter)</label><input id="p-pass" type="password" minlength="8" autocomplete="new-password" required></div>
+        <button class="btn btn-ghost" type="submit">Simpan password</button><p class="form-msg" id="f-pmsg"></p></form></details>
       <div class="acct-sec"><h4>Riwayat pesanan</h4><div id="my-orders"><p class="form-msg">Memuat…</p></div></div>
       <button class="btn btn-ghost" type="button" id="logout" style="justify-content:center">Keluar</button>`;
     $("f-profile").addEventListener("submit", async (e) => {
@@ -584,6 +644,12 @@
       formMsg(error ? "Gagal menyimpan." : "Tersimpan.", !!error);
     });
     $("logout").addEventListener("click", async () => { await sb.auth.signOut(); closeAll(); });
+    $("f-pass").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const { error } = await sb.auth.updateUser({ password: $("p-pass").value });
+      const m = $("f-pmsg"); m.textContent = error ? "Gagal menyimpan password." : "Password baru tersimpan."; m.className = "form-msg" + (error ? " err" : "");
+      if (!error) $("p-pass").value = "";
+    });
     const { data, error } = await sb.from("orders")
       .select("order_number,status,total,discount,gifts,created_at,order_items(product_name,variant_name,choices,addon,quantity,line_total)")
       .eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(30);
@@ -595,7 +661,7 @@
     if (!profile) return;
     const set = (id, v) => { if (v && (force || !$(id).value)) $(id).value = v; };
     set("cust-name", profile.full_name); set("cust-phone", profile.phone); set("cust-addr", profile.address);
-    if (session?.user?.email) set("cust-email", session.user.email);
+    if (realEmail(session?.user?.email)) set("cust-email", session.user.email);
     $("guest-note").hidden = true;
   }
 

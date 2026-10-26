@@ -183,12 +183,15 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .cat-side .sec-head{margin-bottom:1rem}
 .cat-empty{color:var(--muted);font-weight:700}
 .cat.alt .menu-bar{background:color-mix(in srgb,var(--paper) 94%,transparent)}
-.mosaic{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:repeat(4,170px) auto;gap:.7rem;min-width:0;position:relative}
+.mosaic{--mosaic-row:170px;display:grid;grid-template-columns:1.25fr 1fr;gap:.7rem;min-width:0;position:relative}
 @media (min-width:861px){.mosaic{position:sticky;top:calc(env(safe-area-inset-top,0px) + 90px)}}
 .mosaic figure.wide{grid-column:span 2;grid-row:span 1}
 .mosaic .sticker{position:absolute;right:-14px;top:-18px;width:110px;border-radius:50%;border:4px solid var(--paper);box-shadow:var(--shadow);transform:rotate(10deg);z-index:2;background:var(--paper)}
 .mosaic .note{grid-column:span 2;min-height:64px;display:flex;align-items:center;justify-content:center;gap:.6rem;border:2px dashed var(--rose);border-radius:18px;background:var(--rose-soft);font-family:var(--f-script);color:var(--rose);font-size:clamp(1.1rem,2vw,1.45rem);text-align:center;padding:.5rem 1rem}
-@media (max-width:860px){.mosaic{grid-template-rows:repeat(4,150px) auto}.mosaic .sticker{width:80px;right:-6px}}
+@media (max-width:860px){.mosaic{--mosaic-row:150px}.mosaic .sticker{width:80px;right:-6px}}
+.mosaic figure.solo{grid-column:span 2;grid-row:span 2}
+.cat-info{display:grid;gap:.45rem;margin:-.6rem 0 1.4rem}
+.cat-info .fillings{margin:.5rem 0 0}
 .mosaic figure{margin:0;border-radius:18px;overflow:hidden;position:relative;min-height:0}
 .mosaic figure:first-child{grid-row:span 2}
 .mosaic figure img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -364,50 +367,6 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   <div id="menu-root">
     <section class="block"><div class="wrap"><p class="menu-status" id="menu-status">Memuat menu…</p></div></section>
   </div>
-
-  <!-- Optional decorations for a main menu, matched by its slug. A main menu without one simply has none. -->
-  <template id="showcase-minuman" data-layout="stack">
-      <div class="bottle-row">
-        <figure class="bottle"><img src="img/aren-latte.jpg" alt="Botol Aren Latte 1000 ml" loading="lazy"><figcaption>Aren Latte<span>L</span></figcaption></figure>
-        <figure class="bottle"><img src="img/iced-latte.jpg" alt="Latte botolan dituang ke gelas berisi es" loading="lazy"><figcaption>Tinggal tuang es</figcaption></figure>
-        <figure class="bottle"><img src="img/butterscotch.jpg" alt="Botol Butterscotch Latte 500 ml" loading="lazy"><figcaption>Butterscotch<span>M</span></figcaption></figure>
-        <figure class="bottle"><img src="img/chocolate-row.jpg" alt="Deretan botol Chocolate dan Butterscotch Latte 250 ml" loading="lazy"><figcaption>Chocolate<span>S</span></figcaption></figure>
-        <figure class="bottle"><img src="img/peach-americano.jpg" alt="Botol Peach Americano 250 ml" loading="lazy"><figcaption>Peach Americano<span>S</span></figcaption></figure>
-        <figure class="bottle"><img src="img/bottles-trio.jpg" alt="Botol Aren Latte, Americano Peach 1 liter dan Salted Caramel Latte" loading="lazy"><figcaption>Aneka rasa</figcaption></figure>
-        <figure class="bottle"><img src="img/salted-caramel.jpg" alt="Botol Salted Caramel Latte 250 ml" loading="lazy"><figcaption>Salted Caramel<span>S</span></figcaption></figure>
-      </div>
-      <p class="swipe-hint">Geser untuk lihat foto lainnya →</p>
-  </template>
-  <template id="after-minuman">
-      <div class="note-row">
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8h11v6a5 5 0 0 1-5 5H11a5 5 0 0 1-5-5zM17 10h1.5a2.5 2.5 0 0 1 0 5H17"/></svg>Extra shot: S Rp2.000 · M Rp4.000 · L Rp8.000</span>
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Simpan di kulkas, tahan hingga 7 hari</span>
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 4h10l-1.5 16h-7z"/><rect x="9" y="9" width="3.5" height="3.5" rx=".8"/><rect x="12" y="13.5" width="3" height="3" rx=".8"/></svg>Tinggal tuang es, langsung nikmat</span>
-      </div>
-  </template>
-  <template id="showcase-camilan" data-layout="side">
-      <div class="mosaic">
-        <figure><img src="img/cireng-isi.jpg" alt="Cireng isi ayam suwir dibelah, terlihat isian" loading="lazy"><figcaption>Ayam Suwir</figcaption></figure>
-        <figure><img src="img/keju-lumer.jpg" alt="Cireng isi keju lumer dibelah" loading="lazy"><figcaption>Keju Lumer</figcaption></figure>
-        <figure><img src="img/jando-pedas.jpg" alt="Cireng isi jando pedas dibelah" loading="lazy"><figcaption>Jando Pedas</figcaption></figure>
-        <figure><img src="img/frozen-pack.jpg" alt="Cireng isi frozen dalam kemasan vakum isi 6" loading="lazy"><figcaption>Frozen</figcaption></figure>
-        <figure><img src="img/kuah-togo.jpg" alt="Paket cireng kuah creamy siap bawa dengan kuah keju dan chili oil terpisah" loading="lazy"><figcaption>Kuah to-go</figcaption></figure>
-        <figure class="wide"><img src="img/kuah-real.jpg" alt="Cireng kuah creamy dengan kuah keju, cuanki dan chili oil" loading="lazy" style="object-position:center 65%"><figcaption>Cireng Kuah Creamy</figcaption></figure>
-        <div class="note" aria-hidden="true">Gurih di luar, nagih di dalam!</div>
-        <img class="sticker" src="img/logo-cireng.jpg" alt="">
-      </div>
-  </template>
-  <template id="intro-camilan">
-          <p class="deliv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 4l3 2 3-2M9 20l3-2 3 2"/></svg>Frozen tahan lama, goreng kapan saja</p>
-          <p class="deliv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>Dikemas rapi dan higienis</p>
-        <div class="fillings">
-          <div><i style="background:#E8C07A"></i>Ayam Suwir Original</div>
-          <div><i style="background:#D9586F"></i>Ayam Suwir Pedas</div>
-          <div><i style="background:#F2D46B"></i>Keju Lumer</div>
-          <div><i style="background:#A14A2E"></i>Jando Pedas</div>
-        </div>
-  </template>
-
 
   <!-- PROMO + HOW TO -->
   <section class="block" id="cara-order">

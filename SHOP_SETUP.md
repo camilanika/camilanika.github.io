@@ -11,6 +11,8 @@ The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, ord
 | `supabase/seed.sql` | The current menu, loaded as products and variants |
 | `supabase/functions/create-payment` | Edge Function: creates the order and gets a Midtrans payment token |
 | `supabase/functions/midtrans-webhook` | Edge Function: Midtrans calls this when a payment succeeds, fails or expires |
+| `supabase/functions/phone-signup` | Edge Function: creates an account from a WhatsApp number + password |
+| `supabase/functions/admin-users` | Edge Function: lets an admin set a new password for a customer |
 
 ## 1. Database (Supabase → SQL Editor)
 1. Run `supabase/schema.sql`.
@@ -72,4 +74,13 @@ Open `https://camilanika.github.io/admin.html`.
 - Manage both in the admin page's **Menu** tab: add, rename, hide, delete, and reorder with ↑ ↓. Pick each product's submenu in the **Produk** tab.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
-- The bottle photo row and the cireng photo mosaic are attached to the main menus with the slugs `minuman` and `camilan` (see the `<template>` blocks in `index.html`).
+- Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`.
+
+## Customer accounts
+- Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
+- The admin page's **Pelanggan** tab lists everyone who registered: name, email, WhatsApp, paid orders, total spent and last order. Search by name, email or number, open a customer's orders, and make someone admin or remove admin access. You can't remove your own admin access.
+- **Sign-up with a WhatsApp number:** customers register with name, WhatsApp number and password, and are logged in straight away. No SMS or email is sent. Behind the scenes the login is a private address `<62number>@phone.camilanika.invalid`, created by the `phone-signup` Edge Function. Customers log in with their number (or email, for accounts made with email).
+- **Forgotten passwords:** number accounts can't get a reset email. The customer chats you on WhatsApp; in **Pelanggan** press **Reset password**, then send the new password with the WhatsApp button. This uses the `admin-users` Edge Function, which only admins can call. Customers can change their password themselves under **Akun → Ganti password**.
+- **Confirm email** is turned off (Authentication → Sign In / Providers), so email sign-ups can also log in right away.
+- Anyone can register any number, since nothing is sent to verify it. Orders still need payment, so the risk is low; if it ever becomes a problem, add an SMS provider and switch to codes.
