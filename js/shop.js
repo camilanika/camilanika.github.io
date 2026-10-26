@@ -47,7 +47,7 @@
     return ERRORS[code] || "Terjadi kesalahan. Coba lagi, atau pesan lewat WhatsApp.";
   };
   const STATUS = {
-    pending: "Menunggu pembayaran", paid: "Sudah dibayar", processing: "Sedang disiapkan",
+    pending: "Menunggu pembayaran", paid: "Sudah dibayar", processing: "Sedang disiapkan", ready: "Siap diantar", shipping: "Sedang diantar",
     completed: "Selesai", cancelled: "Dibatalkan", expired: "Kedaluwarsa", failed: "Gagal",
   };
 
@@ -644,14 +644,15 @@
   const STATUS_MSG = {
     pending: "Pembayaran belum kami terima. Kalau sudah bayar, status berubah otomatis dalam beberapa saat.",
     paid: "Terima kasih! Pembayaran diterima, pesanan segera kami siapkan.",
-    processing: "Pesanan sedang disiapkan.", completed: "Pesanan selesai. Selamat menikmati!",
+    processing: "Pesanan sedang disiapkan.", ready: "Pesanan sudah siap dan menunggu kurir.",
+    shipping: "Pesanan sedang dalam perjalanan ke alamat kamu.", completed: "Pesanan selesai. Selamat menikmati!",
     expired: "Waktu pembayaran habis, jadi pesanan ini batal otomatis. Silakan pesan lagi.",
     failed: "Pembayaran gagal. Silakan pesan lagi.", cancelled: "Pesanan dibatalkan.",
   };
   const FILTERS = [["all", "Semua"], ["pending", "Belum dibayar"], ["active", "Diproses"], ["completed", "Selesai"], ["closed", "Batal"]];
   const inFilter = (o, f) => {
     const st = effStatus(o);
-    return f === "all" || (f === "pending" && st === "pending") || (f === "active" && ["paid", "processing"].includes(st)) ||
+    return f === "all" || (f === "pending" && st === "pending") || (f === "active" && ["paid", "processing", "ready", "shipping"].includes(st)) ||
       (f === "completed" && st === "completed") || (f === "closed" && ["expired", "failed", "cancelled"].includes(st));
   };
 
@@ -780,7 +781,7 @@
       const actions = st === "pending"
         ? (tok ? `<button class="btn btn-rose" type="button" id="od-pay">Lanjutkan pembayaran · ${rp(o.total)}</button>${ask}`
                : `<p class="form-msg">Link pembayaran untuk pesanan ini tidak tersedia di perangkat ini. Kalau sudah bayar, statusnya berubah otomatis; kalau belum, chat kami.</p>${ask}`)
-        : ["paid", "processing"].includes(st) ? `<a class="btn btn-wa" target="_blank" rel="noopener" href="${deliveryChatLink(o)}">Chat admin untuk pengiriman</a>`
+        : ["paid", "processing", "ready", "shipping"].includes(st) ? `<a class="btn btn-wa" target="_blank" rel="noopener" href="${deliveryChatLink(o)}">Chat admin untuk pengiriman</a>`
         : ask;
       const line = (l, r, cls = "") => `<div class="od-line ${cls}"><span>${l}</span><span>${r}</span></div>`;
       body.innerHTML = `
@@ -981,6 +982,8 @@
     $("acct-label").textContent = s ? (profile?.full_name?.split(" ")[0] || "Akun") : "Masuk";
     if (acct.classList.contains("open") && acctMode !== "recovery") renderAccount();
     if (!$("orders-page").hidden) route();
+    startNotifPolling();
+    if (NF.classList.contains("open")) renderNotifs();
   }
   sb.auth.onAuthStateChange((event, s) => {
     if (event === "PASSWORD_RECOVERY") { session = s; renderAccount("recovery"); openDrawer(acct); return; }
@@ -988,6 +991,121 @@
       setTimeout(() => onSession(s), 0); // avoid calling Supabase inside the auth callback
     }
   });
+
+  // ------------------------------------------------------------------ notifications
+  const NF = $("notif");
+  const NF_ICON = { product: "🆕", promo: "🏷️", order: "📦" };
+  let nf = { items: [], unread: 0 }, nfTimer = null;
+  const toastEl = $("toast"); let toastT = null;
+  const toast = (t) => { toastEl.textContent = t; toastEl.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (toastEl.hidden = true), 3200); };
+
+  function setBadge(n) {
+    nf.unread = n;
+    const b = $("bell-count");
+    b.hidden = !n; b.textContent = n > 99 ? "99+" : String(n);
+    $("bell-btn").setAttribute("aria-label", n ? `Notifikasi, ${n} belum dibaca` : "Notifikasi");
+  }
+  async function refreshUnread() {
+    if (!session) return setBadge(0);
+    const { data, error } = await sb.rpc("unread_notifications");
+    if (!error && typeof data === "number") setBadge(data);
+  }
+  function startNotifPolling() {
+    clearInterval(nfTimer);
+    refreshUnread();
+    if (session) nfTimer = setInterval(() => { if (document.visibilityState === "visible") refreshUnread(); }, 60000);
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && session) refreshUnread(); });
+
+  $("bell-btn").addEventListener("click", () => { openDrawer(NF); renderNotifs(); });
+  NF.addEventListener("click", (e) => { if (e.target.closest("[data-close-notif]")) closeAll(); });
+
+  async function renderNotifs() {
+    $("notif-title").textContent = "Notifikasi";
+    const body = $("notif-body");
+    if (!session) {
+      body.innerHTML = `<div class="nf-empty"><p>Masuk untuk menerima kabar menu baru, promo, dan update pesanan kamu.</p>
+        <button type="button" class="btn btn-rose" data-open-account>Masuk / Daftar</button></div>`;
+      return;
+    }
+    body.innerHTML = `<p class="form-msg">Memuat…</p>`;
+    const { data, error } = await sb.rpc("my_notifications", { p_limit: 60 });
+    if (!NF.classList.contains("open")) return;
+    if (error || !data) { body.innerHTML = `<p class="form-msg err">Notifikasi gagal dimuat. Coba lagi sebentar.</p>`; return; }
+    nf.items = data.items; setBadge(data.unread);
+    drawNotifs();
+  }
+  function drawNotifs() {
+    const body = $("notif-body");
+    if (!nf.items.length) { body.innerHTML = `<div class="nf-empty"><p>Belum ada notifikasi.</p><p style="font-size:.9rem">Kabar menu baru, promo, dan update pesanan kamu akan muncul di sini.</p></div>`; return; }
+    body.innerHTML = `
+      <div class="nf-tools"><span>${nf.unread ? `${nf.unread} belum dibaca` : "Semua sudah dibaca"}</span>
+        ${nf.unread ? `<button type="button" class="linkish" id="nf-all">Tandai semua dibaca</button>` : ""}</div>
+      <div class="nf-list">${nf.items.map((n) => `
+        <button type="button" class="nf-item ${n.read ? "read" : "unread"}" data-nf="${n.id}">
+          <span class="nf-ic" aria-hidden="true">${NF_ICON[n.kind] || "🔔"}</span>
+          <b>${esc(n.title)}</b>${n.read ? "<span></span>" : `<span class="nf-dot" title="Belum dibaca"></span>`}
+          ${n.body ? `<p>${esc(n.body)}</p>` : ""}
+          <small>${fmtDate(n.created_at)}${n.available ? "" : ` · <span class="gone">${n.kind === "promo" ? "promo sudah berakhir" : n.kind === "product" ? "sudah tidak tersedia" : "tidak ditemukan"}</span>`}</small>
+        </button>`).join("")}</div>`;
+    $("nf-all")?.addEventListener("click", async () => {
+      const { error } = await sb.rpc("mark_notifications_read", { p_ids: null });
+      if (error) return toast("Gagal menandai. Coba lagi.");
+      nf.items.forEach((n) => (n.read = true)); setBadge(0); drawNotifs();
+    });
+    body.querySelectorAll("[data-nf]").forEach((b) => b.addEventListener("click", () => openNotif(nf.items.find((n) => String(n.id) === b.dataset.nf))));
+  }
+
+  async function openNotif(n) {
+    if (!n) return;
+    if (!n.read) {
+      n.read = true; setBadge(Math.max(0, nf.unread - 1));
+      sb.rpc("mark_notifications_read", { p_ids: [n.id] }).then(({ error }) => { if (error) refreshUnread(); });
+    }
+    if (n.kind === "order") { navOrders(n.ref_id); return; }
+    if (n.kind === "promo") { renderPromoDetail(n.ref_id); return; }
+    if (n.kind === "product") {
+      const card = document.querySelector(`[data-product="${CSS.escape(String(n.ref_id))}"]`);
+      if (!n.available || !card) { drawNotifs(); toast("Produk ini sudah tidak tersedia."); return; }
+      closeAll();
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
+    }
+  }
+
+  async function renderPromoDetail(id) {
+    $("notif-title").textContent = "Detail promo";
+    const body = $("notif-body");
+    body.innerHTML = `<p class="form-msg">Memuat…</p>`;
+    const { data: pr, error } = await sb.rpc("promo_details", { p_id: Number(id) });
+    const back = `<button type="button" class="linkish" id="nf-back" style="justify-self:start">← Semua notifikasi</button>`;
+    if (error || !pr) {
+      body.innerHTML = `<p class="form-msg">Promo ini sudah tidak tersedia.</p>${back}`;
+    } else {
+      const big = pr.discount_type === "free_item" ? "GRATIS" : pr.discount_type === "percent" ? `Diskon ${pr.value}%` : `Potongan ${rp(pr.value)}`;
+      const per = pr.ends_at ? `Berlaku sampai ${fmtDate(pr.ends_at)}` : pr.starts_at ? `Mulai ${fmtDate(pr.starts_at)}` : "";
+      body.innerHTML = `<div class="pd-card">
+          <span class="badge-st ${pr.live ? "paid" : "expired"}" style="justify-self:start">${pr.live ? "Sedang berlaku" : "Sudah berakhir"}</span>
+          <h3 style="margin:0">${esc(pr.name)}</h3>
+          <div class="pd-big">${esc(big)}</div>
+          ${pr.discount_type === "free_item" && pr.gift_text ? `<div>🎁 ${esc(pr.gift_text)}</div>` : ""}
+          ${pr.description ? `<p style="margin:0">${esc(pr.description)}</p>` : ""}
+          <ul style="margin:0;padding-left:1.1rem;color:var(--muted)">
+            ${pr.min_spend ? `<li>Minimal belanja ${rp(pr.min_spend)}</li>` : ""}
+            ${pr.max_discount ? `<li>Maksimal potongan ${rp(pr.max_discount)}</li>` : ""}
+            ${per ? `<li>${per}</li>` : ""}
+            <li>${pr.code ? "Masukkan kode di keranjang" : "Otomatis terpakai di keranjang"}</li>
+          </ul>
+          ${pr.code ? `<div class="pd-code"><span>${esc(pr.code)}</span>${pr.live ? `<button type="button" class="btn btn-rose" id="pd-use">Pakai kode</button>` : ""}</div>` : ""}
+          ${pr.live && !pr.code ? `<button type="button" class="btn btn-rose" id="pd-shop" style="justify-content:center">Belanja sekarang</button>` : ""}
+        </div>${back}`;
+      $("pd-use")?.addEventListener("click", () => {
+        $("promo-code").value = pr.code; openDrawer($("drawer")); $("apply-code").click();
+      });
+      $("pd-shop")?.addEventListener("click", () => { closeAll(); document.querySelector("#menu-root")?.scrollIntoView({ behavior: "smooth" }); });
+    }
+    $("nf-back").addEventListener("click", () => { $("notif-title").textContent = "Notifikasi"; drawNotifs(); });
+  }
 
   // ------------------------------------------------------------------ copy phone
   $("copy-phone").addEventListener("click", (e) => {
