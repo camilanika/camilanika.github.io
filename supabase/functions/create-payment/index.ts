@@ -9,7 +9,7 @@
 //   SITE_URL                 e.g. "https://camilanika.github.io/"
 // SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are provided automatically.
 //
-// Deploy with "Verify JWT" turned OFF (guests can check out); the function checks the login itself.
+// "Verify JWT" can stay ON: the website always sends the public anon key in Authorization.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
@@ -32,7 +32,7 @@ function cors(origin: string | null) {
   const allow = origin && ALLOWED.includes(origin) ? origin : ALLOWED[0];
   return {
     "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-user-token",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
   };
@@ -53,9 +53,11 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return reply({ error: "BAD_REQUEST" }, 400); }
 
   // Logged-in customer? (a guest sends only the public key, which is not a user)
+  // The website sends the public key in Authorization (for Supabase's JWT check)
+  // and the customer's login token, if any, in x-user-token.
   let userId: string | null = null;
-  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (token && token !== ANON_KEY) {
+  const token = req.headers.get("x-user-token") ?? "";
+  if (token) {
     const { data } = await admin.auth.getUser(token);
     userId = data?.user?.id ?? null;
   }
