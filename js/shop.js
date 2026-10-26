@@ -88,7 +88,7 @@
     // mosaic: first photo is tall; if the grid would leave a gap, the last photo goes full width
     const k = imgs.length, solo = k === 1, lastWide = !solo && (k + 1) % 2 === 1;
     const rows = solo ? 2 : Math.ceil((k + 1 + (lastWide ? 1 : 0)) / 2);
-    return `<div class="mosaic" style="grid-template-rows:repeat(${rows},var(--mosaic-row)) auto">
+    return `<div class="mosaic" style="--rows:${rows};grid-template-rows:repeat(${rows},var(--mosaic-row)) auto">
       ${imgs.map((i, n) => `<figure class="${solo ? "solo" : n === k - 1 && lastWide ? "wide" : ""}">${img(i)}${i.caption ? `<figcaption>${esc(i.caption)}</figcaption>` : ""}</figure>`).join("")}
       ${c.showcase_note ? `<div class="note" aria-hidden="true">${esc(c.showcase_note)}</div>` : ""}
       <img class="sticker" src="img/logo-cireng.jpg" alt="">
@@ -536,14 +536,8 @@
       <div class="acct-tabs"><button type="button" data-mode="login" aria-pressed="${acctMode !== "signup"}">Masuk</button><button type="button" data-mode="signup" aria-pressed="${acctMode === "signup"}">Daftar</button></div>
       ${acctMode === "reset" ? `
       <div class="acct-form">
-        <p>Daftar pakai <b>nomor WhatsApp</b>? Chat kami, nanti kami buatkan password baru.</p>
+        <p>Lupa password? Chat kami lewat WhatsApp dari nomor yang kamu daftarkan, nanti kami buatkan password baru.</p>
         <a class="btn btn-wa" href="${waHelp}" target="_blank" rel="noopener" style="justify-content:center">Minta reset lewat WhatsApp</a>
-        <form class="acct-form" id="f-auth">
-          <p class="form-msg">Daftar pakai <b>email</b>? Kami kirim link reset ke email kamu.</p>
-          <div class="field"><label for="a-id">Email</label><input id="a-id" type="email" autocomplete="email" required></div>
-          <button class="btn btn-ghost" type="submit">Kirim link reset</button>
-          <p class="form-msg" id="f-msg"></p>
-        </form>
         <button type="button" class="linkish" data-mode="login">Kembali ke Masuk</button>
       </div>` : `
       <form class="acct-form" id="f-auth">
@@ -558,7 +552,7 @@
       <p class="form-msg">Dengan akun, riwayat pesanan kamu tersimpan dan data pengiriman terisi otomatis.</p>
       ${recent.length ? `<div class="acct-sec"><h4>Pesanan di perangkat ini</h4><div id="recent-orders"><p class="form-msg">Memuat…</p></div></div>` : ""}`;
     body.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => renderAccount(b.dataset.mode)));
-    $("f-auth").addEventListener("submit", onAuthSubmit);
+    $("f-auth")?.addEventListener("submit", onAuthSubmit);
     if (recent.length) loadRecent(recent);
   }
 
@@ -607,9 +601,6 @@
         // account exists and is ready: log straight in
         const { error } = await sb.auth.signInWithPassword({ email: out.login, password: $("a-pass").value });
         if (error) return formMsg("Akun dibuat, tapi gagal masuk otomatis. Silakan masuk.", true);
-      } else if (acctMode === "reset") {
-        const { error } = await sb.auth.resetPasswordForEmail(id, { redirectTo: CFG.SITE_URL });
-        return formMsg(error ? "Gagal mengirim email." : "Link reset password sudah dikirim ke email kamu.", !!error);
       } else {
         const email = loginId(id);
         if (!email) return formMsg("Isi nomor WhatsApp atau email yang benar.", true);
