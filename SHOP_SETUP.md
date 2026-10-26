@@ -1,0 +1,68 @@
+# CamilaNika online shop: setup guide
+
+The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, orders and promos. Midtrans takes the payments.
+
+| File | What it is |
+|---|---|
+| `index.html`, `js/shop.js` | Shop page: menu from the database, cart, promo codes, login, online payment, order history |
+| `admin.html` | Admin dashboard: orders, stock, products and variants, promos |
+| `js/config.js` | Public settings: Supabase URL and key, Midtrans client key |
+| `supabase/schema.sql` | Database tables, security rules and functions |
+| `supabase/seed.sql` | The current menu, loaded as products and variants |
+| `supabase/functions/create-payment` | Edge Function: creates the order and gets a Midtrans payment token |
+| `supabase/functions/midtrans-webhook` | Edge Function: Midtrans calls this when a payment succeeds, fails or expires |
+
+## 1. Database (Supabase → SQL Editor)
+1. Run `supabase/schema.sql`.
+2. Run `supabase/seed.sql`. Every variant starts with **stock = 10**, which is a placeholder; set the real numbers in the admin page.
+3. Recommended: under Database → Extensions, enable **pg_cron**, then run this. It releases stock held by checkouts that were never paid:
+   ```sql
+   select cron.schedule('release-expired-orders', '*/5 * * * *', 'select public.release_expired_orders()');
+   ```
+
+## 2. Login settings (Supabase → Authentication → URL Configuration)
+- Site URL: `https://camilanika.github.io/`
+- Redirect URLs: add `https://camilanika.github.io/**`
+
+## 3. Edge Functions (Supabase → Edge Functions)
+1. Create a function named **create-payment** and paste in `supabase/functions/create-payment/index.ts`. Do the same for **midtrans-webhook**.
+2. **create-payment**: leave "Verify JWT" **ON** (the site sends the public key).
+   **midtrans-webhook**: turn "Verify JWT" **OFF**, because Midtrans can't send a Supabase key. It's still protected: every call must carry Midtrans' signature made with your Server Key, and the function re-checks the payment status with Midtrans before changing anything.
+3. Under Edge Functions → Secrets, add:
+   - `MIDTRANS_SERVER_KEY`: the Midtrans **Server Key** (the Sandbox one while testing)
+   - `MIDTRANS_IS_PRODUCTION`: `false` (change to `true` when you go live)
+   - `ALLOWED_ORIGINS`: `https://camilanika.github.io`
+   - `SITE_URL`: `https://camilanika.github.io/`
+
+## 4. Midtrans dashboard
+- Settings → Payment → **Notification URL**: `https://qynznqapyfxvjjeaoman.supabase.co/functions/v1/midtrans-webhook`
+- Copy the **Client Key** into `js/config.js`. Never put the Server Key in the website.
+
+## 5. Website config
+Put the Supabase **anon / publishable key** (Project Settings → API Keys) and the Midtrans **Client Key** into `js/config.js`.
+
+## 6. First admin
+Sign up on the website with your email, then run this in the SQL Editor:
+```sql
+update public.profiles set role = 'admin'
+where id = (select id from auth.users where email = 'YOUR_EMAIL');
+```
+Open `https://camilanika.github.io/admin.html`.
+
+## Going live
+1. Once Midtrans has approved your account, switch the dashboard to Production.
+2. Put the **production** Server Key in the secrets and set `MIDTRANS_IS_PRODUCTION=true`.
+3. Put the production Client Key in `js/config.js` and set `MIDTRANS_IS_PRODUCTION: true`.
+4. Set the Production Notification URL in Midtrans to the same webhook address.
+5. Upgrade Supabase to Pro, which gives you backups and stops the project from being paused.
+
+## How things work
+- **Prices, promos and stock are always checked on the server**, so a customer can't change a price in their browser.
+- Stock is **reserved** while a customer pays, for 30 minutes. It is deducted when Midtrans confirms payment and released if the payment expires, fails or is cancelled.
+- **Promos:**
+  - A promo without a code applies automatically. When several automatic discounts qualify, the biggest one is used.
+  - Every free gift the order qualifies for is added.
+  - A typed code replaces any automatic discount.
+- **Cancelling a paid order** in the admin page doesn't refund it. Do the refund in the Midtrans dashboard, and adjust stock in the Stok tab if the items go back on sale.
+- **Guests** can check out without an account. Their order status is saved on that device. Logged-in customers see their full history under Akun.
+- WhatsApp and GoFood ordering still work as before.
