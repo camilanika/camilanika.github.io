@@ -739,6 +739,7 @@ td.num,th.num{text-align:right}
         <td><div class="adj">
           ${c.orders_count ? `<button class="btn btn-ghost btn-sm" data-corders="${c.id}">Pesanan</button>` : ""}
           <button class="btn btn-ghost btn-sm" data-reset="${c.id}">Reset password</button>
+          ${c.id === me || c.role === "admin" ? "" : `<button class="btn btn-ghost btn-sm" data-del="${c.id}" style="color:var(--rose)">Hapus akun</button>`}
           ${c.id === me ? "" : `<button class="btn btn-ghost btn-sm" data-role="${c.id}" data-to="${c.role === "admin" ? "customer" : "admin"}" data-name="${esc(c.full_name || c.email)}">${c.role === "admin" ? "Cabut admin" : "Jadikan admin"}</button>`}
         </div></td></tr>`;
     }).join("") || `<tr><td colspan="7" class="muted">${custSearch ? "Tidak ada yang cocok." : "Belum ada pelanggan terdaftar."}</td></tr>`;
@@ -753,7 +754,41 @@ td.num,th.num{text-align:right}
     });
     tb.querySelectorAll("[data-corders]").forEach((b) => b.onclick = () => customerOrders(data.find((c) => c.id === b.dataset.corders)));
     tb.querySelectorAll("[data-reset]").forEach((b) => b.onclick = () => resetPassword(data.find((c) => c.id === b.dataset.reset)));
+    tb.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => deleteAccount(data.find((c) => c.id === b.dataset.del)));
   }
+  // calls the admin-users Edge Function with the admin's login
+  async function adminUsers(body) {
+    const { data: s } = await sb.auth.getSession();
+    const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/admin-users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}`, "x-user-token": s?.session?.access_token || "" },
+      body: JSON.stringify(body),
+    });
+    const out = await res.json().catch(() => ({ error: "FAILED" }));
+    return res.ok && !out.error ? { ok: true } : { error: out.error || "FAILED" };
+  }
+
+  function deleteAccount(c) {
+    const who = c.full_name || c.phone || realEmail(c.email) || "akun ini";
+    openModal(`<div class="modal-head"><h2>Hapus akun</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <p style="margin:0">Hapus akun <b>${esc(who)}</b>${c.phone ? ` (${esc(c.phone)})` : ""}? Orang ini tidak bisa masuk lagi, dan profilnya (nama, alamat) dihapus.</p>
+      <p class="muted" style="margin:0">${c.orders_count ? `${c.orders_count} pesanannya tetap tersimpan di tab Pesanan, tapi tidak lagi terhubung ke akun.` : "Akun ini belum punya pesanan."} Tidak bisa dibatalkan. Nomor/email yang sama bisa mendaftar lagi nanti.</p>
+      <label class="f">Ketik <b>HAPUS</b> untuk konfirmasi<input id="delc" autocomplete="off"></label>
+      <p class="msg" id="delm"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="delgo" disabled>Hapus akun</button></div>`);
+    $("delc").oninput = () => { $("delgo").disabled = $("delc").value.trim().toUpperCase() !== "HAPUS"; };
+    $("delgo").onclick = async () => {
+      $("delgo").disabled = true;
+      const r = await adminUsers({ action: "delete_user", user_id: c.id });
+      if (r.error) {
+        $("delm").className = "msg err";
+        $("delm").textContent = { REMOVE_ADMIN_FIRST: "Cabut akses admin dulu sebelum menghapus.", CANNOT_DELETE_SELF: "Kamu tidak bisa menghapus akunmu sendiri.", NOT_ADMIN: "Hanya admin yang bisa menghapus akun." }[r.error] || "Gagal menghapus. Coba lagi.";
+        $("delgo").disabled = false; return;
+      }
+      closeModal(); toast("Akun dihapus"); loadCustomers();
+    };
+  }
+
   function resetPassword(c) {
     const words = "kopi,latte,aren,cireng,keju,mocha,matcha,gula,susu,botol".split(",");
     const pick = () => words[crypto.getRandomValues(new Uint32Array(1))[0] % words.length];
@@ -768,15 +803,9 @@ td.num,th.num{text-align:right}
       const pw = $("rp1").value.trim();
       if (pw.length < 8) { $("rpm").textContent = "Minimal 8 karakter."; $("rpm").className = "msg err"; return; }
       $("rpsave").disabled = true;
-      const { data: s } = await sb.auth.getSession();
-      const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/admin-users`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}`, "x-user-token": s?.session?.access_token || "" },
-        body: JSON.stringify({ action: "reset_password", user_id: c.id, password: pw }),
-      });
-      const out = await res.json().catch(() => ({ error: "RESET_FAILED" }));
+      const out = await adminUsers({ action: "reset_password", user_id: c.id, password: pw });
       $("rpsave").disabled = false;
-      if (!res.ok || out.error) { $("rpm").textContent = out.error === "NOT_ADMIN" ? "Hanya admin yang bisa reset password." : "Gagal menyimpan. Coba lagi."; $("rpm").className = "msg err"; return; }
+      if (out.error) { $("rpm").textContent = out.error === "NOT_ADMIN" ? "Hanya admin yang bisa reset password." : "Gagal menyimpan. Coba lagi."; $("rpm").className = "msg err"; return; }
       const msg = `Halo ${c.full_name || ""}, password akun CamilaNika kamu sudah kami ganti. Password baru: ${pw}\nMasuk di camilanika.github.io pakai nomor WhatsApp ini, lalu ganti password lewat menu Akun kalau mau.`;
       $("modal-box").innerHTML = `<div class="modal-head"><h2>Password diganti</h2><button class="x" data-close aria-label="Tutup">×</button></div>
         <p style="margin:0">Password baru: <code style="font-size:1.05rem;user-select:all">${esc(pw)}</code></p>
