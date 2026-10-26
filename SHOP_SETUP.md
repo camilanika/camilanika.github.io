@@ -84,3 +84,6 @@ Open `https://camilanika.github.io/admin.html`.
 - **Forgotten passwords:** number accounts can't get a reset email. The customer chats you on WhatsApp; in **Pelanggan** press **Reset password**, then send the new password with the WhatsApp button. This uses the `admin-users` Edge Function, which only admins can call. Customers can change their password themselves under **Akun → Ganti password**.
 - **Confirm email** is turned off (Authentication → Sign In / Providers), so email sign-ups can also log in right away.
 - Anyone can register any number, since nothing is sent to verify it. Orders still need payment, so the risk is low; if it ever becomes a problem, add an SMS provider and switch to codes.
+
+## Releasing changes
+GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` or `js/config.js` changes, bump the `?v=` number on their `<script>` tags in `index.html` (and `admin.html` for config) so visitors get the new version immediately.
