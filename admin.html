@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="img/logo-cireng.jpg">
+<title>CamilaNika Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+:root{--bg:#FBF3EA;--paper:#FFFAF4;--fg:#4A2A1C;--muted:#7D5F52;--line:#EBD7C8;--rose:#D9586F;--rose-ink:#fff;--rose-soft:#FBE1E6;--caramel:#B9763A;--ok:#1F9D55;--ok-soft:#DDF3E6;--warn-soft:#F7E6D3;
+  --f-display:"Baloo 2","Nunito",system-ui,sans-serif;--f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1C1411;--paper:#271C18;--fg:#F6E6DA;--muted:#C9AE9F;--line:#3E2E27;--rose:#EE7F95;--rose-ink:#2A0F16;--rose-soft:#3A2128;--caramel:#E0A266;--ok:#36C075;--ok-soft:#1E3427;--warn-soft:#3A2B1C;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1C1411;--paper:#271C18;--fg:#F6E6DA;--muted:#C9AE9F;--line:#3E2E27;--rose:#EE7F95;--rose-ink:#2A0F16;--rose-soft:#3A2128;--caramel:#E0A266;--ok:#36C075;--ok-soft:#1E3427;--warn-soft:#3A2B1C;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body)}
+h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.15}
+a{color:inherit}
+[hidden]{display:none!important}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px}
+header.top{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:1rem;padding-block:.6rem;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;font-family:var(--f-display);font-weight:800;font-size:1.2rem}
+.brand img{width:36px;height:36px;border-radius:50%}
+.tabs{display:flex;gap:.3rem;flex-wrap:wrap}
+.tabs button{font:800 .9rem var(--f-body);border:1.5px solid var(--line);background:transparent;color:var(--fg);padding:.45rem .9rem;border-radius:999px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.top .me{margin-left:auto;display:flex;gap:.6rem;align-items:center;color:var(--muted);font-weight:700;font-size:.85rem}
+main{padding-block:1.4rem 4rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font:800 .88rem/1 var(--f-body);padding:.6rem .95rem;border-radius:999px;border:1.5px solid transparent;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:disabled{opacity:.55;cursor:wait}
+.btn-rose{background:var(--rose);color:var(--rose-ink)}
+.btn-ghost{background:transparent;border-color:var(--line);color:var(--fg)}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-sm{padding:.4rem .7rem;font-size:.8rem}
+.bar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1rem}
+.bar h2{font-size:1.6rem;margin-right:auto}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:.5rem .65rem;min-width:0}
+textarea{resize:vertical}
+label.f{display:grid;gap:.2rem;font-size:.78rem;font-weight:800;color:var(--muted)}
+label.f input,label.f select,label.f textarea{font-size:.95rem;font-weight:600}
+.chk{display:flex;gap:.45rem;align-items:center;font-weight:700}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem}
+@media (max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1rem}
+.list{display:grid;gap:.7rem}
+.muted{color:var(--muted)}
+.badge{display:inline-block;padding:.15rem .6rem;border-radius:999px;font-weight:800;font-size:.75rem;background:var(--line)}
+.badge.paid,.badge.processing,.badge.on{background:var(--ok-soft);color:var(--ok)}
+.badge.completed{background:var(--line);color:var(--fg)}
+.badge.pending,.badge.low{background:var(--warn-soft);color:var(--caramel)}
+.badge.expired,.badge.failed,.badge.cancelled,.badge.off,.badge.out{background:var(--rose-soft);color:var(--rose)}
+.order{display:grid;grid-template-columns:1.2fr 1.4fr auto;gap:1rem;align-items:start}
+@media (max-width:860px){.order{grid-template-columns:1fr}}
+.order ul{margin:.2rem 0 0;padding-left:1.1rem}
+.order .acts{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:flex-end}
+.tbl-wrap{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:16px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:.55rem .7rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--bg);position:sticky;top:0}
+tr.group td{background:var(--bg);font-family:var(--f-display);font-weight:800;font-size:1.05rem}
+td.num,th.num{text-align:right}
+.adj{display:flex;gap:.35rem;align-items:center;justify-content:flex-end}
+.adj input{width:80px;text-align:right}
+.adj select{width:auto}
+.msg{font-weight:700;font-size:.9rem}
+.msg.err{color:var(--rose)}
+.msg.ok{color:var(--ok)}
+.modal-bg{position:fixed;inset:0;background:rgba(20,10,6,.5);z-index:50;display:grid;place-items:start center;padding:24px 16px;overflow:auto}
+.modal{background:var(--bg);border-radius:20px;width:min(980px,100%);padding:1.2rem;display:grid;gap:1rem;box-shadow:0 20px 50px -20px rgba(0,0,0,.5)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:1rem}
+.x{border:0;background:var(--paper);color:var(--fg);width:38px;height:38px;border-radius:50%;font-size:1.3rem;cursor:pointer}
+.vt input,.vt select{width:100%;padding:.35rem .5rem;font-size:.9rem}
+.vt td{padding:.35rem .4rem}
+.vt .w-price{min-width:95px}
+.row-actions{display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap}
+.login{max-width:400px;margin:10vh auto;display:grid;gap:.8rem}
+.thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;background:var(--line)}
+.pchk{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.3rem .8rem;max-height:200px;overflow:auto;padding:.5rem;border:1px solid var(--line);border-radius:12px}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:.7rem 1.1rem;border-radius:999px;font-weight:800;z-index:99}
+</style>
+</head>
+<body>
+<header class="top" id="topbar" hidden>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="img/logo-cireng.jpg" alt="">CamilaNika Admin</a>
+    <nav class="tabs" id="tabs">
+      <button type="button" data-tab="orders" aria-pressed="true">Pesanan</button>
+      <button type="button" data-tab="stock" aria-pressed="false">Stok</button>
+      <button type="button" data-tab="products" aria-pressed="false">Produk</button>
+      <button type="button" data-tab="promos" aria-pressed="false">Promo</button>
+    </nav>
+    <div class="me"><span id="me"></span><button class="btn btn-ghost btn-sm" type="button" id="logout">Keluar</button></div>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+  <p class="muted">Memuat…</p>
+</main>
+
+<div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/config.js"></script>
+<script src="js/vendor/supabase.js"></script>
+<script>
+(() => {
+  const CFG = window.CN_CONFIG;
+  const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+  const $ = (id) => document.getElementById(id);
+  const app = $("app");
+  const rp = (n) => n == null ? "–" : "Rp" + Math.round(n).toLocaleString("id-ID");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmtDate = (d) => d ? new Date(d).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "";
+  const toast = (t) => { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (el.hidden = true), 2500); };
+  const STATUS = { pending: "Menunggu bayar", paid: "Dibayar", processing: "Diproses", completed: "Selesai", cancelled: "Dibatalkan", expired: "Kedaluwarsa", failed: "Gagal" };
+  const SERIES = { coffee: "Coffee", choco: "Chocolate", matcha: "Matcha", cireng: "Cireng / camilan" };
+  const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const err = (e) => (e?.message || String(e)).replace(/^.*?([A-Z_]{5,}.*)$/s, "$1");
+
+  let tab = "orders", refreshTimer = null;
+
+  // ---------------------------------------------------------------- auth gate
+  async function gate(session) {
+    clearInterval(refreshTimer);
+    if (!session) return showLogin();
+    const { data: prof } = await sb.from("profiles").select("full_name,role").eq("id", session.user.id).maybeSingle();
+    if (prof?.role !== "admin") {
+      $("topbar").hidden = true;
+      app.innerHTML = `<div class="login card"><h2>Bukan akun admin</h2><p class="muted">${esc(session.user.email)} tidak punya akses admin. Minta pemilik toko menjadikan akun ini admin.</p><button class="btn btn-ghost" id="lo2">Keluar</button></div>`;
+      $("lo2").onclick = () => sb.auth.signOut();
+      return;
+    }
+    $("topbar").hidden = false;
+    $("me").textContent = prof.full_name || session.user.email;
+    show(tab);
+  }
+  function showLogin() {
+    $("topbar").hidden = true;
+    app.innerHTML = `<form class="login card" id="lf"><h2>Masuk admin</h2>
+      <label class="f">Email<input id="le" type="email" autocomplete="email" required></label>
+      <label class="f">Password<input id="lp" type="password" autocomplete="current-password" required></label>
+      <button class="btn btn-rose" type="submit">Masuk</button><p class="msg" id="lm"></p></form>`;
+    $("lf").onsubmit = async (e) => {
+      e.preventDefault();
+      const { error } = await sb.auth.signInWithPassword({ email: $("le").value.trim(), password: $("lp").value });
+      if (error) { $("lm").textContent = "Email atau password salah."; $("lm").className = "msg err"; }
+    };
+  }
+  $("logout").onclick = () => sb.auth.signOut();
+  let lastUser;
+  sb.auth.onAuthStateChange((ev, s) => {
+    const uid = s?.user?.id || null;
+    if (ev === "TOKEN_REFRESHED" || (ev === "SIGNED_IN" && uid === lastUser)) return;
+    lastUser = uid;
+    setTimeout(() => gate(s), 0);
+  });
+
+  $("tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
+  function show(t) {
+    tab = t; clearInterval(refreshTimer);
+    document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === t));
+    ({ orders: renderOrders, stock: renderStock, products: renderProducts, promos: renderPromos })[t]();
+  }
+
+  // modal
+  const openModal = (html) => { $("modal-box").innerHTML = html; $("modal").hidden = false; };
+  const closeModal = () => { $("modal").hidden = true; $("modal-box").innerHTML = ""; };
+  $("modal").addEventListener("click", (e) => { if (e.target.id === "modal" || e.target.closest("[data-close]")) closeModal(); });
+
+  // ---------------------------------------------------------------- ORDERS
+  let orderFilter = "todo";
+  async function renderOrders() {
+    app.innerHTML = `<div class="bar"><h2>Pesanan</h2>
+      <select id="of"><option value="todo">Perlu diproses (dibayar / diproses)</option><option value="pending">Menunggu pembayaran</option><option value="completed">Selesai</option><option value="closed">Batal / kedaluwarsa / gagal</option><option value="all">Semua</option></select>
+      <button class="btn btn-ghost" id="oref">Muat ulang</button></div><div class="list" id="olist"><p class="muted">Memuat…</p></div>`;
+    $("of").value = orderFilter;
+    $("of").onchange = () => { orderFilter = $("of").value; loadOrders(); };
+    $("oref").onclick = loadOrders;
+    await loadOrders();
+    refreshTimer = setInterval(loadOrders, 30000);
+  }
+  async function loadOrders() {
+    const groups = { todo: ["paid", "processing"], pending: ["pending"], completed: ["completed"], closed: ["cancelled", "expired", "failed"] };
+    let q = sb.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(100);
+    if (groups[orderFilter]) q = q.in("status", groups[orderFilter]);
+    const { data, error } = await q;
+    const el = $("olist"); if (!el) return;
+    if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
+    if (!data.length) { el.innerHTML = `<p class="muted">Tidak ada pesanan.</p>`; return; }
+    el.innerHTML = data.map((o) => {
+      const wa = (o.phone || "").replace(/\D/g, "").replace(/^0/, "62");
+      const acts = [];
+      if (o.status === "paid") acts.push(`<button class="btn btn-rose btn-sm" data-st="processing" data-id="${o.id}">Proses</button>`);
+      if (["paid", "processing"].includes(o.status)) acts.push(`<button class="btn btn-ok btn-sm" data-st="completed" data-id="${o.id}">Selesai</button>`);
+      if (["pending", "paid", "processing"].includes(o.status)) acts.push(`<button class="btn btn-ghost btn-sm" data-st="cancelled" data-id="${o.id}" data-paid="${o.status !== "pending"}">Batalkan</button>`);
+      return `<div class="card order">
+        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span></div>
+          <div class="muted" style="font-size:.85rem">${fmtDate(o.created_at)}${o.payment_method ? " · " + esc(o.payment_method) : ""}${o.user_id ? "" : " · tamu"}</div>
+          <div style="margin-top:.4rem"><b>${esc(o.customer_name)}</b> · ${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(o.phone)}</a>` : ""}${o.email ? `<br><span class="muted">${esc(o.email)}</span>` : ""}</div>
+          ${o.address ? `<div class="muted" style="white-space:pre-line">${esc(o.address)}</div>` : ""}${o.notes ? `<div class="muted">${esc(o.notes)}</div>` : ""}</div>
+        <div><ul>${o.order_items.map((i) => `<li>${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}${Object.values(i.choices || {}).map((c) => " · " + esc(c)).join("")}${i.addon ? " · <b>" + esc(i.addon) + "</b>" : ""} <span class="muted">${rp(i.line_total)}</span></li>`).join("")}</ul>
+          ${(o.gifts || []).map((g) => `<div>🎁 <b>${esc(g.gift)}</b></div>`).join("")}
+          <div style="margin-top:.3rem">${o.discount ? `Subtotal ${rp(o.subtotal)} · Diskon −${rp(o.discount)}${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}<br>` : ""}<b>Total ${rp(o.total)}</b></div></div>
+        <div class="acts">${acts.join("")}</div></div>`;
+    }).join("");
+    el.querySelectorAll("[data-st]").forEach((b) => b.onclick = async () => {
+      if (b.dataset.st === "cancelled" && !confirm(b.dataset.paid === "true"
+        ? "Batalkan pesanan yang SUDAH DIBAYAR? Refund dilakukan manual di dashboard Midtrans, dan stok tidak dikembalikan otomatis."
+        : "Batalkan pesanan ini? Stok yang dipesan akan dikembalikan.")) return;
+      b.disabled = true;
+      const { error } = await sb.rpc("admin_set_order_status", { p_order_id: b.dataset.id, p_status: b.dataset.st });
+      if (error) { toast(err(error)); b.disabled = false; } else { toast("Status diperbarui"); loadOrders(); }
+    });
+  }
+
+  // ---------------------------------------------------------------- STOCK
+  let lowOnly = false;
+  async function renderStock() {
+    app.innerHTML = `<div class="bar"><h2>Stok</h2><label class="chk"><input type="checkbox" id="lowonly"> Hanya stok menipis / habis</label><button class="btn btn-ghost" id="sref">Muat ulang</button></div>
+      <p class="muted" style="margin:-.4rem 0 1rem">Tersedia = stok − dipesan (pesanan belum dibayar). Isi angka + untuk menambah, − untuk mengurangi.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Varian</th><th class="num">Tersedia</th><th class="num">Stok</th><th class="num">Dipesan</th><th class="num">Batas menipis</th><th class="num">Ubah stok</th></tr></thead><tbody id="stbody"><tr><td colspan="6" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("lowonly").checked = lowOnly;
+    $("lowonly").onchange = () => { lowOnly = $("lowonly").checked; loadStock(); };
+    $("sref").onclick = loadStock;
+    await loadStock();
+  }
+  async function loadStock() {
+    const { data, error } = await sb.from("products")
+      .select("id,name,is_active,sort_order,product_variants(id,name,is_active,sort_order,inventory(stock,reserved,low_stock_threshold))")
+      .order("sort_order").order("id");
+    const tb = $("stbody"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="6" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    let html = "";
+    for (const p of data) {
+      const vs = p.product_variants.sort((a, b) => a.sort_order - b.sort_order || a.id - b.id).map((v) => {
+        const inv = Array.isArray(v.inventory) ? v.inventory[0] : v.inventory;
+        return { ...v, inv: inv || { stock: 0, reserved: 0, low_stock_threshold: 5 } };
+      }).filter((v) => !lowOnly || v.inv.stock - v.inv.reserved <= v.inv.low_stock_threshold);
+      if (!vs.length) continue;
+      html += `<tr class="group"><td colspan="6">${esc(p.name)} ${p.is_active ? "" : '<span class="badge off">nonaktif</span>'}</td></tr>`;
+      html += vs.map((v) => {
+        const av = v.inv.stock - v.inv.reserved;
+        const cls = av <= 0 ? "out" : av <= v.inv.low_stock_threshold ? "low" : "on";
+        return `<tr><td>${esc(v.name)} ${v.is_active ? "" : '<span class="badge off">nonaktif</span>'}</td>
+          <td class="num"><span class="badge ${cls}">${av}</span></td><td class="num">${v.inv.stock}</td><td class="num">${v.inv.reserved}</td>
+          <td class="num"><input type="number" min="0" value="${v.inv.low_stock_threshold}" data-th="${v.id}" style="width:70px;text-align:right"></td>
+          <td><div class="adj"><input type="number" step="1" placeholder="+10" data-chg="${v.id}" aria-label="Ubah stok ${esc(v.name)}">
+            <select data-rsn="${v.id}"><option value="restock">Tambah stok</option><option value="adjustment">Koreksi</option><option value="waste">Rusak/basi</option></select>
+            <button class="btn btn-rose btn-sm" data-save="${v.id}">Simpan</button></div></td></tr>`;
+      }).join("");
+    }
+    tb.innerHTML = html || `<tr><td colspan="6" class="muted">Tidak ada varian${lowOnly ? " yang menipis" : ""}.</td></tr>`;
+    tb.querySelectorAll("[data-save]").forEach((b) => b.onclick = async () => {
+      const id = b.dataset.save, chg = parseInt(tb.querySelector(`[data-chg="${id}"]`).value, 10);
+      let rsn = tb.querySelector(`[data-rsn="${id}"]`).value;
+      if (!chg) return toast("Isi jumlah perubahan dulu");
+      if (rsn === "restock" && chg < 0) rsn = "adjustment";
+      if (rsn === "waste" && chg > 0) return toast("Rusak/basi harus angka minus");
+      b.disabled = true;
+      const { error } = await sb.rpc("admin_adjust_stock", { p_variant_id: +id, p_change: chg, p_reason: rsn, p_note: null });
+      if (error) { toast(/reserved|check/i.test(error.message) ? "Stok tidak boleh kurang dari jumlah yang sedang dipesan" : err(error)); b.disabled = false; }
+      else { toast("Stok tersimpan"); loadStock(); }
+    });
+    tb.querySelectorAll("[data-th]").forEach((i) => i.onchange = async () => {
+      const { error } = await sb.from("inventory").update({ low_stock_threshold: Math.max(0, +i.value || 0) }).eq("variant_id", +i.dataset.th);
+      toast(error ? err(error) : "Batas menipis tersimpan");
+    });
+  }
+
+  // ---------------------------------------------------------------- PRODUCTS
+  let products = [];
+  async function renderProducts() {
+    app.innerHTML = `<div class="bar"><h2>Produk</h2><button class="btn btn-rose" id="newp">+ Produk baru</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th></th><th>Nama</th><th>Seri</th><th class="num">Varian</th><th class="num">Harga</th><th>Status</th><th class="num">Urutan</th><th></th></tr></thead><tbody id="pbody"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("newp").onclick = () => editProduct(null);
+    await loadProducts();
+  }
+  async function loadProducts() {
+    const { data, error } = await sb.from("products").select("*, product_variants(*)").order("sort_order").order("id");
+    const tb = $("pbody"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    products = data;
+    tb.innerHTML = data.map((p) => {
+      const prices = p.product_variants.filter((v) => v.is_active).map((v) => v.price);
+      const range = prices.length ? (Math.min(...prices) === Math.max(...prices) ? rp(prices[0]) : `${rp(Math.min(...prices))} – ${rp(Math.max(...prices))}`) : "–";
+      return `<tr><td>${p.image_url ? `<img class="thumb" src="${esc(p.image_url)}" alt="">` : ""}</td><td><b>${esc(p.name)}</b><br><span class="muted" style="font-size:.85rem">${esc(p.subtitle || "")}</span></td>
+        <td>${esc(SERIES[p.series] || p.series)}</td><td class="num">${p.product_variants.length}</td><td class="num">${range}</td>
+        <td><span class="badge ${p.is_active ? "on" : "off"}">${p.is_active ? "Aktif" : "Nonaktif"}</span></td><td class="num">${p.sort_order}</td>
+        <td><button class="btn btn-ghost btn-sm" data-edit="${p.id}">Ubah</button></td></tr>`;
+    }).join("") || `<tr><td colspan="8" class="muted">Belum ada produk.</td></tr>`;
+    tb.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => editProduct(products.find((p) => p.id === +b.dataset.edit)));
+  }
+
+  function editProduct(p) {
+    const isNew = !p;
+    p = p ? structuredClone(p) : { name: "", slug: "", series: "coffee", subtitle: "", note: "", image_url: "", attr_names: ["Ukuran"], choices: [], addon_label: "", is_active: true, sort_order: (products.at(-1)?.sort_order || 0) + 10, product_variants: [] };
+    let variants = p.product_variants.sort((a, b) => a.sort_order - b.sort_order || a.id - b.id).map((v) => ({ ...v }));
+    let attrs = [...p.attr_names];
+    const seriesOpts = Object.entries(SERIES).concat(SERIES[p.series] ? [] : [[p.series, p.series]]);
+
+    openModal(`<div class="modal-head"><h2>${isNew ? "Produk baru" : "Ubah " + esc(p.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <div class="grid3">
+        <label class="f">Nama<input id="pn" value="${esc(p.name)}" required></label>
+        <label class="f">Slug (unik, untuk sistem)<input id="ps" value="${esc(p.slug)}"></label>
+        <label class="f">Seri<select id="pser">${seriesOpts.map(([k, v]) => `<option value="${esc(k)}" ${k === p.series ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+        <label class="f">Deskripsi singkat<input id="psub" value="${esc(p.subtitle || "")}"></label>
+        <label class="f">Label kecil (opsional)<input id="pnote" value="${esc(p.note || "")}" placeholder="mis. Mengandung kopi"></label>
+        <label class="f">Urutan tampil<input id="pso" type="number" value="${p.sort_order}"></label>
+      </div>
+      <div class="grid2">
+        <label class="f">Gambar<span style="display:flex;gap:.5rem;align-items:center">${p.image_url ? `<img class="thumb" id="pimgv" src="${esc(p.image_url)}" alt="">` : `<img class="thumb" id="pimgv" alt="" hidden>`}<input id="pimg" value="${esc(p.image_url || "")}" placeholder="img/menu/xxx.webp atau URL" style="flex:1"></span>
+          <input type="file" id="pfile" accept="image/*"></label>
+        <div style="display:grid;gap:.5rem;align-content:start">
+          <label class="chk"><input type="checkbox" id="pact" ${p.is_active ? "checked" : ""}> Tampilkan di toko</label>
+          <label class="f">Tambahan berbayar (opsional)<input id="padd" value="${esc(p.addon_label || "")}" placeholder="mis. Extra shot — harga diisi per varian"></label>
+        </div>
+      </div>
+      <div class="card" style="display:grid;gap:.6rem">
+        <h3>Pilihan gratis <span class="muted" style="font-size:.85rem;font-weight:600">(tidak mengubah harga/stok, mis. tingkat gula)</span></h3>
+        <div id="chs"></div>
+        <div><button class="btn btn-ghost btn-sm" id="addch">+ Pilihan</button></div>
+      </div>
+      <div class="card" style="display:grid;gap:.6rem">
+        <h3>Varian <span class="muted" style="font-size:.85rem;font-weight:600">(tiap varian punya harga & stok sendiri)</span></h3>
+        <label class="f">Atribut varian, pisahkan dengan koma<input id="pattrs" value="${esc(attrs.join(", "))}" placeholder="mis. Rasa, Ukuran"></label>
+        <p class="muted" style="margin:0;font-size:.85rem">Minuman: pakai atribut <b>Ukuran</b> dengan nilai S / M / L supaya tombol ukuran di toko bekerja.</p>
+        <details><summary style="cursor:pointer;font-weight:800">Buat varian otomatis dari kombinasi</summary>
+          <div id="gen" style="display:grid;gap:.5rem;margin-top:.5rem"></div></details>
+        <div class="tbl-wrap"><table class="vt"><thead id="vth"></thead><tbody id="vtb"></tbody></table></div>
+        <div><button class="btn btn-ghost btn-sm" id="addv">+ Varian</button></div>
+      </div>
+      <p class="msg" id="pmsg"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="psave">Simpan produk</button></div>`);
+
+    const choicesEl = $("chs");
+    const drawChoices = () => {
+      choicesEl.innerHTML = p.choices.map((c, i) => `<div class="grid3" style="align-items:end" data-ch="${i}">
+        <label class="f">Nama pilihan<input data-cl value="${esc(c.label)}"></label>
+        <label class="f">Opsi (pisahkan koma)<input data-co value="${esc(c.options.join(", "))}"></label>
+        <span style="display:flex;gap:.5rem;align-items:end"><label class="f" style="flex:1">Default (nomor opsi, mulai 1)<input data-cd type="number" min="1" value="${(c.default ?? 0) + 1}"></label><button class="btn btn-ghost btn-sm" data-delch="${i}">Hapus</button></span></div>`).join("") || `<p class="muted" style="margin:0">Tidak ada.</p>`;
+      choicesEl.querySelectorAll("[data-delch]").forEach((b) => b.onclick = () => { readChoices(); p.choices.splice(+b.dataset.delch, 1); drawChoices(); });
+    };
+    const readChoices = () => {
+      p.choices = [...choicesEl.querySelectorAll("[data-ch]")].map((r) => {
+        const options = r.querySelector("[data-co]").value.split(",").map((s) => s.trim()).filter(Boolean);
+        return { label: r.querySelector("[data-cl]").value.trim(), options, default: Math.min(Math.max(+r.querySelector("[data-cd]").value - 1, 0), Math.max(options.length - 1, 0)) };
+      }).filter((c) => c.label && c.options.length);
+    };
+    $("addch").onclick = () => { readChoices(); p.choices.push({ label: "Tingkat gula", options: ["Less Sugar", "Normal Sugar"], default: 1 }); drawChoices(); };
+    drawChoices();
+
+    const readVariants = () => {
+      $("vtb").querySelectorAll("tr[data-v]").forEach((tr) => {
+        const v = variants[+tr.dataset.v];
+        v.attrs = {}; attrs.forEach((a) => { const val = tr.querySelector(`[data-a="${CSS.escape(a)}"]`)?.value.trim(); if (val) v.attrs[a] = val; });
+        v.name = tr.querySelector("[data-n]").value.trim();
+        v.price = parseInt(tr.querySelector("[data-pr]").value, 10);
+        const ap = tr.querySelector("[data-ap]").value; v.addon_price = ap === "" ? null : parseInt(ap, 10);
+        v.sku = tr.querySelector("[data-sku]").value.trim() || null;
+        v.is_active = tr.querySelector("[data-act]").checked;
+      });
+    };
+    const autoName = (v) => attrs.map((a) => v.attrs?.[a]).filter(Boolean).join(" · ");
+    const drawVariants = () => {
+      $("vth").innerHTML = `<tr>${attrs.map((a) => `<th>${esc(a)}</th>`).join("")}<th>Nama varian</th><th class="num">Harga</th><th class="num">Harga tambahan</th><th>SKU</th><th>Aktif</th><th></th></tr>`;
+      $("vtb").innerHTML = variants.map((v, i) => v._del ? "" : `<tr data-v="${i}">
+        ${attrs.map((a) => `<td><input data-a="${esc(a)}" value="${esc(v.attrs?.[a] || "")}"></td>`).join("")}
+        <td><input data-n value="${esc(v.name || "")}" placeholder="otomatis"></td>
+        <td class="w-price"><input data-pr type="number" min="0" step="500" value="${v.price ?? ""}"></td>
+        <td class="w-price"><input data-ap type="number" min="0" step="500" value="${v.addon_price ?? ""}" placeholder="—"></td>
+        <td><input data-sku value="${esc(v.sku || "")}"></td>
+        <td><input data-act type="checkbox" ${v.is_active !== false ? "checked" : ""}></td>
+        <td><button class="btn btn-ghost btn-sm" data-delv="${i}" title="${v.id ? "Varian lama sebaiknya dinonaktifkan" : "Hapus"}">Hapus</button></td></tr>`).join("") || `<tr><td colspan="${attrs.length + 6}" class="muted">Belum ada varian.</td></tr>`;
+      $("vtb").querySelectorAll("[data-delv]").forEach((b) => b.onclick = () => {
+        readVariants();
+        const v = variants[+b.dataset.delv];
+        if (v.id && !confirm("Hapus varian ini permanen (termasuk stoknya)? Riwayat pesanan tetap tersimpan. Untuk menyembunyikan saja, hilangkan centang Aktif.")) return;
+        v._del = true; drawVariants();
+      });
+      $("gen").innerHTML = attrs.map((a) => `<label class="f">${esc(a)} (pisahkan koma)<input data-g="${esc(a)}" value="${esc([...new Set(variants.filter((v) => !v._del).map((v) => v.attrs?.[a]).filter(Boolean))].join(", "))}"></label>`).join("") +
+        `<label class="f">Harga awal untuk varian baru<input id="gprice" type="number" min="0" step="500"></label><div><button class="btn btn-ghost btn-sm" id="gbtn">Tambahkan kombinasi yang belum ada</button></div>`;
+      $("gbtn").onclick = () => {
+        readVariants();
+        const lists = attrs.map((a) => $("gen").querySelector(`[data-g="${CSS.escape(a)}"]`).value.split(",").map((s) => s.trim()).filter(Boolean));
+        if (lists.some((l) => !l.length)) return toast("Isi nilai untuk setiap atribut");
+        let combos = [{}];
+        attrs.forEach((a, i) => { combos = combos.flatMap((c) => lists[i].map((val) => ({ ...c, [a]: val }))); });
+        let added = 0;
+        combos.forEach((c) => {
+          if (variants.some((v) => !v._del && attrs.every((a) => v.attrs?.[a] === c[a]))) return;
+          variants.push({ attrs: c, name: "", price: +$("gprice").value || 0, addon_price: null, is_active: true }); added++;
+        });
+        drawVariants(); toast(`${added} varian ditambahkan`);
+      };
+    };
+    $("addv").onclick = () => { readVariants(); variants.push({ attrs: {}, name: "", price: null, addon_price: null, is_active: true }); drawVariants(); };
+    $("pattrs").onchange = () => { readVariants(); attrs = $("pattrs").value.split(",").map((s) => s.trim()).filter(Boolean); drawVariants(); };
+    drawVariants();
+    $("pn").oninput = () => { if (isNew) $("ps").value = slugify($("pn").value); };
+    $("pimg").oninput = () => { const v = $("pimgv"); v.src = $("pimg").value; v.hidden = !$("pimg").value; };
+    $("pfile").onchange = async () => {
+      const f = $("pfile").files[0]; if (!f) return;
+      if (f.size > 3 * 1024 * 1024) return toast("Maks 3 MB");
+      const path = `${Date.now()}-${slugify(f.name.replace(/\.[^.]+$/, ""))}.${(f.name.split(".").pop() || "jpg").toLowerCase()}`;
+      toast("Mengunggah…");
+      const { error } = await sb.storage.from("product-images").upload(path, f, { contentType: f.type, upsert: false });
+      if (error) return toast("Gagal unggah: " + error.message);
+      $("pimg").value = sb.storage.from("product-images").getPublicUrl(path).data.publicUrl; $("pimg").oninput(); toast("Gambar terunggah");
+    };
+
+    $("psave").onclick = async () => {
+      readChoices(); readVariants();
+      attrs = $("pattrs").value.split(",").map((s) => s.trim()).filter(Boolean);
+      const msg = $("pmsg"); const fail = (t) => { msg.textContent = t; msg.className = "msg err"; };
+      const live = variants.filter((v) => !v._del);
+      const prod = {
+        name: $("pn").value.trim(), slug: slugify($("ps").value || $("pn").value), series: $("pser").value,
+        subtitle: $("psub").value.trim() || null, note: $("pnote").value.trim() || null, image_url: $("pimg").value.trim() || null,
+        attr_names: attrs, choices: p.choices, addon_label: $("padd").value.trim() || null,
+        is_active: $("pact").checked, sort_order: parseInt($("pso").value, 10) || 0,
+      };
+      if (!prod.name || !prod.slug) return fail("Nama produk wajib diisi.");
+      if (!live.length) return fail("Tambahkan minimal satu varian.");
+      for (const v of live) {
+        if (!Number.isInteger(v.price) || v.price < 0) return fail("Setiap varian harus punya harga.");
+        if (attrs.some((a) => !v.attrs[a])) return fail("Isi semua atribut di setiap varian.");
+        if (!v.name) v.name = autoName(v) || "Default";
+      }
+      const keys = live.map((v) => JSON.stringify(attrs.map((a) => v.attrs[a])));
+      if (new Set(keys).size !== keys.length) return fail("Ada varian dengan kombinasi atribut yang sama.");
+
+      $("psave").disabled = true; msg.textContent = "Menyimpan…"; msg.className = "msg";
+      try {
+        let pid = p.id;
+        if (isNew) {
+          const { data, error } = await sb.from("products").insert(prod).select("id").single(); if (error) throw error; pid = data.id;
+        } else {
+          const { error } = await sb.from("products").update(prod).eq("id", pid); if (error) throw error;
+        }
+        const del = variants.filter((v) => v._del && v.id).map((v) => v.id);
+        if (del.length) { const { error } = await sb.from("product_variants").delete().in("id", del); if (error) throw error; }
+        let so = 0;
+        for (const v of live) {
+          const row = { product_id: pid, name: v.name, attrs: v.attrs, price: v.price, addon_price: v.addon_price, sku: v.sku || null, is_active: v.is_active, sort_order: ++so };
+          const { error } = v.id ? await sb.from("product_variants").update(row).eq("id", v.id) : await sb.from("product_variants").insert(row);
+          if (error) throw error;
+        }
+        closeModal(); toast("Produk tersimpan"); loadProducts();
+      } catch (e) {
+        fail(/duplicate key.*slug/i.test(e.message) ? "Slug sudah dipakai produk lain." : /duplicate key.*sku/i.test(e.message) ? "SKU sudah dipakai varian lain." : "Gagal menyimpan: " + e.message);
+      } finally { const b = $("psave"); if (b) b.disabled = false; }
+    };
+  }
+
+  // ---------------------------------------------------------------- PROMOS
+  async function renderPromos() {
+    app.innerHTML = `<div class="bar"><h2>Promo</h2><button class="btn btn-rose" id="newpr">+ Promo baru</button></div>
+      <p class="muted" style="margin:-.4rem 0 1rem">Promo tanpa kode berlaku otomatis (diskon terbesar yang dipakai; semua hadiah gratis yang memenuhi syarat diberikan). Promo dengan kode harus diketik pembeli.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Nama</th><th>Kode</th><th>Jenis</th><th class="num">Min. belanja</th><th>Periode</th><th class="num">Dipakai</th><th>Status</th><th></th></tr></thead><tbody id="prbody"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("newpr").onclick = () => editPromo(null);
+    await loadPromos();
+  }
+  let promos = [];
+  async function loadPromos() {
+    const { data, error } = await sb.from("promotions").select("*, promotion_products(product_id)").order("created_at", { ascending: false });
+    const tb = $("prbody"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    promos = data;
+    const now = Date.now();
+    tb.innerHTML = data.map((p) => {
+      const live = p.is_active && (!p.starts_at || new Date(p.starts_at) <= now) && (!p.ends_at || new Date(p.ends_at) > now) && (!p.usage_limit || p.used_count < p.usage_limit);
+      const kind = p.discount_type === "percent" ? `${p.value}%${p.max_discount ? " (maks " + rp(p.max_discount) + ")" : ""}` : p.discount_type === "fixed" ? rp(p.value) : "🎁 " + esc(p.gift_text);
+      const period = p.starts_at || p.ends_at ? `${p.starts_at ? fmtDate(p.starts_at) : "…"} – ${p.ends_at ? fmtDate(p.ends_at) : "…"}` : "Selalu";
+      return `<tr><td><b>${esc(p.name)}</b>${p.applies_to_all ? "" : '<br><span class="muted" style="font-size:.8rem">produk tertentu</span>'}</td><td>${p.code ? `<code>${esc(p.code)}</code>` : '<span class="muted">otomatis</span>'}</td>
+        <td>${kind}</td><td class="num">${p.min_spend ? rp(p.min_spend) : "–"}</td><td style="font-size:.85rem">${period}</td><td class="num">${p.used_count}${p.usage_limit ? " / " + p.usage_limit : ""}</td>
+        <td><span class="badge ${live ? "on" : "off"}">${live ? "Berjalan" : p.is_active ? "Tidak berjalan" : "Nonaktif"}</span></td>
+        <td><button class="btn btn-ghost btn-sm" data-edit="${p.id}">Ubah</button></td></tr>`;
+    }).join("") || `<tr><td colspan="8" class="muted">Belum ada promo.</td></tr>`;
+    tb.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => editPromo(promos.find((x) => x.id === +b.dataset.edit)));
+  }
+
+  async function editPromo(p) {
+    const isNew = !p;
+    p = p || { name: "", description: "", code: "", discount_type: "percent", value: 10, gift_text: "", min_spend: 0, max_discount: null, applies_to_all: true, starts_at: null, ends_at: null, usage_limit: null, is_active: true, promotion_products: [] };
+    if (!products.length) { const { data } = await sb.from("products").select("id,name").order("sort_order"); products = data || []; }
+    const sel = new Set(p.promotion_products.map((x) => x.product_id));
+    const dt = (d) => d ? new Date(new Date(d).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
+    openModal(`<div class="modal-head"><h2>${isNew ? "Promo baru" : "Ubah promo"}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <div class="grid2">
+        <label class="f">Nama promo<input id="qn" value="${esc(p.name)}" placeholder="mis. Diskon Gajian"></label>
+        <label class="f">Kode (kosongkan = otomatis)<input id="qc" value="${esc(p.code || "")}" placeholder="mis. GAJIAN10" style="text-transform:uppercase"></label>
+      </div>
+      <label class="f">Keterangan untuk pembeli (tampil di banner / keranjang)<textarea id="qd" rows="2">${esc(p.description || "")}</textarea></label>
+      <div class="grid3">
+        <label class="f">Jenis<select id="qt"><option value="percent">Diskon persen</option><option value="fixed">Potongan Rupiah</option><option value="free_item">Hadiah gratis</option></select></label>
+        <label class="f" id="qvw">Nilai<input id="qv" type="number" min="0" value="${p.value}"></label>
+        <label class="f" id="qmw">Maks. diskon (opsional)<input id="qm" type="number" min="0" value="${p.max_discount ?? ""}"></label>
+        <label class="f" id="qgw">Hadiah<input id="qg" value="${esc(p.gift_text || "")}" placeholder="mis. Free latte 150 ml"></label>
+        <label class="f">Minimal belanja (Rp)<input id="qmin" type="number" min="0" step="1000" value="${p.min_spend}"></label>
+        <label class="f">Batas pemakaian (opsional)<input id="ql" type="number" min="1" value="${p.usage_limit ?? ""}"></label>
+        <label class="f">Mulai (opsional)<input id="qs" type="datetime-local" value="${dt(p.starts_at)}"></label>
+        <label class="f">Berakhir (opsional)<input id="qe" type="datetime-local" value="${dt(p.ends_at)}"></label>
+        <label class="chk" style="align-self:end"><input type="checkbox" id="qa" ${p.is_active ? "checked" : ""}> Aktif</label>
+      </div>
+      <label class="chk"><input type="checkbox" id="qall" ${p.applies_to_all ? "checked" : ""}> Berlaku untuk semua produk</label>
+      <div class="pchk" id="qprods" ${p.applies_to_all ? "hidden" : ""}>${products.map((x) => `<label class="chk"><input type="checkbox" value="${x.id}" ${sel.has(x.id) ? "checked" : ""}> ${esc(x.name)}</label>`).join("")}</div>
+      <p class="muted" style="margin:0;font-size:.85rem">Minimal belanja dihitung dari produk yang ikut promo.</p>
+      <p class="msg" id="qmsg"></p>
+      <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="qdel" style="margin-right:auto">Hapus promo</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="qsave">Simpan promo</button></div>`);
+    $("qt").value = p.discount_type;
+    const sync = () => { const t = $("qt").value; $("qvw").hidden = t === "free_item"; $("qmw").hidden = t !== "percent"; $("qgw").hidden = t !== "free_item"; $("qvw").firstChild.textContent = t === "percent" ? "Diskon (%)" : "Potongan (Rp)"; };
+    $("qt").onchange = sync; sync();
+    $("qall").onchange = () => { $("qprods").hidden = $("qall").checked; };
+    if (!isNew) $("qdel").onclick = async () => {
+      if (p.used_count && !confirm("Promo ini sudah pernah dipakai. Lebih aman dinonaktifkan saja. Tetap hapus?")) return;
+      if (!p.used_count && !confirm("Hapus promo ini?")) return;
+      const { error } = await sb.from("promotions").delete().eq("id", p.id);
+      if (error) return toast(/foreign key/i.test(error.message) ? "Promo sudah dipakai di pesanan — nonaktifkan saja." : err(error));
+      closeModal(); toast("Promo dihapus"); loadPromos();
+    };
+    $("qsave").onclick = async () => {
+      const t = $("qt").value, num = (id) => $(id).value === "" ? null : parseInt($(id).value, 10);
+      const row = {
+        name: $("qn").value.trim(), description: $("qd").value.trim() || null, code: $("qc").value.trim().toUpperCase() || null,
+        discount_type: t, value: t === "free_item" ? 0 : num("qv") || 0, gift_text: t === "free_item" ? $("qg").value.trim() : null,
+        max_discount: t === "percent" ? num("qm") : null, min_spend: num("qmin") || 0, usage_limit: num("ql"),
+        starts_at: $("qs").value ? new Date($("qs").value).toISOString() : null, ends_at: $("qe").value ? new Date($("qe").value).toISOString() : null,
+        is_active: $("qa").checked, applies_to_all: $("qall").checked,
+      };
+      const fail = (m) => { $("qmsg").textContent = m; $("qmsg").className = "msg err"; };
+      if (!row.name) return fail("Nama promo wajib diisi.");
+      if (t === "percent" && !(row.value >= 1 && row.value <= 100)) return fail("Diskon persen harus 1–100.");
+      if (t === "fixed" && !(row.value > 0)) return fail("Isi nilai potongan.");
+      if (t === "free_item" && !row.gift_text) return fail("Isi nama hadiahnya.");
+      if (row.starts_at && row.ends_at && row.ends_at <= row.starts_at) return fail("Tanggal berakhir harus setelah tanggal mulai.");
+      const picked = [...$("qprods").querySelectorAll("input:checked")].map((i) => +i.value);
+      if (!row.applies_to_all && !picked.length) return fail("Pilih minimal satu produk.");
+      $("qsave").disabled = true;
+      try {
+        let id = p.id;
+        if (isNew) { const { data, error } = await sb.from("promotions").insert(row).select("id").single(); if (error) throw error; id = data.id; }
+        else { const { error } = await sb.from("promotions").update(row).eq("id", id); if (error) throw error; }
+        { const { error } = await sb.from("promotion_products").delete().eq("promotion_id", id); if (error) throw error; }
+        if (!row.applies_to_all) { const { error } = await sb.from("promotion_products").insert(picked.map((pid) => ({ promotion_id: id, product_id: pid }))); if (error) throw error; }
+        closeModal(); toast("Promo tersimpan"); loadPromos();
+      } catch (e) {
+        fail(/duplicate key.*code/i.test(e.message) ? "Kode promo sudah dipakai." : "Gagal menyimpan: " + e.message);
+      } finally { const b = $("qsave"); if (b) b.disabled = false; }
+    };
+  }
+})();
+</script>
+</body>
+</html>

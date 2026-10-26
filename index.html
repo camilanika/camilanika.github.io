@@ -247,6 +247,55 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
 .phone{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
 .phone code{font:800 1.25rem var(--f-display);letter-spacing:.02em;user-select:all}
 .copy{font:700 .85rem var(--f-body);border:1.5px solid var(--line);background:var(--paper);color:var(--fg);border-radius:999px;padding:.4rem .8rem;cursor:pointer}
+
+/* shop: accounts, checkout, status */
+.acct-btn{padding:.65rem .9rem}
+.acct-btn span{max-width:9ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:480px){.acct-btn span{display:none}.nav .acct-btn{padding:.6rem .7rem}}
+.menu-status{color:var(--muted);font-weight:700;padding:2rem 0}
+.add:disabled{background:var(--line);color:var(--muted);cursor:not-allowed;transform:none}
+.stock-tag{font-size:.78rem;font-weight:800;color:var(--caramel)}
+.stock-tag.out{color:var(--muted)}
+.sum-rows{display:grid;gap:.2rem}
+.sum{display:flex;justify-content:space-between;font-weight:700;color:var(--muted)}
+.sum.disc{color:var(--wa)}
+.gift-msg{font-weight:800;color:var(--rose);font-size:.92rem}
+.cart-err{background:var(--rose-soft);color:var(--fg);border-radius:12px;padding:.6rem .8rem;font-weight:700;font-size:.9rem}
+.checkout{display:grid;gap:.7rem}
+.promo-code{display:flex;gap:.5rem}
+.promo-code input{flex:1;min-width:0;font:inherit;padding:.6rem .8rem;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);color:var(--fg);text-transform:uppercase}
+.promo-code .btn{padding:.6rem 1rem}
+.field small{font-weight:600}
+.pay-note{font-size:.8rem;color:var(--muted);text-align:center;margin-top:-.3rem}
+.linkish{border:0;background:none;padding:0;font:inherit;color:var(--rose);font-weight:800;text-decoration:underline;cursor:pointer}
+.drawer{overflow-y:auto;overscroll-behavior:contain}
+.drawer .drawer-head{position:sticky;top:0;z-index:2;background:var(--bg)}
+.drawer .drawer-body{flex:none;overflow:visible}
+.line b{grid-column:1;grid-row:1}
+.line .lp{grid-column:2}
+.nav .btn{white-space:nowrap}
+@media (max-width:760px){.nav .acct-btn ~ .btn{margin-left:0}}
+.btn[disabled]{opacity:.6;cursor:wait;transform:none}
+.modal-bg{position:fixed;inset:0;background:rgba(20,10,6,.5);z-index:90;display:grid;place-items:center;padding:16px}
+.modal{background:var(--bg);border-radius:22px;width:min(480px,100%);max-height:calc(100vh - 32px);overflow:auto;box-shadow:var(--shadow)}
+.modal-body{padding:1rem 1.2rem 1.4rem;display:grid;gap:.8rem}
+.badge-st{display:inline-block;padding:.25rem .7rem;border-radius:999px;font-weight:800;font-size:.82rem;background:var(--line);color:var(--fg)}
+.badge-st.paid,.badge-st.processing,.badge-st.completed{background:color-mix(in srgb,var(--wa) 20%,transparent);color:var(--wa)}
+.badge-st.pending{background:color-mix(in srgb,var(--caramel) 22%,transparent);color:var(--caramel)}
+.badge-st.expired,.badge-st.failed,.badge-st.cancelled{background:var(--rose-soft);color:var(--rose)}
+.order-card{background:var(--paper);border-radius:16px;padding:.9rem 1rem;display:grid;gap:.35rem}
+.oc-head{display:flex;justify-content:space-between;gap:.5rem;align-items:center;flex-wrap:wrap}
+.order-card ul{margin:0;padding-left:1.1rem;color:var(--muted);font-size:.9rem}
+.order-card .tot{font-weight:800}
+.acct-form{display:grid;gap:.7rem}
+.acct-form .btn{justify-content:center}
+.acct-tabs{display:flex;gap:.4rem}
+.acct-tabs button{flex:1;font:800 .92rem var(--f-body);padding:.55rem;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);color:var(--fg);cursor:pointer}
+.acct-tabs button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.form-msg{font-size:.9rem;font-weight:700;color:var(--muted)}
+.form-msg.err{color:var(--rose)}
+.acct-sec{display:grid;gap:.6rem;padding-top:.4rem}
+.acct-sec h4{margin:0;font-family:var(--f-display);font-size:1.1rem}
 </style>
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
@@ -263,6 +312,10 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
       <a href="#cireng">Cireng Isi</a>
       <a href="#cara-order">Cara Order</a>
     </nav>
+    <button class="btn btn-ghost acct-btn" type="button" id="acct-btn" aria-label="Akun saya">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      <span id="acct-label">Masuk</span>
+    </button>
     <a class="btn btn-go" href="https://gofood.link/a/UCuoiHJ" target="_blank" rel="noopener">GoFood</a>
     <a class="btn btn-wa wa-link" href="https://wa.me/628567412578" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.4-.3Z"/></svg>
@@ -335,7 +388,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
         </div>
       </div>
 
-      <div id="drink-grid"></div>
+      <div id="drink-grid"><p class="menu-status" id="menu-status">Memuat menu…</p></div>
 
       <div class="note-row">
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8h11v6a5 5 0 0 1-5 5H11a5 5 0 0 1-5-5zM17 10h1.5a2.5 2.5 0 0 1 0 5H17"/></svg>Extra shot: S Rp2.000 · M Rp4.000 · L Rp8.000</span>
@@ -380,11 +433,11 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   <!-- PROMO + HOW TO -->
   <section class="block" id="cara-order">
     <div class="wrap" style="display:grid;gap:clamp(2.5rem,6vw,4rem)">
-      <div class="promo">
-        <div class="big">FREE<br>LATTE</div>
+      <div class="promo" id="promo-box" hidden>
+        <div class="big" id="promo-big">PROMO</div>
         <div>
-          <h3>Belanja di atas Rp100.000, dapat latte 150 ml gratis</h3>
-          <p>Bisa kombinasi cireng dan minuman. Varian latte gratis menyesuaikan stok.</p>
+          <h3 id="promo-title"></h3>
+          <p id="promo-desc"></p>
         </div>
         <button class="btn btn-rose" type="button" data-open-cart>Mulai pesan</button>
       </div>
@@ -406,8 +459,8 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
         </div>
         <ol class="steps">
           <li><h3>Pilih menu</h3><p>Tentukan rasa, ukuran botol, atau isian dan jenis cireng, lalu tekan Tambah.</p></li>
-          <li><h3>Cek keranjang</h3><p>Isi nama dan alamat. Total dan progres promo free latte langsung terlihat.</p></li>
-          <li><h3>Kirim ke WhatsApp</h3><p>Pesanan terkirim sebagai pesan WA ke 0856-7412-578. Kami konfirmasi dan antar.</p></li>
+          <li><h3>Cek keranjang</h3><p>Isi nama, nomor WA dan alamat. Masukkan kode promo kalau punya, total langsung terlihat.</p></li>
+          <li><h3>Bayar &amp; tunggu diantar</h3><p>Bayar online pakai QRIS, e-wallet atau transfer bank. Atau kirim pesanan lewat WA ke 0856-7412-578.</p></li>
         </ol>
       </div>
     </div>
@@ -444,209 +497,60 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   <div class="drawer-foot">
     <div class="progress" aria-hidden="true"><i id="promo-bar"></i></div>
     <p class="promo-msg" id="promo-msg"></p>
+    <div class="sum-rows">
+      <div class="sum"><span>Subtotal</span><span class="num" id="cart-subtotal">Rp0</span></div>
+      <div class="sum disc" id="disc-row" hidden><span id="disc-label">Diskon</span><span class="num" id="cart-discount">−Rp0</span></div>
+      <p class="gift-msg" id="gift-msg" hidden></p>
+    </div>
     <div class="total"><span>Total</span><span class="num" id="cart-total">Rp0</span></div>
-    <div class="field"><label for="cust-name">Nama</label><input id="cust-name" autocomplete="name" placeholder="Nama kamu"></div>
-    <div class="field"><label for="cust-addr">Alamat / catatan</label><textarea id="cust-addr" rows="2" placeholder="Blok, nomor rumah, jam antar"></textarea></div>
+    <p class="cart-err" id="cart-err" role="alert" hidden></p>
+    <button class="btn btn-ghost" type="button" id="to-checkout">Lanjut isi data &amp; bayar</button>
+    <div class="checkout" id="checkout" hidden>
+      <div class="promo-code">
+        <input id="promo-code" placeholder="Kode promo" autocomplete="off" aria-label="Kode promo">
+        <button class="btn btn-ghost" type="button" id="apply-code">Pakai</button>
+      </div>
+      <div class="field"><label for="cust-name">Nama</label><input id="cust-name" autocomplete="name" placeholder="Nama kamu"></div>
+      <div class="field"><label for="cust-phone">No. WhatsApp</label><input id="cust-phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="08xxxxxxxxxx"></div>
+      <div class="field"><label for="cust-email">Email <small>(opsional, untuk bukti bayar)</small></label><input id="cust-email" type="email" autocomplete="email" placeholder="nama@email.com"></div>
+      <div class="field"><label for="cust-addr">Alamat / catatan</label><textarea id="cust-addr" rows="2" placeholder="Blok, nomor rumah, jam antar"></textarea></div>
+      <p class="promo-msg" id="guest-note">Belanja tanpa akun bisa. <button type="button" class="linkish" data-open-account>Masuk</button> supaya riwayat pesanan tersimpan.</p>
+      <button class="btn btn-rose" type="button" id="pay-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+        <span>Bayar online</span>
+      </button>
+      <p class="pay-note">QRIS, GoPay, ShopeePay, transfer bank · aman lewat Midtrans</p>
+      <a class="btn btn-wa" id="send-wa" href="https://wa.me/628567412578" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Z"/></svg>
+        Kirim pesanan via WhatsApp
+      </a>
+    </div>
     <p class="promo-msg">Free delivery area Bukit Cimanggu City</p>
-    <a class="btn btn-wa" id="send-wa" href="https://wa.me/628567412578" target="_blank" rel="noopener">
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Z"/></svg>
-      Kirim pesanan via WhatsApp
-    </a>
     <a class="go-link" href="https://gofood.link/a/UCuoiHJ" target="_blank" rel="noopener">atau pesan lewat GoFood</a>
   </div>
 </aside>
 
-<script>
-(() => {
-  const WA = "628567412578";
-  const rp = n => "Rp" + n.toLocaleString("id-ID");
-  const SIZES = {S:"250 ml", M:"500 ml", L:"1000 ml"};
-  const SHOT = {S:2000, M:4000, L:8000};
-  const SERIES = [
-    {id:"coffee", name:"Coffee Series", tag:"Rasa kopi yang selalu jadi pilihan."},
-    {id:"choco", name:"Chocolate Series", tag:"Cokelat yang selalu bikin hari lebih manis."},
-    {id:"matcha", name:"Matcha Series", tag:"Kesegaran matcha, ketenangan di setiap tegukan."},
-  ];
-  const DRINKS = [
-    {id:"amer", s:"coffee", name:"Americano", sub:"Strong, bold, tanpa susu", p:{S:13000,M:25000,L:44500}, sugar:["No Sugar","Less Sugar","Normal Sugar"]},
-    {id:"famer", s:"coffee", name:"Flavored Americano", sub:"Americano segar dengan rasa buah", flavors:["Peach","Berry","Orange"], fmt:f=>`${f} Americano`, p:{S:16500,M:31500,L:59500}, sugar:["Less Sugar","Normal Sugar"]},
-    {id:"aren", s:"coffee", name:"Aren Latte", sub:"Espresso, susu segar, gula aren asli", p:{S:15500,M:29500,L:58500}, sugar:["Less Sugar","Normal Sugar"]},
-    {id:"cafe", s:"coffee", name:"Cafe Latte", sub:"Espresso dan susu segar, manis pas", p:{S:15500,M:29500,L:58500}, sugar:["No Sugar","Less Sugar","Normal Sugar"]},
-    {id:"flat", s:"coffee", name:"Flavored Cafe Latte", sub:"Cafe latte creamy dengan pilihan rasa", flavors:["Caramel Sea Salt","Butterscotch Sea Salt"], fmt:f=>`${f} Cafe Latte`, p:{S:18500,M:36500,L:69500}, sugar:["Less Sugar","Normal Sugar"]},
-    {id:"choc", s:"choco", name:"Chocolate", sub:"Cokelat susu, tanpa kopi", p:{S:16500,M:31500,L:59500}, noShot:true},
-    {id:"chocorange", s:"choco", name:"Chocorange", sub:"Cokelat Belgian dan susu dengan sentuhan jeruk, tanpa kopi", p:{S:16500,M:31500,L:59500}, noShot:true},
-    {id:"mocha", s:"choco", name:"Mochaccino", sub:"Espresso, cokelat Belgian, dan susu", note:"Mengandung kopi", p:{S:18500,M:36500,L:69500}},
-    {id:"matcha", s:"matcha", name:"Matcha Latte", sub:"Matcha dan susu segar, tanpa kopi", p:{S:18500,M:36500,L:69500}, noShot:true},
-    {id:"dirty", s:"matcha", name:"Dirty Matcha", sub:"Matcha + espresso", note:"Mengandung kopi", p:{S:18500,M:36500,L:69500}},
-    {id:"berrymatcha", s:"matcha", name:"Berry Matcha", sub:"Matcha dan susu dengan sirup berry, tanpa kopi", p:{S:18500,M:36500,L:69500}, noShot:true},
-  ];
-  const CIRENG = {
-    packs:{"6":{label:"Isi 6 pcs · 10 cm",frozen:18500,matang:20500},"10":{label:"Isi 10 pcs · 8 cm",frozen:19500,matang:21500}},
-    fillings:["Ayam Suwir Original","Ayam Suwir Pedas","Keju Lumer","Jando Pedas"]
-  };
-  let size = "M";
-  let cart = [];
-  try { cart = JSON.parse(localStorage.getItem("cn-cart") || "[]"); } catch(e) {}
-  const save = () => { try { localStorage.setItem("cn-cart", JSON.stringify(cart)); } catch(e) {} };
+<aside class="drawer" id="account" aria-label="Akun" aria-hidden="true">
+  <div class="drawer-head">
+    <h3 id="acct-title">Akun</h3>
+    <button class="icon-btn" type="button" data-close-account aria-label="Tutup">×</button>
+  </div>
+  <div class="drawer-body" id="acct-body"></div>
+</aside>
 
-  // chips helper
-  const chipGroup = (opts, label, def = 0) => `<div class="opt-label">${label}</div><div class="chips" role="group" aria-label="${label}">${opts.map((o,i)=>`<button type="button" class="chip" data-v="${o}" aria-pressed="${i===def}">${o}</button>`).join("")}</div>`;
-  document.addEventListener("click", e => {
-    const c = e.target.closest(".chip"); if(!c) return;
-    c.parentElement.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed", b===c));
-    const card = c.closest("[data-cireng]"); if(card) updateCirengPrice(card);
-  });
-  const pick = (card, idx) => { const g = card.querySelectorAll(".chips")[idx]; return g ? g.querySelector('[aria-pressed="true"]').dataset.v : null; };
+<div class="modal-bg" id="status-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="status-title">
+    <div class="drawer-head">
+      <h3 id="status-title">Status pesanan</h3>
+      <button class="icon-btn" type="button" id="close-status" aria-label="Tutup">×</button>
+    </div>
+    <div class="modal-body" id="status-body"></div>
+  </div>
+</div>
 
-  // drinks
-  const grid = document.getElementById("drink-grid");
-  const card = d => `
-    <article class="item" data-drink="${d.id}">
-      <img class="drink-ill" src="img/menu/${d.id}.webp" alt="Ilustrasi ${d.name}" width="200" height="200" loading="lazy">
-      <div class="item-top">
-        <h3>${d.name}<span>${d.sub}</span>${d.note ? `<em class="note-tag">${d.note}</em>` : ""}</h3>
-        <div class="price num" data-price>${rp(d.p[size])}<small data-size-l>${SIZES[size]}</small></div>
-      </div>
-      ${d.flavors ? chipGroup(d.flavors, "Pilih rasa") : ""}
-      ${d.sugar ? chipGroup(d.sugar, "Tingkat gula", d.sugar.length-1) : ""}
-      ${d.noShot ? "" : `<label class="check"><input type="checkbox" id="shot-${d.id}"> Extra shot <span class="num" data-shot>+${rp(SHOT[size])}</span></label>`}
-      <button class="btn btn-rose add" type="button" data-add-drink="${d.id}">Tambah ke keranjang</button>
-    </article>`;
-  grid.innerHTML = SERIES.map(sr => `
-    <section class="series series-${sr.id}" id="series-${sr.id}-sec" aria-labelledby="series-${sr.id}">
-      <div class="series-head"><h3 id="series-${sr.id}">${sr.name}</h3><p>${sr.tag}</p></div>
-      <div class="menu-grid">${DRINKS.filter(d=>d.s===sr.id).map(card).join("")}</div>
-    </section>`).join("");
-
-  const renderSize = () => {
-    document.querySelectorAll(".size-switch button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.size===size));
-    DRINKS.forEach(d => {
-      const card = grid.querySelector(`[data-drink="${d.id}"]`);
-      card.querySelector("[data-price]").innerHTML = `${rp(d.p[size])}<small>${SIZES[size]}</small>`;
-      const s = card.querySelector("[data-shot]"); if(s) s.textContent = "+" + rp(SHOT[size]);
-    });
-  };
-  document.querySelectorAll(".size-switch button").forEach(b => b.addEventListener("click", () => { size = b.dataset.size; renderSize(); }));
-
-  grid.addEventListener("click", e => {
-    const b = e.target.closest("[data-add-drink]"); if(!b) return;
-    const d = DRINKS.find(x=>x.id===b.dataset.addDrink), card = b.closest(".item");
-    const flavor = d.flavors ? pick(card,0) : null;
-    const sugar = d.sugar ? pick(card, d.flavors ? 1 : 0) : null;
-    const shot = !d.noShot && card.querySelector("input[type=checkbox]").checked;
-    const name = flavor ? d.fmt(flavor) : d.name;
-    addLine({key:`${d.id}|${flavor}|${sugar}|${size}|${shot}`, name, detail:`${size} · ${SIZES[size]}${sugar?" · "+sugar:""}${shot?" · extra shot":""}`, price:d.p[size] + (shot?SHOT[size]:0)}, b);
-  });
-
-
-  // sticky series nav: offsets + active highlight
-  const hdr = document.querySelector("header"), bar = document.querySelector(".menu-bar");
-  const setOffsets = () => { document.documentElement.style.setProperty("--hdr", hdr.offsetHeight + "px"); document.documentElement.style.setProperty("--bar", bar.offsetHeight + "px"); };
-  setOffsets(); addEventListener("resize", setOffsets);
-  const navLinks = [...document.querySelectorAll(".series-nav a")];
-  const setActive = () => {
-    const line = hdr.offsetHeight + bar.offsetHeight + 40;
-    let cur = null;
-    document.querySelectorAll(".series").forEach(sec => { if (sec.getBoundingClientRect().top <= line) cur = sec.id; });
-    navLinks.forEach(a => a.setAttribute("aria-current", a.getAttribute("href") === "#" + cur));
-  };
-  addEventListener("scroll", setActive, {passive:true}); setActive();
-
-  // cireng
-  const KUAH_FILLINGS = ["Ayam Suwir Original","Ayam Suwir Pedas","Keju Lumer","Jando Pedas"];
-  const cg = document.getElementById("cireng-grid");
-  cg.innerHTML = `
-    <article class="item" data-cireng>
-      <div class="item-top"><h3>Cireng Isi<span>Pilih isian, isi, dan kondisi</span></h3><div class="price num" data-price></div></div>
-      <div style="overflow-x:auto"><table class="pack-table">
-        <thead><tr><th>Kemasan</th><th>Frozen</th><th>Matang</th></tr></thead>
-        <tbody>${Object.values(CIRENG.packs).map(p=>`<tr><td>${p.label}</td><td><b>${rp(p.frozen)}</b></td><td><b>${rp(p.matang)}</b></td></tr>`).join("")}</tbody>
-      </table></div>
-      ${chipGroup(CIRENG.fillings, "Isian")}
-      ${chipGroup(["Isi 6 pcs","Isi 10 pcs"], "Kemasan")}
-      ${chipGroup(["Frozen","Matang"], "Kondisi")}
-      <button class="btn btn-rose add" type="button" id="add-cireng">Tambah ke keranjang</button>
-    </article>
-    <article class="item kuah">
-      <img src="img/kuah-real.jpg" alt="Cireng kuah creamy dengan kuah keju dan chili oil" loading="lazy">
-      <div style="display:grid;gap:.6rem;min-width:0">
-        <div class="item-top"><h3>Cireng Kuah Creamy<span>Kuah keju berpadu chili oil, gurih dan pedas</span></h3><div class="price num">${rp(23000)}</div></div>
-        ${chipGroup(KUAH_FILLINGS, "Isian cireng")}
-        <button class="btn btn-rose add" type="button" id="add-kuah">Tambah ke keranjang</button>
-      </div>
-    </article>`;
-  const cirengSel = card => {
-    const filling = pick(card,0), pack = pick(card,1).includes("10") ? "10" : "6", cond = pick(card,2);
-    return {filling, pack, cond, price: CIRENG.packs[pack][cond.toLowerCase()]};
-  };
-  function updateCirengPrice(card){ const s = cirengSel(card); card.querySelector("[data-price]").innerHTML = `${rp(s.price)}<small>${s.cond.toLowerCase()}</small>`; }
-  updateCirengPrice(cg.querySelector("[data-cireng]"));
-  document.getElementById("add-cireng").addEventListener("click", e => {
-    const s = cirengSel(e.target.closest("[data-cireng]"));
-    addLine({key:`cireng|${s.filling}|${s.pack}|${s.cond}`, name:`Cireng ${s.filling}`, detail:`${CIRENG.packs[s.pack].label} · ${s.cond}`, price:s.price}, e.currentTarget);
-  });
-  document.getElementById("add-kuah").addEventListener("click", e => {
-    const f = pick(e.currentTarget.closest(".kuah"), 0);
-    addLine({key:`kuah|${f}`, name:"Cireng Kuah Creamy", detail:`Isian ${f} · 1 porsi`, price:23000}, e.currentTarget);
-  });
-
-  // cart
-  const $ = id => document.getElementById(id);
-  function addLine(item, btn){
-    const ex = cart.find(l=>l.key===item.key);
-    ex ? ex.qty++ : cart.push({...item, qty:1});
-    save(); renderCart();
-    if(btn){ btn.classList.remove("added"); void btn.offsetWidth; btn.classList.add("added"); const t=btn.textContent; btn.textContent="Ditambahkan ✓"; setTimeout(()=>btn.textContent=t,1100); }
-  }
-  function buildMsg(total){
-    const name = $("cust-name").value.trim(), addr = $("cust-addr").value.trim();
-    let m = "Halo CamilaNika, saya mau pesan:\n";
-    cart.forEach(l => m += `- ${l.qty}x ${l.name} (${l.detail}) = ${rp(l.price*l.qty)}\n`);
-    m += `\nTotal: ${rp(total)}`;
-    if(total >= 100000) m += "\n(Dapat free latte 150 ml)";
-    if(name) m += `\nNama: ${name}`;
-    if(addr) m += `\nAlamat/catatan: ${addr}`;
-    return m;
-  }
-  function renderCart(){
-    const total = cart.reduce((s,l)=>s+l.price*l.qty,0), count = cart.reduce((s,l)=>s+l.qty,0);
-    $("cart-count").textContent = count;
-    $("cart-total").textContent = rp(total);
-    $("cart-lines").innerHTML = cart.length ? cart.map((l,i)=>`
-      <div class="line"><b>${l.name}</b><span class="lp num">${rp(l.price*l.qty)}</span>
-        <small>${l.detail} · ${rp(l.price)}</small>
-        <div class="qty"><button type="button" data-q="${i}" data-d="-1" aria-label="Kurangi">−</button><span class="num">${l.qty}</span><button type="button" data-q="${i}" data-d="1" aria-label="Tambah">+</button></div>
-      </div>`).join("") : `<div class="empty"><img src="img/logo-cireng.jpg" alt="" style="width:110px;margin:0 auto;border-radius:50%"><b>Keranjang masih kosong</b><span>Pilih minuman atau cireng, lalu tekan Tambah ke keranjang.</span></div>`;
-    const pct = Math.min(100, total/1000);
-    $("promo-bar").style.width = pct + "%";
-    $("promo-msg").textContent = total >= 100000 ? "Yeay! Kamu dapat free latte 150 ml (sesuai stok varian)." : `Tambah ${rp(100000-total)} lagi untuk dapat free latte 150 ml.`;
-    const send = $("send-wa");
-    send.href = cart.length ? `https://wa.me/${WA}?text=${encodeURIComponent(buildMsg(total))}` : `https://wa.me/${WA}`;
-  }
-  $("cart-lines").addEventListener("click", e => {
-    const b = e.target.closest("[data-q]"); if(!b) return;
-    const l = cart[+b.dataset.q]; l.qty += +b.dataset.d;
-    if(l.qty<=0) cart.splice(+b.dataset.q,1);
-    save(); renderCart();
-  });
-  ["cust-name","cust-addr"].forEach(id => $(id).addEventListener("input", renderCart));
-
-  const drawer = $("drawer"), bg = $("drawer-bg");
-  const open = () => { drawer.classList.add("open"); drawer.setAttribute("aria-hidden","false"); bg.hidden=false; $("close-cart").focus(); };
-  const close = () => { drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true"); bg.hidden=true; };
-  document.querySelectorAll("[data-open-cart]").forEach(b=>b.addEventListener("click", open));
-  $("close-cart").addEventListener("click", close); bg.addEventListener("click", close);
-  document.addEventListener("keydown", e => { if(e.key==="Escape") close(); });
-
-  $("copy-phone").addEventListener("click", e => {
-    const btn = e.currentTarget;
-    navigator.clipboard?.writeText("08567412578").then(()=>{btn.textContent="Tersalin";setTimeout(()=>btn.textContent="Salin nomor",1500)})
-      .catch(()=>{ const r=document.createRange(); r.selectNodeContents($("phone")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); });
-  });
-
-  renderSize(); renderCart();
-})();
-</script>
+<script src="js/config.js"></script>
+<script src="js/vendor/supabase.js"></script>
+<script src="js/shop.js"></script>
 
 </body>
 </html>
