@@ -182,6 +182,9 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 @media (max-width:860px){.cat-side{grid-template-columns:1fr}}
 .cat-side .sec-head{margin-bottom:1rem}
 .cat-empty{color:var(--muted);font-weight:700}
+.shop-banner{background:var(--fg);color:var(--bg);text-align:center;font-weight:800;font-size:.92rem;padding:.55rem max(16px,env(safe-area-inset-right,0px)) .55rem max(16px,env(safe-area-inset-left,0px))}
+.btn.is-disabled{opacity:.5;pointer-events:none}
+#to-checkout:disabled{opacity:.5;cursor:not-allowed}
 .cat.alt .menu-bar{background:color-mix(in srgb,var(--paper) 94%,transparent)}
 /* row height shrinks so the whole mosaic fits the screen while it stays in view beside the menu */
 .mosaic{--mosaic-row:clamp(110px,calc((100vh - var(--hdr,64px) - 150px) / var(--rows,4)),170px);display:grid;grid-template-columns:1.25fr 1fr;gap:.7rem;min-width:0;position:relative}
@@ -332,6 +335,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
       Chat WA
     </a>
   </div>
+  <div class="shop-banner" id="shop-banner" role="status" hidden></div>
 </header>
 
 <main id="top">
@@ -444,6 +448,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
     </div>
     <div class="total"><span>Total</span><span class="num" id="cart-total">Rp0</span></div>
     <p class="cart-err" id="cart-err" role="alert" hidden></p>
+    <p class="cart-err" id="shop-cart-note" hidden></p>
     <button class="btn btn-ghost" type="button" id="to-checkout">Lanjut isi data &amp; bayar</button>
     <div class="checkout" id="checkout" hidden>
       <div class="promo-code">
@@ -488,9 +493,9 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   </div>
 </div>
 
-<script src="js/config.js?v=202610262034"></script>
+<script src="js/config.js?v=202610262045"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202610262034"></script>
+<script src="js/shop.js?v=202610262045"></script>
 
 </body>
 </html>

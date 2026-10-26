@@ -25,6 +25,7 @@
     INVALID_QUANTITY: "Jumlah pesanan tidak valid.",
     INVALID_CHOICE: "Pilihan menu tidak valid, coba tambah ulang ke keranjang.",
     ADDON_UNAVAILABLE: "Tambahan (extra shot) tidak tersedia untuk menu ini.",
+    SHOP_CLOSED: "Maaf, toko sedang tutup. Pesanan belum bisa dibuat.",
   };
   const errMsg = (raw) => {
     const code = String(raw || "").replace(/^.*?([A-Z_]{5,}).*$/s, "$1");
@@ -40,6 +41,7 @@
   let size = "M";
   let cart = store.get("cn-cart-v2", []);
   let quote = null;          // last server quote
+  let shop = { open: true }; // open / closed, from shop_status()
   let promoCode = "";
   let session = null;
   let profile = null;
@@ -182,6 +184,10 @@
       card.querySelector("[data-addon-price]").textContent = variant.addon_price != null ? "+" + rp(variant.addon_price) : "";
     }
     const inCart = cart.filter((l) => l.variant_id === variant.id).reduce((s, l) => s + l.qty, 0);
+    if (!shop.open) {
+      btn.disabled = true; btn.textContent = "Toko tutup"; tag.className = "stock-tag"; tag.textContent = "";
+      return;
+    }
     if (variant.available == null) { // unlimited stock
       btn.disabled = false; btn.textContent = "Tambah ke keranjang"; tag.className = "stock-tag"; tag.textContent = "";
       return;
@@ -323,7 +329,37 @@
     $("to-checkout").hidden = !cart.length || !$("checkout").hidden;
     if (!cart.length) $("checkout").hidden = true;
     $("send-wa").href = cart.length ? `https://wa.me/${WA}?text=${encodeURIComponent(buildMsg(total))}` : `https://wa.me/${WA}`;
+    // ordering is off while the shop is closed
+    $("shop-cart-note").hidden = shop.open;
+    $("shop-cart-note").textContent = shopClosedText();
+    $("to-checkout").disabled = !shop.open;
+    $("pay-btn").disabled = !shop.open;
+    $("send-wa").classList.toggle("is-disabled", !shop.open);
+    $("send-wa").setAttribute("aria-disabled", String(!shop.open));
   }
+
+  // ------------------------------------------------------------------ shop open / closed
+  function shopClosedText() {
+    if (shop.open) return "";
+    if (shop.reason === "schedule") return `Toko sedang tutup. Buka setiap hari pukul ${shop.open_time}–${shop.close_time} WIB.${shop.message ? " " + shop.message : ""}`;
+    return shop.message || "Toko sedang tutup untuk sementara. Sampai jumpa lagi!";
+  }
+  function renderShop() {
+    const banner = $("shop-banner");
+    banner.hidden = shop.open;
+    banner.textContent = shopClosedText();
+    document.querySelectorAll("[data-product]").forEach(updateCard);
+    renderCart();
+  }
+  async function loadShop() {
+    const { data, error } = await sb.rpc("shop_status");
+    if (!error && data) {
+      const changed = data.open !== shop.open;
+      shop = data;
+      if (changed || !shop.open) renderShop();
+    }
+  }
+  setInterval(loadShop, 60000);
 
   const showErr = (msg) => { $("cart-err").hidden = !msg; $("cart-err").textContent = msg || ""; };
 
@@ -366,6 +402,7 @@
     document.querySelectorAll("[data-product]").forEach(updateCard);
   });
   ["cust-name", "cust-phone", "cust-addr"].forEach((id) => $(id).addEventListener("input", renderCart));
+  $("send-wa").addEventListener("click", (e) => { if (!shop.open) { e.preventDefault(); showErr(shopClosedText()); } });
   $("to-checkout").addEventListener("click", () => { $("checkout").hidden = false; renderCart(); $("cust-name").focus(); });
   $("apply-code").addEventListener("click", async () => {
     promoCode = $("promo-code").value.trim().toUpperCase();
@@ -441,6 +478,7 @@
       const out = await res.json().catch(() => ({ error: "PAYMENT_GATEWAY_ERROR" }));
       if (!res.ok || out.error) {
         if (/OUT_OF_STOCK|PRODUCT_UNAVAILABLE/.test(out.detail || out.error)) { await refreshMenu(); await runQuote(); }
+        if (/SHOP_CLOSED/.test(out.detail || out.error)) await loadShop();
         showErr(errMsg(out.detail || out.error)); return;
       }
       rememberOrder(out);
@@ -706,6 +744,7 @@
   (async () => {
     setOffsets();
     renderCart();
+    await loadShop();
     try { await refreshMenu(); }
     catch (e) {
       $("menu-root").innerHTML = `<section class="block"><div class="wrap"><p class="menu-status">Menu belum bisa dimuat. Coba muat ulang halaman, atau pesan langsung lewat <a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a>.</p></div></section>`;
