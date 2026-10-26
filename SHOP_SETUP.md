@@ -26,7 +26,8 @@ The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, ord
 
 ## 3. Edge Functions (Supabase → Edge Functions)
 1. Create a function named **create-payment** and paste in `supabase/functions/create-payment/index.ts`. Do the same for **midtrans-webhook**.
-2. In each function's settings, turn **Verify JWT / Enforce JWT verification OFF**. Guests and Midtrans don't send a Supabase login. Both functions do their own checks.
+2. **create-payment**: leave "Verify JWT" **ON** (the site sends the public key).
+   **midtrans-webhook**: turn "Verify JWT" **OFF**, because Midtrans can't send a Supabase key. It's still protected: every call must carry Midtrans' signature made with your Server Key, and the function re-checks the payment status with Midtrans before changing anything.
 3. Under Edge Functions → Secrets, add:
    - `MIDTRANS_SERVER_KEY`: the Midtrans **Server Key** (the Sandbox one while testing)
    - `MIDTRANS_IS_PRODUCTION`: `false` (change to `true` when you go live)
