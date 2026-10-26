@@ -184,6 +184,11 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .cat-empty{color:var(--muted);font-weight:700}
 .shop-banner{background:var(--fg);color:var(--bg);text-align:center;font-weight:800;font-size:.92rem;padding:.55rem max(16px,env(safe-area-inset-right,0px)) .55rem max(16px,env(safe-area-inset-left,0px))}
 .btn.is-disabled{opacity:.5;pointer-events:none}
+.map-modal{width:min(640px,100%)}
+#map{height:min(55vh,420px);width:100%;background:var(--line)}
+.map-actions{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:flex-end}
+.loc-bad{color:var(--rose)!important}
+#pay-btn:disabled{opacity:.5;cursor:not-allowed}
 #to-checkout:disabled{opacity:.5;cursor:not-allowed}
 .cat.alt .menu-bar{background:color-mix(in srgb,var(--paper) 94%,transparent)}
 /* row height shrinks so the whole mosaic fits the screen while it stays in view beside the menu */
@@ -444,6 +449,7 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
     <div class="sum-rows">
       <div class="sum"><span>Subtotal</span><span class="num" id="cart-subtotal">Rp0</span></div>
       <div class="sum disc" id="disc-row" hidden><span id="disc-label">Diskon</span><span class="num" id="cart-discount">−Rp0</span></div>
+      <div class="sum" id="ship-row" hidden><span>Ongkir</span><span class="num" id="cart-ship">Gratis</span></div>
       <p class="gift-msg" id="gift-msg" hidden></p>
     </div>
     <div class="total"><span>Total</span><span class="num" id="cart-total">Rp0</span></div>
@@ -458,6 +464,9 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
       <div class="field"><label for="cust-name">Nama</label><input id="cust-name" autocomplete="name" placeholder="Nama kamu"></div>
       <div class="field"><label for="cust-phone">No. WhatsApp</label><input id="cust-phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="08xxxxxxxxxx"></div>
       <div class="field"><label for="cust-email">Email <small>(opsional, untuk bukti bayar)</small></label><input id="cust-email" type="email" autocomplete="email" placeholder="nama@email.com"></div>
+      <div class="field"><label>Lokasi pengantaran</label>
+        <button class="btn btn-ghost" type="button" id="pick-loc" style="justify-content:center">📍 Pilih lokasi di peta</button>
+        <p class="promo-msg" id="loc-info"></p></div>
       <div class="field"><label for="cust-addr">Alamat / catatan</label><textarea id="cust-addr" rows="2" placeholder="Blok, nomor rumah, jam antar"></textarea></div>
       <p class="promo-msg" id="guest-note">Belanja tanpa akun bisa. <button type="button" class="linkish" data-open-account>Masuk</button> supaya riwayat pesanan tersimpan.</p>
       <button class="btn btn-rose" type="button" id="pay-btn">
@@ -483,6 +492,23 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   <div class="drawer-body" id="acct-body"></div>
 </aside>
 
+<div class="modal-bg" id="map-modal" hidden>
+  <div class="modal map-modal" role="dialog" aria-modal="true" aria-labelledby="map-title">
+    <div class="drawer-head">
+      <h3 id="map-title">Lokasi pengantaran</h3>
+      <button class="icon-btn" type="button" id="map-close" aria-label="Tutup">×</button>
+    </div>
+    <div id="map"></div>
+    <div class="modal-body">
+      <p class="promo-msg" id="map-info" role="status"></p>
+      <div class="map-actions">
+        <button class="btn btn-ghost" type="button" id="map-gps">Pakai lokasi saya</button>
+        <button class="btn btn-rose" type="button" id="map-save">Simpan lokasi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="status-modal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="status-title">
     <div class="drawer-head">
@@ -493,9 +519,9 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   </div>
 </div>
 
-<script src="js/config.js?v=202610262045"></script>
+<script src="js/config.js?v=202610262116"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202610262045"></script>
+<script src="js/shop.js?v=202610262116"></script>
 
 </body>
 </html>

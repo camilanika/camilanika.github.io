@@ -26,6 +26,9 @@
     INVALID_CHOICE: "Pilihan menu tidak valid, coba tambah ulang ke keranjang.",
     ADDON_UNAVAILABLE: "Tambahan (extra shot) tidak tersedia untuk menu ini.",
     SHOP_CLOSED: "Maaf, toko sedang tutup. Pesanan belum bisa dibuat.",
+    LOCATION_REQUIRED: "Pilih lokasi pengantaran di peta dulu ya.",
+    OUT_OF_RANGE: "Lokasi di luar jangkauan antar. Chat kami lewat WhatsApp untuk atur pengiriman.",
+    LOCATION_INVALID: "Lokasi belum valid, pilih ulang di peta.",
   };
   const errMsg = (raw) => {
     const code = String(raw || "").replace(/^.*?([A-Z_]{5,}).*$/s, "$1");
@@ -295,19 +298,28 @@
     if (name) m += `\nNama: ${name}`;
     if (phone) m += `\nNo. WA: ${phone}`;
     if (addr) m += `\nAlamat/catatan: ${addr}`;
+    if (deliv.loc) m += `\nLokasi: ${mapsLink(deliv.loc.lat, deliv.loc.lng)}`;
+    const ds = deliveryState();
+    if (deliv.settings?.enabled && deliv.quote?.ok) m += `\nOngkir: ${ds.fee ? rp(ds.fee) : "gratis"}`;
     return m;
   }
 
   function renderCart() {
     const sub = subtotal(), count = cart.reduce((s, l) => s + l.qty, 0);
     const q = quote && quote.subtotal === sub ? quote : null;
-    const disc = q ? q.discount : 0, total = sub - disc;
+    const ds = deliveryState();
+    const disc = q ? q.discount : 0, total = sub - disc + ds.fee;
     $("cart-count").textContent = count;
     $("cart-subtotal").textContent = rp(sub);
     $("disc-row").hidden = !disc;
     $("disc-label").textContent = q?.promo_name ? `Diskon (${q.promo_name})` : "Diskon";
     $("cart-discount").textContent = "−" + rp(disc);
     $("cart-total").textContent = rp(total);
+    $("ship-row").hidden = !(deliv.settings?.enabled && deliv.loc && deliv.quote?.ok);
+    $("cart-ship").textContent = ds.fee ? rp(ds.fee) : "Gratis";
+    $("loc-info").textContent = ds.text;
+    $("loc-info").className = "promo-msg" + (ds.blocking && deliv.loc ? " loc-bad" : "");
+    $("pick-loc").textContent = deliv.loc ? "📍 Ubah lokasi di peta" : "📍 Pilih lokasi di peta";
     const gifts = q?.gifts || [];
     $("gift-msg").hidden = !gifts.length;
     $("gift-msg").textContent = gifts.map((g) => "🎁 " + g.gift).join(" · ");
@@ -333,9 +345,120 @@
     $("shop-cart-note").hidden = shop.open;
     $("shop-cart-note").textContent = shopClosedText();
     $("to-checkout").disabled = !shop.open;
-    $("pay-btn").disabled = !shop.open;
+    $("pay-btn").disabled = !shop.open || deliveryState().blocking;
     $("send-wa").classList.toggle("is-disabled", !shop.open);
     $("send-wa").setAttribute("aria-disabled", String(!shop.open));
+  }
+
+  // ------------------------------------------------------------------ delivery location (OpenStreetMap, free)
+  const mapsLink = (lat, lng) => `https://www.google.com/maps?q=${lat},${lng}`;
+  let deliv = { settings: null, loc: store.get("cn-loc", null), quote: null };
+  async function loadDeliverySettings() {
+    const { data } = await sb.rpc("delivery_settings");
+    if (data) deliv.settings = data;
+    if (deliv.loc) await quoteDelivery();
+  }
+  async function quoteDelivery() {
+    if (!deliv.loc) { deliv.quote = null; return; }
+    const { data } = await sb.rpc("delivery_quote", { p_lat: deliv.loc.lat, p_lng: deliv.loc.lng });
+    deliv.quote = data || null;
+  }
+  const fmtKm = (km) => (km == null ? "" : `${String(Math.round(km * 10) / 10).replace(".", ",")} km`);
+  function deliveryState() {
+    const s = deliv.settings, q = deliv.quote;
+    const enabled = !!s?.enabled;
+    if (!deliv.loc) return { fee: 0, blocking: enabled, text: enabled ? "Pilih lokasi di peta untuk menghitung ongkir." : "" };
+    if (q && !q.ok) return { fee: 0, blocking: true, text: q.error === "OUT_OF_RANGE" ? `Lokasi ${fmtKm(q.km)} dari toko, di luar jangkauan antar (maks ${fmtKm(Number(q.max_km))}). Chat kami lewat WhatsApp untuk atur pengiriman.` : "Lokasi belum valid, pilih ulang di peta." };
+    if (!enabled) return { fee: 0, blocking: false, text: `📍 Lokasi dipilih (${fmtKm(q?.km)} dari toko)` };
+    return { fee: q?.fee || 0, blocking: false, text: `📍 ${fmtKm(q?.km)} dari toko · ${q?.fee ? "ongkir " + rp(q.fee) : "gratis ongkir"}` };
+  }
+
+  // Leaflet loads only when the map is opened
+  let leafletLoading = null;
+  function loadLeaflet() {
+    if (window.L) return Promise.resolve();
+    if (leafletLoading) return leafletLoading;
+    leafletLoading = new Promise((res, rej) => {
+      const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(css);
+      const js = document.createElement("script"); js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      js.onload = res; js.onerror = () => { leafletLoading = null; rej(new Error("leaflet")); };
+      document.head.appendChild(js);
+    });
+    return leafletLoading;
+  }
+  let map, pin, pinQuoteTimer;
+  async function openMap() {
+    $("map-modal").hidden = false;
+    $("map-info").textContent = "Memuat peta…";
+    try { await loadLeaflet(); } catch (e) { $("map-info").textContent = "Peta gagal dimuat. Tulis alamat lengkap saja ya."; return; }
+    const s = deliv.settings || { origin_lat: -6.5561334, origin_lng: 106.7827129 };
+    const start = deliv.loc || { lat: s.origin_lat, lng: s.origin_lng };
+    if (!map) {
+      map = L.map("map", { zoomControl: true }).setView([start.lat, start.lng], deliv.loc ? 17 : 14);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }).addTo(map);
+      L.circleMarker([s.origin_lat, s.origin_lng], { radius: 7, color: "#D9586F", fillOpacity: .9 }).addTo(map).bindTooltip("CamilaNika");
+      pin = L.marker([start.lat, start.lng], { draggable: true }).addTo(map);
+      pin.on("dragend", () => previewPin());
+      map.on("click", (e) => { pin.setLatLng(e.latlng); previewPin(); });
+    } else {
+      pin.setLatLng([start.lat, start.lng]); map.setView([start.lat, start.lng], deliv.loc ? 17 : 14);
+    }
+    setTimeout(() => map.invalidateSize(), 50);
+    $("map-info").textContent = deliv.loc ? "Geser pin kalau perlu, lalu Simpan lokasi." : "Ketuk peta atau geser pin ke rumah kamu, lalu Simpan lokasi.";
+    if (deliv.loc) previewPin();
+  }
+  function previewPin() {
+    clearTimeout(pinQuoteTimer);
+    pinQuoteTimer = setTimeout(async () => {
+      const { lat, lng } = pin.getLatLng();
+      const { data: q } = await sb.rpc("delivery_quote", { p_lat: lat, p_lng: lng });
+      if (!q) return;
+      $("map-info").textContent = !q.ok
+        ? (q.error === "OUT_OF_RANGE" ? `${fmtKm(q.km)} dari toko, di luar jangkauan antar (maks ${fmtKm(Number(q.max_km))}).` : "Lokasi tidak valid.")
+        : !q.enabled ? `${fmtKm(q.km)} dari toko.` : `${fmtKm(q.km)} dari toko · ${q.fee ? "ongkir " + rp(q.fee) : "gratis ongkir"}`;
+    }, 300);
+  }
+  async function saveMapLocation() {
+    const { lat, lng } = pin.getLatLng();
+    deliv.loc = { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+    store.set("cn-loc", deliv.loc);
+    $("map-modal").hidden = true;
+    await quoteDelivery();
+    renderCart();
+    // fill the address box from the map if it's still empty (free OpenStreetMap lookup, once per save)
+    if (!$("cust-addr").value.trim()) {
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=id&lat=${deliv.loc.lat}&lon=${deliv.loc.lng}`);
+        const j = await r.json();
+        if (j?.display_name && !$("cust-addr").value.trim()) {
+          $("cust-addr").value = j.display_name.split(", ").slice(0, 5).join(", ") + "\n(tambahkan blok/no. rumah & patokan)";
+          renderCart();
+        }
+      } catch (e) {}
+    }
+  }
+  function useMyLocation() {
+    if (!navigator.geolocation) { $("map-info").textContent = "Perangkat ini tidak bisa membagikan lokasi."; return; }
+    $("map-info").textContent = "Mencari lokasi kamu…";
+    navigator.geolocation.getCurrentPosition(
+      (p) => { const ll = [p.coords.latitude, p.coords.longitude]; pin.setLatLng(ll); map.setView(ll, 17); previewPin(); },
+      () => { $("map-info").textContent = "Lokasi tidak diizinkan. Geser pin secara manual ya."; },
+      { enableHighAccuracy: true, timeout: 10000 });
+  }
+  $("pick-loc").addEventListener("click", openMap);
+  $("map-save").addEventListener("click", saveMapLocation);
+  $("map-gps").addEventListener("click", useMyLocation);
+  $("map-close").addEventListener("click", () => { $("map-modal").hidden = true; });
+  $("map-modal").addEventListener("click", (e) => { if (e.target.id === "map-modal") $("map-modal").hidden = true; });
+
+  // chat with the admin about a paid order (delivery details)
+  function deliveryChatLink(o) {
+    let m = `Halo CamilaNika, pesanan saya ${o.order_number} sudah dibayar. Mohon diproses pengirimannya ya.`;
+    if (o.address) m += `\nAlamat: ${o.address}`;
+    if (o.delivery_lat != null) m += `\nLokasi: ${mapsLink(o.delivery_lat, o.delivery_lng)}`;
+    m += `\nDetail tambahan (patokan / jam antar): `;
+    return `https://wa.me/${WA}?text=${encodeURIComponent(m)}`;
   }
 
   // ------------------------------------------------------------------ shop open / closed
@@ -458,6 +581,7 @@
     const name = $("cust-name").value.trim(), phone = $("cust-phone").value.trim();
     if (!name) { showErr(ERRORS.NAME_REQUIRED); $("cust-name").focus(); return; }
     if (!/^\+?[0-9 \-]{8,16}$/.test(phone)) { showErr("Nomor WhatsApp belum benar."); $("cust-phone").focus(); return; }
+    if (deliveryState().blocking) { showErr(deliveryState().text || ERRORS.LOCATION_REQUIRED); return; }
     const btn = $("pay-btn"), label = btn.querySelector("span");
     btn.disabled = true; label.textContent = "Menyiapkan pembayaran…";
     try {
@@ -472,7 +596,7 @@
         },
         body: JSON.stringify({
           items: cartItems(), promo_code: promoCode || null,
-          customer: { name, phone, email: $("cust-email").value.trim(), address: $("cust-addr").value.trim() },
+          customer: { name, phone, email: $("cust-email").value.trim(), address: $("cust-addr").value.trim(), lat: deliv.loc?.lat ?? null, lng: deliv.loc?.lng ?? null },
         }),
       });
       const out = await res.json().catch(() => ({ error: "PAYMENT_GATEWAY_ERROR" }));
@@ -506,7 +630,7 @@
       if (data) return data;
     }
     if (session) {
-      const { data } = await sb.from("orders").select("order_number,status,total,subtotal,discount,gifts,created_at,paid_at,order_items(product_name,variant_name,choices,addon,quantity,line_total)").eq("order_number", num).maybeSingle();
+      const { data } = await sb.from("orders").select("order_number,status,total,subtotal,discount,gifts,created_at,paid_at,address,delivery_fee,delivery_km,delivery_lat,delivery_lng,order_items(product_name,variant_name,choices,addon,quantity,line_total)").eq("order_number", num).maybeSingle();
       if (data) return { ...data, items: data.order_items };
     }
     return null;
@@ -519,7 +643,9 @@
       <ul>${(o.items || o.order_items || []).map((i) => `<li>${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}${Object.values(i.choices || {}).map((c) => " · " + esc(c)).join("")}${i.addon ? " · " + esc(i.addon) : ""}</li>`).join("")}</ul>
       ${(o.gifts || []).map((g) => `<span class="gift-msg">🎁 ${esc(g.gift)}</span>`).join("")}
       ${o.discount ? `<span style="color:var(--wa);font-weight:700">Diskon −${rp(o.discount)}</span>` : ""}
+      ${o.delivery_fee ? `<span>Ongkir ${rp(o.delivery_fee)}${o.delivery_km ? ` (${fmtKm(Number(o.delivery_km))})` : ""}</span>` : ""}
       <span class="tot">Total ${rp(o.total)}</span>
+      ${["paid", "processing"].includes(o.status) ? `<a class="btn btn-wa" style="justify-content:center;margin-top:.3rem" target="_blank" rel="noopener" href="${deliveryChatLink(o)}">Chat admin untuk pengiriman</a>` : ""}
     </div>`;
 
   async function showStatus(num, poll = false) {
@@ -541,7 +667,7 @@
       }[o.status] || "";
       $("status-body").innerHTML = `<p>${esc(msg)}</p>${orderCard(o)}
         ${o.status === "pending" && saved?.token ? `<button class="btn btn-rose" type="button" id="resume-pay" style="justify-content:center">Lanjutkan pembayaran</button>` : ""}
-        <a class="btn btn-wa" style="justify-content:center" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya mau tanya pesanan " + num)}">Tanya lewat WhatsApp</a>`;
+        ${["paid", "processing"].includes(o.status) ? "" : `<a class="btn btn-wa" style="justify-content:center" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya mau tanya pesanan " + num)}">Tanya lewat WhatsApp</a>`}`;
       $("resume-pay")?.addEventListener("click", async () => { await loadSnap(); closeStatus(); openSnap(saved.token, num); });
       if (poll && o.status === "pending" && ++tries < 40) pollTimer = setTimeout(load, 5000);
     };
@@ -684,7 +810,7 @@
       if (!error) $("p-pass").value = "";
     });
     const { data, error } = await sb.from("orders")
-      .select("order_number,status,total,discount,gifts,created_at,order_items(product_name,variant_name,choices,addon,quantity,line_total)")
+      .select("order_number,status,total,discount,gifts,created_at,address,delivery_fee,delivery_km,delivery_lat,delivery_lng,order_items(product_name,variant_name,choices,addon,quantity,line_total)")
       .eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(30);
     const el = $("my-orders"); if (!el) return;
     el.innerHTML = error ? `<p class="form-msg err">Gagal memuat pesanan.</p>` : data.length ? data.map(orderCard).join("") : `<p class="form-msg">Belum ada pesanan.</p>`;
@@ -744,7 +870,7 @@
   (async () => {
     setOffsets();
     renderCart();
-    await loadShop();
+    await Promise.all([loadShop(), loadDeliverySettings()]);
     try { await refreshMenu(); }
     catch (e) {
       $("menu-root").innerHTML = `<section class="block"><div class="wrap"><p class="menu-status">Menu belum bisa dimuat. Coba muat ulang halaman, atau pesan langsung lewat <a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a>.</p></div></section>`;

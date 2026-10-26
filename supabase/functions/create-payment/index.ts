@@ -76,6 +76,8 @@ Deno.serve(async (req) => {
     p_address: str(c.address, 500) || null,
     p_notes: str(c.notes, 500) || null,
     p_expires_minutes: 30,
+    p_lat: Number.isFinite(Number(c.lat)) && c.lat !== null && c.lat !== "" ? Number(c.lat) : null,
+    p_lng: Number.isFinite(Number(c.lng)) && c.lng !== null && c.lng !== "" ? Number(c.lng) : null,
   });
   if (error) {
     const code = (error.message || "ORDER_FAILED").split(":")[0];
@@ -97,6 +99,9 @@ Deno.serve(async (req) => {
   }));
   if (order.discount > 0) {
     itemDetails.push({ id: "DISCOUNT", name: clip(`Diskon ${order.promo_name ?? ""}`.trim(), 50), price: -order.discount, quantity: 1 });
+  }
+  if (order.delivery_fee > 0) {
+    itemDetails.push({ id: "ONGKIR", name: clip(`Ongkos kirim${order.delivery_km ? ` (${order.delivery_km} km)` : ""}`, 50), price: order.delivery_fee, quantity: 1 });
   }
 
   const sep = SITE_URL.includes("?") ? "&" : "?";
@@ -139,6 +144,7 @@ Deno.serve(async (req) => {
     access_token: order.access_token,
     total: order.total,
     discount: order.discount,
+    delivery_fee: order.delivery_fee,
     gifts: order.gifts,
   });
 });
