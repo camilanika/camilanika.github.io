@@ -75,7 +75,7 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
@@ -118,3 +118,16 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - **Unpaid orders** show "Bayar sebelum HH:MM" and a **Lanjutkan pembayaran** button that reopens the same Midtrans payment, even on another phone when logged in. After 30 minutes the order shows as Kedaluwarsa and can't be paid any more.
 - Paid orders show **Chat admin untuk pengiriman**; other orders show **Tanya lewat WhatsApp**.
 - The page updates by itself while a payment is pending, and the phone's back button works.
+
+## Notifications (bell icon)
+- Registered customers see a **bell** in the header with the number of unread notifications. Tapping one opens what it's about: the product on the menu, the promo details, or the order page. "Tandai semua dibaca" clears the counter. Notifications are kept, so they're still there next visit. Guests see a prompt to log in.
+- Sent automatically by the database, to everyone registered at that moment:
+  - **New product**: once it's visible in the shop (active, in an active submenu). Hiding and showing it again doesn't resend.
+  - **New promo**: once it's active and its start time has passed. Each promo has **"Umumkan ke semua pelanggan"** (on by default); untick it for private codes. A promo with a code includes the code in the message.
+- Sent only to the customer who owns the order (guest orders have no account, so no notification): order created, paid, Diproses, **Siap diantar**, **Sedang diantar**, Selesai, Dibatalkan, payment failed or expired. A repeated Midtrans notification never sends the same update twice.
+- Products and promos that existed before this update are not announced.
+- If a product is deleted or a promo has ended, the notification stays but is labelled, and tapping it explains that it's no longer available.
+
+## Order steps in Pesanan
+- Each paid order has a button for its next step: **Proses** → **Siap diantar** → **Sedang diantar**, plus **Selesai** and **Batalkan**. Every step notifies the customer.
+- **💬 Chat Customer** opens a ready-made message with the order number, delivery address (and map pin), every item with quantity and subtotal, discount, ongkir and total. Edit it if you like, then **Buka WhatsApp** opens a chat with the customer's number and the message filled in; nothing is sent until you press send in WhatsApp. If the number is missing or invalid you'll see a warning and can copy the message instead.
