@@ -550,7 +550,12 @@
           options: { data: { full_name: $("a-name").value.trim(), phone: $("a-phone").value.trim() }, emailRedirectTo: CFG.SITE_URL },
         });
         if (error) return formMsg(/registered/i.test(error.message) ? "Email sudah terdaftar. Silakan masuk." : "Gagal mendaftar: " + error.message, true);
-        if (!data.session) return formMsg("Cek email kamu untuk konfirmasi akun, lalu masuk.");
+        // Supabase answers "success" for an email that is already registered, with no identities attached
+        if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          renderAccount("login"); $("a-email").value = email;
+          return formMsg("Email ini sudah terdaftar. Silakan masuk, atau pakai \"Lupa password?\" kalau lupa.", true);
+        }
+        if (!data.session) return formMsg(`Akun dibuat. Kami kirim link konfirmasi ke ${email}. Klik link itu, lalu masuk di sini. Cek juga folder spam.`);
       } else if (acctMode === "reset") {
         const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: CFG.SITE_URL });
         return formMsg(error ? "Gagal mengirim email." : "Link reset password sudah dikirim ke email kamu.", !!error);
