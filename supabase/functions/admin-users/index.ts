@@ -1,8 +1,8 @@
 // Supabase Edge Function: admin-users
-// Lets a shop admin set a new password for a customer (e.g. someone who registered with their
-// WhatsApp number and forgot the password). Only callers whose profile role is 'admin' are allowed.
-//
-// Request: POST { action: "reset_password", user_id, password }
+// Shop admin actions on customer accounts. Only callers whose profile role is 'admin' are allowed.
+//   POST { action: "reset_password", user_id, password }  set a new password (e.g. forgotten, number accounts)
+//   POST { action: "delete_user", user_id }               delete an account (not yourself, not another admin);
+//                                                         its orders are kept, unlinked like guest orders
 // The website sends the public anon key in Authorization and the admin's login token in x-user-token.
 // Secrets used: ALLOWED_ORIGINS. "Verify JWT" can stay ON.
 
@@ -46,6 +46,17 @@ Deno.serve(async (req) => {
     if (password.length < 8) return reply({ error: "PASSWORD_TOO_SHORT" }, 400);
     const { error } = await admin.auth.admin.updateUserById(userId, { password });
     if (error) { console.error("reset failed", error.message); return reply({ error: "RESET_FAILED" }, 400); }
+    return reply({ ok: true });
+  }
+  if (b?.action === "delete_user") {
+    const userId = String(b.user_id ?? "");
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return reply({ error: "BAD_USER" }, 400);
+    if (userId === caller.user.id) return reply({ error: "CANNOT_DELETE_SELF" }, 400);
+    const { data: target } = await admin.from("profiles").select("role").eq("id", userId).maybeSingle();
+    if (target?.role === "admin") return reply({ error: "REMOVE_ADMIN_FIRST" }, 400);
+    // orders stay (unlinked, like guest orders); profile is removed with the account
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) { console.error("delete failed", error.message); return reply({ error: "DELETE_FAILED" }, 400); }
     return reply({ ok: true });
   }
   return reply({ error: "UNKNOWN_ACTION" }, 400);
