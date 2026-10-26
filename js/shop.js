@@ -182,6 +182,10 @@
       card.querySelector("[data-addon-price]").textContent = variant.addon_price != null ? "+" + rp(variant.addon_price) : "";
     }
     const inCart = cart.filter((l) => l.variant_id === variant.id).reduce((s, l) => s + l.qty, 0);
+    if (variant.available == null) { // unlimited stock
+      btn.disabled = false; btn.textContent = "Tambah ke keranjang"; tag.className = "stock-tag"; tag.textContent = "";
+      return;
+    }
     const left = variant.available - inCart;
     btn.disabled = left <= 0;
     btn.textContent = variant.available <= 0 ? "Habis" : left <= 0 ? "Stok di keranjang" : "Tambah ke keranjang";
