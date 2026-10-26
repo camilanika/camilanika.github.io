@@ -74,7 +74,8 @@ Open `https://camilanika.github.io/admin.html`.
 - Manage both in the admin page's **Menu** tab: add, rename, hide, delete, and reorder with ↑ ↓. Pick each product's submenu in the **Produk** tab.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
-- The bottle photo row and the cireng photo mosaic are attached to the main menus with the slugs `minuman` and `camilan` (see the `<template>` blocks in `index.html`).
+- Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).

@@ -368,6 +368,7 @@ td.num,th.num{text-align:right}
   function editCategory(c) {
     const isNew = !c;
     c = c || { name: "", slug: "", eyebrow: "", heading: "", heading_script: "", description: "", is_active: true };
+    let shots = (Array.isArray(c.showcase_images) ? c.showcase_images : []).map((i) => ({ ...i }));
     openModal(`<div class="modal-head"><h2>${isNew ? "Menu utama baru" : "Ubah " + esc(c.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
       <div class="grid2">
         <label class="f">Nama (link di atas halaman)<input id="cn" value="${esc(c.name)}" placeholder="mis. Minuman"></label>
@@ -378,14 +379,76 @@ td.num,th.num{text-align:right}
         <label class="chk" style="align-self:end"><input type="checkbox" id="ca" ${c.is_active ? "checked" : ""}> Tampilkan di toko</label>
       </div>
       <label class="f">Deskripsi<textarea id="cd" rows="3">${esc(c.description || "")}</textarea></label>
-      <p class="muted" style="margin:0;font-size:.85rem">Foto dekorasi (deretan botol untuk <b>minuman</b>, mosaik cireng untuk <b>camilan</b>) muncul otomatis berdasarkan slug.</p>
+      <div class="grid2">
+        <label class="f">Info singkat di bawah deskripsi (satu per baris)<textarea id="chl" rows="3" placeholder="mis. Simpan di kulkas, tahan hingga 7 hari">${esc((c.highlights || []).join("\n"))}</textarea></label>
+        <label class="f">Label bulat (pisahkan koma, opsional)<textarea id="ctg" rows="3" placeholder="mis. Keju Lumer, Jando Pedas">${esc((c.tags || []).join(", "))}</textarea></label>
+      </div>
+      <div class="card" style="display:grid;gap:.7rem">
+        <h3>Foto showcase</h3>
+        <div class="grid2">
+          <label class="f">Tampilan<select id="cly">
+            <option value="none">Tanpa foto</option>
+            <option value="row">Deretan foto (geser), di atas menu</option>
+            <option value="mosaic">Mosaik foto, di samping menu</option></select></label>
+          <label class="f" id="cnw">Tulisan di bawah mosaik (opsional)<input id="cnote" value="${esc(c.showcase_note || "")}" placeholder="mis. Gurih di luar, nagih di dalam!"></label>
+        </div>
+        <div id="cshots" style="display:grid;gap:.5rem"></div>
+        <label class="f">Tambah foto (bisa pilih beberapa, maks 3 MB per foto)<input type="file" id="cfile" accept="image/*" multiple></label>
+        <p class="muted" style="margin:0;font-size:.85rem">Mosaik: foto pertama tampil besar. Deretan: foto tegak (3:4) paling bagus.</p>
+      </div>
       <p class="msg" id="cmsg"></p>
       <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="cdel" style="margin-right:auto">Hapus menu utama</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="csave">Simpan</button></div>`);
     $("cn").oninput = () => { if (isNew) $("cs").value = slugify($("cn").value); };
     const fail = (m) => { $("cmsg").textContent = m; $("cmsg").className = "msg err"; };
+    $("cly").value = c.showcase_layout || "none";
+    const readShots = () => $("cshots").querySelectorAll("[data-shot]").forEach((r) => {
+      const i = shots[+r.dataset.shot];
+      i.url = r.querySelector("[data-u]").value.trim(); i.caption = r.querySelector("[data-c]").value.trim();
+      i.tag = r.querySelector("[data-t]").value.trim();
+    });
+    const drawShots = () => {
+      const lay = $("cly").value;
+      $("cnw").hidden = lay !== "mosaic";
+      $("cshots").innerHTML = shots.map((i, n) => `<div data-shot="${n}" style="display:grid;grid-template-columns:56px minmax(0,2fr) minmax(0,1.4fr) ${lay === "row" ? "70px" : ""} auto;gap:.4rem;align-items:center">
+        <img class="thumb" src="${esc(i.url)}" alt="" style="width:56px;height:56px">
+        <input data-u value="${esc(i.url)}" aria-label="Alamat foto ${n + 1}">
+        <input data-c value="${esc(i.caption || "")}" placeholder="Keterangan" aria-label="Keterangan foto ${n + 1}">
+        <input data-t value="${esc(i.tag || "")}" placeholder="mis. L" aria-label="Label kecil foto ${n + 1}" ${lay === "row" ? "" : "hidden"}>
+        <span style="display:flex;gap:.25rem"><button class="btn btn-ghost btn-sm" data-up="${n}" ${n ? "" : "disabled"} aria-label="Naikkan">↑</button><button class="btn btn-ghost btn-sm" data-dn="${n}" ${n < shots.length - 1 ? "" : "disabled"} aria-label="Turunkan">↓</button><button class="btn btn-ghost btn-sm" data-rm="${n}" aria-label="Hapus foto">✕</button></span>
+      </div>`).join("") || `<p class="muted" style="margin:0">Belum ada foto.</p>`;
+      const swap = (a, b) => { readShots(); [shots[a], shots[b]] = [shots[b], shots[a]]; drawShots(); };
+      $("cshots").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => swap(+b.dataset.up, +b.dataset.up - 1));
+      $("cshots").querySelectorAll("[data-dn]").forEach((b) => b.onclick = () => swap(+b.dataset.dn, +b.dataset.dn + 1));
+      $("cshots").querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { readShots(); shots.splice(+b.dataset.rm, 1); drawShots(); });
+      $("cshots").querySelectorAll("[data-u]").forEach((inp) => inp.onchange = () => { inp.parentElement.querySelector("img").src = inp.value; });
+    };
+    $("cly").onchange = () => { readShots(); drawShots(); };
+    drawShots();
+    $("cfile").onchange = async () => {
+      readShots();
+      const files = [...$("cfile").files];
+      for (const f of files) {
+        if (f.size > 3 * 1024 * 1024) { toast(`${f.name}: maks 3 MB`); continue; }
+        const path = `showcase/${Date.now()}-${slugify(f.name.replace(/\.[^.]+$/, ""))}.${(f.name.split(".").pop() || "jpg").toLowerCase()}`;
+        toast(`Mengunggah ${f.name}…`);
+        const { error } = await sb.storage.from("product-images").upload(path, f, { contentType: f.type, upsert: false });
+        if (error) { toast("Gagal unggah: " + error.message); continue; }
+        shots.push({ url: sb.storage.from("product-images").getPublicUrl(path).data.publicUrl, caption: "" });
+      }
+      $("cfile").value = "";
+      if ($("cly").value === "none" && shots.length) $("cly").value = "mosaic";
+      drawShots(); toast("Foto ditambahkan. Jangan lupa Simpan.");
+    };
     $("csave").onclick = async () => {
       const row = { name: $("cn").value.trim(), slug: slugify($("cs").value || $("cn").value), eyebrow: $("ce").value.trim() || null,
         heading: $("ch").value.trim() || null, heading_script: $("cscr").value.trim() || null, description: $("cd").value.trim() || null, is_active: $("ca").checked };
+      readShots();
+      row.showcase_layout = $("cly").value;
+      row.showcase_images = shots.filter((i) => i.url).map((i) => ({ url: i.url, caption: i.caption || undefined, tag: i.tag || undefined, alt: i.alt || i.caption || undefined }));
+      row.showcase_note = $("cnote").value.trim() || null;
+      row.highlights = $("chl").value.split("\n").map((x) => x.trim()).filter(Boolean);
+      row.tags = $("ctg").value.split(",").map((x) => x.trim()).filter(Boolean);
+      if (row.showcase_layout !== "none" && !row.showcase_images.length) return fail("Tambahkan foto, atau pilih Tampilan: Tanpa foto.");
       if (!row.name || !row.slug) return fail("Nama wajib diisi.");
       if (isNew) row.sort_order = ((tree.cats.at(-1)?.sort_order) || 0) + 10;
       $("csave").disabled = true;
