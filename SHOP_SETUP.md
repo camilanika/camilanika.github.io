@@ -75,7 +75,7 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
@@ -99,3 +99,15 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - **Jadwal buka**: tick "Buka & tutup otomatis setiap hari" and set the opening and closing time (WIB, GMT+7). A closing time earlier than the opening time means open past midnight.
 - Optional message for customers while closed (e.g. holidays).
 - While closed, customers still see the menu, but can't add to cart, pay or send a WhatsApp order; a banner explains why. The server also refuses new orders, so nothing slips through. The badge next to "CamilaNika Admin" shows whether the shop is open right now.
+
+## Delivery location and fee
+- At checkout customers press **Pilih di peta** and drop a pin (or use their phone's location). The map is OpenStreetMap, which is free; no Google key is needed. The pin fills the address if it's empty, and is saved with the order.
+- In **Pesanan**, each order shows **📍 Buka di Google Maps**, the distance and the delivery fee.
+- After payment, the customer's order shows **Chat admin untuk pengiriman**, a WhatsApp message with the order number and pin, so you can arrange the courier and ask for details.
+- Admin page → **Toko → Pengiriman & ongkir**:
+  - Drag the pin to the shop's exact location (starts at Bukit Cimanggu City).
+  - **Gratis ongkir sampai**: free delivery up to this distance.
+  - **Jarak maksimal**: farther than this can't be ordered online; the customer is asked to chat you.
+  - **Tarif**: rows of "up to X km → Rp Y". Fill these from the Paxel app (its website rate check needs a CAPTCHA, so rates aren't fetched automatically).
+  - Tick **Hitung ongkir otomatis** to turn it on. While off, delivery is free and the pin is optional.
+- Distance is a straight line from the shop pin, so road distance is usually a bit longer; set tiers with that in mind.

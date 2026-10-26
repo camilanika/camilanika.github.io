@@ -108,7 +108,7 @@ td.num,th.num{text-align:right}
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/config.js?v=202610262045"></script>
+<script src="js/config.js?v=202610262116"></script>
 <script src="js/vendor/supabase.js"></script>
 <script>
 (() => {
@@ -231,10 +231,11 @@ td.num,th.num{text-align:right}
         <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span></div>
           <div class="muted" style="font-size:.85rem">${fmtDate(o.created_at)}${o.payment_method ? " · " + esc(o.payment_method) : ""}${o.user_id ? "" : " · tamu"}</div>
           <div style="margin-top:.4rem"><b>${esc(o.customer_name)}</b> · ${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(o.phone)}</a>` : ""}${o.email ? `<br><span class="muted">${esc(o.email)}</span>` : ""}</div>
-          ${o.address ? `<div class="muted" style="white-space:pre-line">${esc(o.address)}</div>` : ""}${o.notes ? `<div class="muted">${esc(o.notes)}</div>` : ""}</div>
+          ${o.address ? `<div class="muted" style="white-space:pre-line">${esc(o.address)}</div>` : ""}${o.notes ? `<div class="muted">${esc(o.notes)}</div>` : ""}
+          ${o.delivery_lat != null ? `<div style="margin-top:.3rem"><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}">📍 Buka di Google Maps</a>${o.delivery_km != null ? ` <span class="muted" style="font-size:.85rem">${String(o.delivery_km).replace(".", ",")} km</span>` : ""}</div>` : ""}</div>
         <div><ul>${o.order_items.map((i) => `<li>${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}${Object.values(i.choices || {}).map((c) => " · " + esc(c)).join("")}${i.addon ? " · <b>" + esc(i.addon) + "</b>" : ""} <span class="muted">${rp(i.line_total)}</span></li>`).join("")}</ul>
           ${(o.gifts || []).map((g) => `<div>🎁 <b>${esc(g.gift)}</b></div>`).join("")}
-          <div style="margin-top:.3rem">${o.discount ? `Subtotal ${rp(o.subtotal)} · Diskon −${rp(o.discount)}${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}<br>` : ""}<b>Total ${rp(o.total)}</b></div></div>
+          <div style="margin-top:.3rem">${o.discount ? `Subtotal ${rp(o.subtotal)} · Diskon −${rp(o.discount)}${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}<br>` : ""}${o.delivery_fee ? `Ongkir ${rp(o.delivery_fee)}<br>` : ""}<b>Total ${rp(o.total)}</b></div></div>
         <div class="acts">${acts.join("")}</div></div>`;
     }).join("");
     el.querySelectorAll("[data-st]").forEach((b) => b.onclick = async () => {
@@ -879,6 +880,22 @@ td.num,th.num{text-align:right}
         <label class="f">Pesan untuk pembeli saat tutup (opsional)<input id="sh-msg" value="${esc(cfg.closed_message || "")}" placeholder="mis. Lagi libur Lebaran, buka lagi 15 April ya!"></label>
         <div><button class="btn btn-rose" id="sh-save">Simpan jadwal</button></div>
         <p class="msg" id="sh-m"></p>
+      </div>
+      <div class="card" style="display:grid;gap:.8rem">
+        <h3>Pengiriman & ongkir</h3>
+        <p class="muted" style="margin:0;font-size:.88rem">Pembeli memilih lokasi di peta saat checkout. Jarak dihitung garis lurus dari pin toko. Ongkir di bawah ini kamu isi sendiri, misalnya dari cek tarif di aplikasi Paxel untuk beberapa jarak.</p>
+        <label class="f">Lokasi toko (geser pin)<span class="muted" id="dl-orig" style="font-weight:600"></span></label>
+        <div id="dl-map" style="height:280px;border-radius:12px;background:var(--line)"></div>
+        <label class="chk"><input type="checkbox" id="dl-on" ${cfg.delivery_fee_enabled ? "checked" : ""}> Hitung ongkir otomatis (wajib pilih lokasi saat bayar online)</label>
+        <div class="grid3">
+          <label class="f">Gratis ongkir sampai (km)<input type="number" min="0" step="0.5" id="dl-free" value="${cfg.free_radius_km ?? 2}"></label>
+          <label class="f">Maks jarak antar (km)<input type="number" min="0" step="0.5" id="dl-max" value="${cfg.max_radius_km ?? 25}"></label>
+        </div>
+        <div><b style="font-size:.9rem">Tarif per jarak</b>
+          <div class="tbl-wrap" style="margin-top:.4rem"><table><thead><tr><th>Sampai (km)</th><th>Ongkir (Rp)</th><th></th></tr></thead><tbody id="dl-tiers"></tbody></table></div>
+          <button class="btn btn-ghost btn-sm" id="dl-add" style="margin-top:.4rem">+ Baris</button></div>
+        <div><button class="btn btn-rose" id="dl-save">Simpan pengiriman</button></div>
+        <p class="msg" id="dl-m"></p>
       </div>`;
     const save = async (patch, msg) => {
       const { error } = await sb.from("shop_settings").update(patch).eq("id", 1);
@@ -895,6 +912,54 @@ td.num,th.num{text-align:right}
       if ($("sh-sched").checked && (!ot || !ct)) { $("sh-m").textContent = "Isi jam buka dan jam tutup."; $("sh-m").className = "msg err"; return; }
       save({ schedule_enabled: $("sh-sched").checked, open_time: ot || "08:00", close_time: ct || "21:00", closed_message: $("sh-msg").value.trim() || null }, "Jadwal tersimpan");
     };
+
+    // delivery: tiers editor + origin pin
+    let tiers = (Array.isArray(cfg.fee_tiers) ? cfg.fee_tiers : []).map((t) => ({ ...t }));
+    let origin = { lat: cfg.origin_lat, lng: cfg.origin_lng };
+    const showOrig = () => { $("dl-orig").textContent = ` ${origin.lat.toFixed(5)}, ${origin.lng.toFixed(5)}`; };
+    showOrig();
+    const readTiers = () => $("dl-tiers").querySelectorAll("tr[data-t]").forEach((r) => {
+      tiers[+r.dataset.t] = { up_to_km: parseFloat(r.querySelector("[data-km]").value), fee: parseInt(r.querySelector("[data-fee]").value, 10) };
+    });
+    const drawTiers = () => {
+      $("dl-tiers").innerHTML = tiers.map((t, i) => `<tr data-t="${i}">
+        <td><input data-km type="number" min="0" step="0.5" value="${t.up_to_km ?? ""}" style="width:110px" aria-label="Sampai km baris ${i + 1}"></td>
+        <td><input data-fee type="number" min="0" step="500" value="${t.fee ?? ""}" style="width:130px" aria-label="Ongkir baris ${i + 1}"></td>
+        <td><button class="btn btn-ghost btn-sm" data-rmt="${i}" aria-label="Hapus baris">✕</button></td></tr>`).join("") || `<tr><td colspan="3" class="muted">Belum ada tarif. Tambah baris, mis. sampai 5 km = Rp10.000.</td></tr>`;
+      $("dl-tiers").querySelectorAll("[data-rmt]").forEach((b) => b.onclick = () => { readTiers(); tiers.splice(+b.dataset.rmt, 1); drawTiers(); });
+    };
+    drawTiers();
+    $("dl-add").onclick = () => { readTiers(); const last = tiers.at(-1); tiers.push({ up_to_km: last ? (last.up_to_km || 0) + 5 : 5, fee: "" }); drawTiers(); };
+    $("dl-save").onclick = async () => {
+      readTiers();
+      const clean = tiers.filter((t) => Number.isFinite(t.up_to_km) && Number.isFinite(t.fee)).sort((a, b) => a.up_to_km - b.up_to_km);
+      const fail = (m) => { $("dl-m").textContent = m; $("dl-m").className = "msg err"; };
+      if (clean.length !== tiers.length) return fail("Isi km dan ongkir di setiap baris (atau hapus barisnya).");
+      const free = parseFloat($("dl-free").value) || 0, max = parseFloat($("dl-max").value) || 0;
+      if ($("dl-on").checked && max <= free && !clean.length) return fail("Isi tarif, atau naikkan Maks jarak antar.");
+      save({ delivery_fee_enabled: $("dl-on").checked, free_radius_km: free, max_radius_km: max, fee_tiers: clean, origin_lat: origin.lat, origin_lng: origin.lng }, "Pengaturan pengiriman tersimpan");
+    };
+    // map for the shop's location (OpenStreetMap, free)
+    loadLeaflet().then(() => {
+      if (!$("dl-map")) return;
+      const m = L.map("dl-map").setView([origin.lat, origin.lng], 15);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(m);
+      const pinO = L.marker([origin.lat, origin.lng], { draggable: true }).addTo(m);
+      const set = (ll) => { origin = { lat: Math.round(ll.lat * 1e6) / 1e6, lng: Math.round(ll.lng * 1e6) / 1e6 }; showOrig(); };
+      pinO.on("dragend", () => set(pinO.getLatLng()));
+      m.on("click", (e) => { pinO.setLatLng(e.latlng); set(e.latlng); });
+    }).catch(() => { $("dl-map").textContent = "Peta gagal dimuat."; });
+  }
+  let leafletP = null;
+  function loadLeaflet() {
+    if (window.L) return Promise.resolve();
+    if (leafletP) return leafletP;
+    leafletP = new Promise((res, rej) => {
+      const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(css);
+      const js = document.createElement("script"); js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; js.onload = res; js.onerror = () => { leafletP = null; rej(); };
+      document.head.appendChild(js);
+    });
+    return leafletP;
   }
 
   // ---------------------------------------------------------------- PROMOS
