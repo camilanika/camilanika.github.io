@@ -6,6 +6,6 @@ window.CN_CONFIG = {
   MIDTRANS_CLIENT_KEY: "Mid-client-qay1f3hZlcRK66JJ",   // Sandbox client key (Production one goes here when going live)
   MIDTRANS_IS_PRODUCTION: false,   // switch to true (and use production keys) when going live
   ONLINE_PAYMENT: "test",          // false = off · "test" = only with ?test=1 in the address · true = on for everyone
-  WHATSAPP: "628567412578",
+  WHATSAPP: "6281368976966",
   SITE_URL: "https://camilanika.github.io/"
 };
