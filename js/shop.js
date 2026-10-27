@@ -50,6 +50,7 @@
     VOUCHER_RESERVED: "Voucher ini sedang dipakai di pesanan lain yang belum dibayar.",
     VOUCHER_NOT_APPLICABLE: "Voucher ini tidak berlaku untuk menu di keranjang.",
     VOUCHER_MIN_SPEND: "Belanjaan belum mencapai minimal voucher.",
+    VOUCHER_NO_SHIPPING: "Voucher ini hanya memotong ongkir, dan pesanan ini tidak kena ongkir. Simpan vouchernya untuk lain kali.",
   };
   const errMsg = (raw) => {
     const min = String(raw || "").match(/VOUCHER_MIN_SPEND:(\d+)/);
@@ -326,14 +327,24 @@
     if (deliv.loc) m += `\nLokasi: ${mapsLink(deliv.loc.lat, deliv.loc.lng)}`;
     const ds = deliveryState();
     if (deliv.settings?.enabled && deliv.quote?.ok) m += `\nOngkir: ${ds.fee ? rp(ds.fee) : "gratis"}`;
+    const sd = shipDiscount(quote && quote.subtotal === subtotal() ? quote : null, ds.fee);
+    if (sd) m += `\nPotongan ongkir (voucher): −${rp(sd)}`;
     return m;
   }
 
+  // a voucher that only takes money off the ongkir: never more than the ongkir itself
+  const shipDiscount = (q, fee) => (q?.shipping_cap ? Math.min(q.shipping_cap, fee) : 0);
   function renderCart() {
     const sub = subtotal(), count = cart.reduce((s, l) => s + l.qty, 0);
     const q = quote && quote.subtotal === sub ? quote : null;
     const ds = deliveryState();
-    const disc = q ? q.discount : 0, total = sub - disc + ds.fee;
+    const sd = shipDiscount(q, ds.fee);
+    const disc = q ? q.discount : 0, total = sub - disc + ds.fee - sd;
+    $("shipdisc-row").hidden = !q?.shipping_cap;
+    $("shipdisc-label").textContent = `Potongan ongkir (${q?.voucher_code || "voucher"})`;
+    $("cart-shipdisc").textContent = sd ? "−" + rp(sd) : "–";
+    $("shipdisc-note").hidden = !(q?.shipping_cap && !ds.fee && !ds.blocking);
+    $("shipdisc-note").textContent = ds.fee ? "" : (deliv.settings?.enabled && !deliv.loc ? "Pilih lokasi pengantaran dulu supaya potongan ongkir bisa dihitung." : ERRORS.VOUCHER_NO_SHIPPING);
     $("cart-count").textContent = count;
     $("cart-subtotal").textContent = rp(sub);
     $("disc-row").hidden = !disc;
@@ -608,6 +619,7 @@
     if (!name) { showErr(ERRORS.NAME_REQUIRED); $("cust-name").focus(); return; }
     if (!/^\+?[0-9 \-]{8,16}$/.test(phone)) { showErr("Nomor WhatsApp belum benar."); $("cust-phone").focus(); return; }
     if (deliveryState().blocking) { showErr(deliveryState().text || ERRORS.LOCATION_REQUIRED); return; }
+    if (quote?.shipping_cap && !deliveryState().fee) { showErr($("shipdisc-note").textContent || ERRORS.VOUCHER_NO_SHIPPING); return; }
     const btn = $("pay-btn"), label = btn.querySelector("span");
     btn.disabled = true; label.textContent = "Menyiapkan pembayaran…";
     try {
@@ -646,7 +658,7 @@
   // ------------------------------------------------------------------ orders page  (#pesanan  and  #pesanan/CN-...)
   const OP = $("orders-page");
   let pollTimer = null, opFilter = "all", opCache = [];
-  const ORDER_COLS = "order_number,status,total,subtotal,discount,promo_code,gifts,created_at,paid_at,expires_at,payment_method,customer_name,phone,address,notes,delivery_fee,delivery_km,delivery_lat,delivery_lng,snap_token,order_items(product_name,variant_name,choices,addon,quantity,unit_price,line_total)";
+  const ORDER_COLS = "order_number,status,total,subtotal,discount,shipping_discount,promo_code,gifts,created_at,paid_at,expires_at,payment_method,customer_name,phone,address,notes,delivery_fee,delivery_km,delivery_lat,delivery_lng,snap_token,order_items(product_name,variant_name,choices,addon,quantity,unit_price,line_total)";
   // an unpaid order whose 30 minutes are up counts as expired, even before the server tidies it up
   const effStatus = (o) => (o.status === "pending" && o.expires_at && new Date(o.expires_at) <= new Date() ? "expired" : o.status);
   const payToken = (o) => (effStatus(o) === "pending" ? o.snap_token || findOrder(o.order_number)?.token || null : null);
@@ -843,8 +855,9 @@
           ${it.map((i) => line(`${esc(i.product_name)}<small>${esc(i.variant_name)}${Object.values(i.choices || {}).map((c) => " · " + esc(c)).join("")}${i.addon ? " · " + esc(i.addon) : ""} · ${i.quantity}×${i.unit_price ? " " + rp(i.unit_price) : ""}</small>`, rp(i.line_total))).join("")}
           ${(o.gifts || []).map((g) => `<span class="gift-msg">🎁 ${esc(g.gift)}</span>`).join("")}
           ${o.subtotal != null ? line("Subtotal", rp(o.subtotal), "sub") : ""}
-          ${o.discount ? line(`Diskon${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}`, "−" + rp(o.discount), "disc") : ""}
+          ${o.discount - (o.shipping_discount || 0) > 0 ? line(`Diskon${o.promo_code && !o.shipping_discount ? " (" + esc(o.promo_code) + ")" : ""}`, "−" + rp(o.discount - (o.shipping_discount || 0)), "disc") : ""}
           ${line(`Ongkir${o.delivery_km ? ` <small style="display:inline">(${fmtKm(Number(o.delivery_km))})</small>` : ""}`, o.delivery_fee ? rp(o.delivery_fee) : "Gratis")}
+          ${o.shipping_discount ? line(`Potongan ongkir${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}`, "−" + rp(o.shipping_discount), "disc") : ""}
           ${line("Total", rp(o.total), "total")}
         </div>
         <div class="od-sec">
@@ -926,7 +939,7 @@
 
   // ------------------------------------------------------------------ voucher page (#voucher)
   const VST = { available: "Bisa dipakai", pending: "Menunggu pembayaran pertama", reserved: "Sedang dipakai", used: "Sudah dipakai", expired: "Kedaluwarsa", revoked: "Dibatalkan" };
-  const offerOf = (x) => x.discount_type === "free_item" ? `Gratis ${x.gift_text || "hadiah"}` : x.discount_type === "percent" ? `Diskon ${x.value}%` : `Potongan ${rp(x.value)}`;
+  const offerOf = (x) => x.discount_type === "free_item" ? `Gratis ${x.gift_text || "hadiah"}` : x.discount_type === "percent" ? `Diskon ${x.value}%` : x.discount_type === "shipping" ? `Gratis ongkir s/d ${rp(x.value)}` : `Potongan ${rp(x.value)}`;
   const forWhat = (x) => (x.applies_to_all || !(x.products || []).length) ? "Berlaku untuk semua menu" : `Hanya untuk: ${x.products.map(esc).join(", ")}`;
   const codeRow = (code, canUse) => `<div class="vc-code"><code>${esc(code)}</code>
       <button type="button" class="btn btn-ghost" data-copy="${esc(code)}" aria-label="Salin kode ${esc(code)}">Salin kode</button>
@@ -936,6 +949,7 @@
     const terms = [
       v.min_spend ? `Minimal belanja ${rp(v.min_spend)}` : "Tanpa minimal belanja",
       v.max_discount && v.discount_type === "percent" ? `Maksimal potongan ${rp(v.max_discount)}` : "",
+      v.discount_type === "shipping" ? "Hanya memotong ongkos kirim (harga menu tidak berubah)" : "",
       st === "pending" ? "Aktif setelah pembayaran pertama kamu berhasil" : v.expires_at ? `${st === "expired" ? "Berakhir" : "Berlaku sampai"} ${fmtDate(v.expires_at)}` : "Tanpa batas waktu",
       forWhat(v), "Sekali pakai",
       v.campaign ? `Dari kampanye ${esc(v.campaign)}` : "",
