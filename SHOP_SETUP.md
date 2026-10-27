@@ -75,7 +75,7 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
@@ -119,8 +119,8 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Paid orders show **Chat admin untuk pengiriman**; other orders show **Tanya lewat WhatsApp**.
 - The page updates by itself while a payment is pending, and the phone's back button works.
 
-## Notifications (bell icon)
-- Registered customers see a **bell** in the header with the number of unread notifications. Tapping one opens what it's about: the product on the menu, the promo details, or the order page. "Tandai semua dibaca" clears the counter. Notifications are kept, so they're still there next visit. Guests see a prompt to log in.
+## Notifications
+- Registered customers open **Akun saya → Notifikasi** (the account button shows a red badge with everything that needs attention). Tapping one opens what it's about: the product on the menu, the promo details, or the order page. "Tandai semua dibaca" clears the counter. Notifications are kept, so they're still there next visit. Guests see a prompt to log in.
 - Sent automatically by the database, to everyone registered at that moment:
   - **New product**: once it's visible in the shop (active, in an active submenu). Hiding and showing it again doesn't resend.
   - **New promo**: once it's active and its start time has passed. Each promo has **"Umumkan ke semua pelanggan"** (on by default); untick it for private codes. A promo with a code includes the code in the message.
@@ -131,3 +131,28 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 ## Order steps in Pesanan
 - Each paid order has a button for its next step: **Proses** → **Siap diantar** → **Sedang diantar**, plus **Selesai** and **Batalkan**. Every step notifies the customer.
 - **💬 Chat Customer** opens a ready-made message with the order number, delivery address (and map pin), every item with quantity and subtotal, discount, ongkir and total. Edit it if you like, then **Buka WhatsApp** opens a chat with the customer's number and the message filled in; nothing is sent until you press send in WhatsApp. If the number is missing or invalid you'll see a warning and can copy the message instead.
+
+## Akun saya (customer menu)
+- **Profile**: Nama, No. WhatsApp, Alamat (edit and save), plus Ganti password.
+- **Pesanan**: order history and details. Red badge = unfinished orders (unpaid and not yet expired, paid, Diproses, Siap diantar, Sedang diantar).
+- **Notifikasi**: badge = unread notifications.
+- **Kode Voucher**: three sections, *Promo* (live promotions), *Voucher Referral* and *Voucher dari Admin*, each with code, discount, minimum, expiry, eligible products and status, plus **Salin kode** and **Pakai** (opens the cart with the code applied). Badge = vouchers the customer can use right now.
+- The account button's badge is the sum of the three. Badges refresh on login, every minute, when the page comes back into view, and after paying, reading notifications or using a voucher.
+
+## Referral campaigns (Admin → Referral & Voucher → Kampanye referral)
+- A campaign has a **code** (e.g. `CNJUNI26`) you share on WhatsApp / Instagram. **Salin link** copies `camilanika.github.io/?ref=CODE`, which opens sign-up with the code filled in.
+- New customers who sign up with an active code get their **own one-time voucher** (`REF-XXXX-XXXX`), shown right after sign-up and kept in Kode Voucher.
+- Settings per campaign: start / end, status (Aktif, Dijeda, Berakhir), total voucher quota, daily quota, max vouchers per network (IP), and the voucher: percent or Rupiah, max discount, minimum purchase, products, validity in days.
+- **"Voucher aktif: setelah pembayaran pertama"** keeps the voucher pending until the customer's first successful payment, which makes throwaway accounts less useful.
+- Invalid, paused, ended, not-yet-started or full codes are refused at sign-up (the customer can fix or clear the code). One referral voucher per account, ever.
+- **Pendaftar** lists who signed up, their voucher, its status, and the order it was used on.
+- Sign-ups are rate limited per network (**Batas pendaftaran**: default 5 per hour, 20 per day). There's no identity check yet, so one person can still make several accounts with different numbers; a WhatsApp OTP check can be added later (profiles already have a `phone_verified` field for it).
+
+## Vouchers (Admin → Referral & Voucher → Voucher)
+- **+ Voucher baru**: a one-time code (typed or generated `CN-XXXX-XXXX`), percent or Rupiah, max discount, minimum, products, expiry, internal note.
+- **Assign voucher**: search a customer by name, email, WhatsApp number or user ID, then pick an unassigned voucher or create one on the spot. The customer gets a notification. An assigned voucher only works for that customer.
+- **Cabut** revokes a voucher (not possible once used or while an unpaid order holds it). **Riwayat** shows every step: created, assigned, reserved, released, used, revoked.
+- Statuses: Menunggu bayar pertama (pending), Tersedia, Dipesan (an unpaid order holds it), Terpakai, Kedaluwarsa, Dicabut.
+- Customers type vouchers in the same box as promo codes. The server checks owner, status, expiry, minimum and products, and calculates the discount. A voucher replaces automatic discounts (free gifts still apply). It's held while the order is unpaid, marked **used only when Midtrans confirms payment**, and released if the payment expires, fails or is cancelled. Two orders can't use the same voucher at once.
+- Codes are unique across promos, vouchers and referral campaigns.
+- Vouchers need online payment; a WhatsApp order that mentions a voucher code isn't checked automatically.

@@ -76,6 +76,19 @@ td.num,th.num{text-align:right}
 .vt input,.vt select{width:100%;padding:.35rem .5rem;font-size:.9rem}
 .vt td{padding:.35rem .4rem}
 .vt .w-price{min-width:95px}
+.subtabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:-.3rem 0 1rem}
+.subtabs button{font:800 .85rem var(--f-body,inherit);padding:.45rem .9rem;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);color:var(--fg);cursor:pointer}
+.subtabs button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.badge.available,.badge.active{background:var(--ok-soft);color:var(--ok)}
+.badge.reserved,.badge.paused,.badge.notyet{background:var(--warn-soft);color:var(--caramel)}
+.badge.used,.badge.ended,.badge.full{background:var(--line);color:var(--fg)}
+.badge.revoked{background:var(--rose-soft);color:var(--rose)}
+.codecell{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap}
+.codecell code{font-weight:800;letter-spacing:.04em}
+.cust-pick{display:grid;gap:.35rem;max-height:220px;overflow:auto}
+.cust-pick label{display:flex;gap:.5rem;align-items:center;padding:.45rem .6rem;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.cust-pick label:has(input:checked){border-color:var(--rose);background:var(--rose-soft)}
+.hist{margin:0;padding-left:1.1rem;display:grid;gap:.3rem}
 .row-actions{display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap}
 .login{max-width:400px;margin:10vh auto;display:grid;gap:.8rem}
 .thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;background:var(--line)}
@@ -96,6 +109,7 @@ td.num,th.num{text-align:right}
       <button type="button" data-tab="products" aria-pressed="false">Produk</button>
       <button type="button" data-tab="promos" aria-pressed="false">Promo</button>
       <button type="button" data-tab="customers" aria-pressed="false">Pelanggan</button>
+      <button type="button" data-tab="vouchers" aria-pressed="false">Referral & Voucher</button>
     </nav>
     <div class="me"><span id="me"></span><button class="btn btn-ghost btn-sm" type="button" id="logout">Keluar</button></div>
   </div>
@@ -108,7 +122,7 @@ td.num,th.num{text-align:right}
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/config.js?v=202610270554"></script>
+<script src="js/config.js?v=202610270900"></script>
 <script src="js/vendor/supabase.js"></script>
 <script>
 (() => {
@@ -193,7 +207,7 @@ td.num,th.num{text-align:right}
   function show(t) {
     tab = t; clearInterval(refreshTimer);
     document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === t));
-    ({ orders: renderOrders, shop: renderShopTab, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers })[t]();
+    ({ orders: renderOrders, shop: renderShopTab, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers, vouchers: renderVouchersTab })[t]();
   }
 
   // modal
@@ -904,6 +918,338 @@ td.num,th.num{text-align:right}
     if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
     el.innerHTML = data.map((o) => `<div class="card"><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span><span class="muted" style="margin-left:auto;font-size:.85rem">${fmtDate(o.created_at)}</span></div>
       <div class="muted" style="font-size:.9rem">${o.order_items.map((i) => `${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}`).join("<br>")}</div><b>${rp(o.total)}</b></div>`).join("") || `<p class="muted">Belum ada pesanan.</p>`;
+  }
+
+
+  // ---------------------------------------------------------------- REFERRAL & VOUCHER
+  const VSTATE = { available: "Tersedia", pending: "Menunggu bayar pertama", reserved: "Dipesan (belum dibayar)", used: "Terpakai", expired: "Kedaluwarsa", revoked: "Dicabut" };
+  const VEVENT = { created: "Dibuat", assigned: "Diberikan ke pelanggan", reserved: "Dipakai di pesanan (menunggu bayar)", released: "Dilepas (pesanan tidak dibayar)", used: "Terpakai (pembayaran berhasil)", revoked: "Dicabut", activated: "Aktif (pembayaran pertama)" };
+  const VERR = {
+    CODE_TAKEN: "Kode sudah dipakai (promo, voucher, atau referral lain).", VOUCHER_ALREADY_ASSIGNED: "Voucher sudah dimiliki pelanggan lain.",
+    VOUCHER_NOT_AVAILABLE: "Voucher tidak bisa diberikan (sudah terpakai, dicabut, atau kedaluwarsa).", VOUCHER_ALREADY_USED: "Voucher sudah terpakai, tidak bisa dicabut.",
+    VOUCHER_IN_USE: "Voucher sedang dipakai di pesanan yang belum dibayar. Tunggu sampai pesanan dibayar atau batal.", CUSTOMER_NOT_FOUND: "Pelanggan tidak ditemukan.",
+    VOUCHER_NOT_FOUND: "Voucher tidak ditemukan.", NOT_ADMIN: "Hanya admin.",
+  };
+  const verr = (e) => { const m = (e?.message || String(e)); const k = Object.keys(VERR).find((x) => m.includes(x)); return k ? VERR[k] : /duplicate key/i.test(m) ? VERR.CODE_TAKEN : /check constraint/i.test(m) ? "Isian belum valid (cek nilai diskon dan format kode: huruf/angka/tanda -)." : m; };
+  const offer = (x) => (x.discount_type === "percent" ? `${x.value}%${x.max_discount ? " (maks " + rp(x.max_discount) + ")" : ""}` : rp(x.value)) + (x.min_spend ? ` · min ${rp(x.min_spend)}` : "");
+  const randCode = (n = 8) => { const a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < n; i++) c += a[Math.floor(Math.random() * a.length)]; return c; };
+  const copy = async (t, what) => { try { await navigator.clipboard.writeText(t); toast(`${what} disalin`); } catch (e) { prompt("Salin:", t); } };
+  const regLink = (code) => `${(CFG.SITE_URL || "https://camilanika.github.io/").replace(/\/?$/, "/")}?ref=${encodeURIComponent(code)}`;
+  const toLocal = (d) => d ? new Date(new Date(d).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
+  let vSub = "campaigns", allProducts = null;
+  async function productList() { if (!allProducts) { const { data } = await sb.from("products").select("id,name").order("sort_order").order("id"); allProducts = data || []; } return allProducts; }
+  const productPicker = async (id, all, sel) => `
+    <label class="chk"><input type="checkbox" id="${id}-all" ${all ? "checked" : ""}> Berlaku untuk semua produk</label>
+    <div class="pchk" id="${id}-list" ${all ? "hidden" : ""}>${(await productList()).map((x) => `<label class="chk"><input type="checkbox" value="${x.id}" ${sel.has(x.id) ? "checked" : ""}> ${esc(x.name)}</label>`).join("")}</div>`;
+  const wirePicker = (id) => { $(id + "-all").onchange = () => { $(id + "-list").hidden = $(id + "-all").checked; }; };
+  const picked = (id) => [...$(id + "-list").querySelectorAll("input:checked")].map((i) => +i.value);
+
+  async function renderVouchersTab() {
+    app.innerHTML = `<div class="bar"><h2>Referral & Voucher</h2></div>
+      <div class="subtabs" role="group" aria-label="Bagian">
+        <button type="button" data-vs="campaigns">Kampanye referral</button><button type="button" data-vs="vouchers">Voucher</button><button type="button" data-vs="settings">Batas pendaftaran</button>
+      </div><div id="vbody"></div>`;
+    app.querySelectorAll("[data-vs]").forEach((b) => b.onclick = () => { vSub = b.dataset.vs; drawSub(); });
+    drawSub();
+  }
+  function drawSub() {
+    app.querySelectorAll("[data-vs]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.vs === vSub));
+    ({ campaigns: renderCampaigns, vouchers: renderVoucherList, settings: renderSignupLimits })[vSub]();
+  }
+
+  // ----- campaigns
+  const campState = (c, st) => {
+    if (c.status === "ended" || (c.ends_at && new Date(c.ends_at) <= new Date())) return ["ended", "Berakhir"];
+    if (c.status === "paused") return ["paused", "Dijeda"];
+    if (c.starts_at && new Date(c.starts_at) > new Date()) return ["notyet", "Belum mulai"];
+    if (c.max_rewards && (st?.issued || 0) >= c.max_rewards) return ["full", "Kuota habis"];
+    return ["active", "Aktif"];
+  };
+  async function renderCampaigns() {
+    const el = $("vbody");
+    el.innerHTML = `<div class="bar" style="margin-bottom:.6rem"><p class="muted" style="margin:0;flex:1;min-width:240px">Kode referral dibagikan lewat WhatsApp / Instagram. Pelanggan baru yang daftar dengan kode aktif dapat <b>voucher sekali pakai</b> dengan kode unik miliknya sendiri.</p>
+      <button class="btn btn-rose" id="newcamp">+ Kampanye baru</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Kampanye</th><th>Kode & link</th><th>Hadiah</th><th>Periode</th><th class="num">Daftar</th><th class="num">Voucher</th><th class="num">Dipakai</th><th>Status</th><th></th></tr></thead>
+      <tbody id="cbody2"><tr><td colspan="9" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("newcamp").onclick = () => editCampaign(null);
+    const [{ data, error }, { data: stats }] = await Promise.all([
+      sb.from("referral_campaigns").select("*, referral_campaign_products(product_id)").order("created_at", { ascending: false }),
+      sb.rpc("admin_campaign_stats")]);
+    const tb = $("cbody2"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="9" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    if (!data.length) { tb.innerHTML = `<tr><td colspan="9" class="muted">Belum ada kampanye. Buat satu, lalu bagikan kodenya.</td></tr>`; return; }
+    tb.innerHTML = data.map((c) => {
+      const st = (stats || {})[c.id] || {}, [k, label] = campState(c, st);
+      return `<tr data-c="${c.id}"><td><b>${esc(c.name)}</b><br><span class="muted" style="font-size:.8rem">${c.reward_on === "first_payment" ? "Voucher aktif setelah bayar pertama" : "Voucher langsung aktif"} · berlaku ${c.valid_days} hari</span></td>
+        <td><div class="codecell"><code>${esc(c.code)}</code><button class="btn btn-ghost btn-sm" data-cc="${esc(c.code)}">Salin kode</button><button class="btn btn-ghost btn-sm" data-cl="${esc(c.code)}">Salin link</button></div></td>
+        <td>${esc(offer(c))}${c.applies_to_all ? "" : `<br><span class="muted" style="font-size:.8rem">${c.referral_campaign_products.length} produk</span>`}</td>
+        <td style="font-size:.85rem">${c.starts_at ? fmtDate(c.starts_at) : "Sekarang"} – ${c.ends_at ? fmtDate(c.ends_at) : "tanpa batas"}</td>
+        <td class="num">${st.registrations || 0}</td><td class="num">${st.issued || 0}${c.max_rewards ? " / " + c.max_rewards : ""}</td><td class="num">${st.redeemed || 0}</td>
+        <td><span class="badge ${k}">${label}</span></td>
+        <td><div class="row-actions" style="justify-content:flex-start">
+          <button class="btn btn-ghost btn-sm" data-ce="${c.id}">Ubah</button>
+          ${c.status === "active" ? `<button class="btn btn-ghost btn-sm" data-cs="paused" data-id="${c.id}">Jeda</button>` : c.status === "paused" ? `<button class="btn btn-ok btn-sm" data-cs="active" data-id="${c.id}">Aktifkan</button>` : ""}
+          ${c.status !== "ended" ? `<button class="btn btn-ghost btn-sm" data-cs="ended" data-id="${c.id}">Akhiri</button>` : ""}
+          <button class="btn btn-ghost btn-sm" data-cr="${c.id}">Pendaftar</button></div></td></tr>`;
+    }).join("");
+    tb.querySelectorAll("[data-cc]").forEach((b) => b.onclick = () => copy(b.dataset.cc, "Kode"));
+    tb.querySelectorAll("[data-cl]").forEach((b) => b.onclick = () => copy(regLink(b.dataset.cl), "Link pendaftaran"));
+    tb.querySelectorAll("[data-ce]").forEach((b) => b.onclick = () => editCampaign(data.find((c) => c.id === +b.dataset.ce)));
+    tb.querySelectorAll("[data-cr]").forEach((b) => b.onclick = () => campaignRegs(data.find((c) => c.id === +b.dataset.cr)));
+    tb.querySelectorAll("[data-cs]").forEach((b) => b.onclick = async () => {
+      if (b.dataset.cs === "ended" && !confirm("Akhiri kampanye ini? Kodenya tidak bisa dipakai lagi. Voucher yang sudah diberikan tetap berlaku.")) return;
+      b.disabled = true;
+      const { error } = await sb.from("referral_campaigns").update({ status: b.dataset.cs }).eq("id", +b.dataset.id);
+      if (error) { toast(verr(error)); b.disabled = false; } else { toast("Status kampanye diperbarui"); renderCampaigns(); }
+    });
+  }
+  async function editCampaign(c) {
+    const isNew = !c;
+    c = c || { name: "", code: "CN" + randCode(6), status: "active", discount_type: "percent", value: 10, min_spend: 0, valid_days: 30, max_per_ip: 3, reward_on: "signup", applies_to_all: true, referral_campaign_products: [] };
+    const sel = new Set(c.referral_campaign_products.map((x) => x.product_id));
+    openModal(`<div class="modal-head"><h2>${isNew ? "Kampanye referral baru" : "Ubah kampanye"}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <div class="grid2">
+        <label class="f">Nama kampanye<input id="kn" value="${esc(c.name)}" placeholder="mis. Promo Instagram Juni"></label>
+        <label class="f">Kode referral (huruf/angka)<div style="display:flex;gap:.4rem"><input id="kc" value="${esc(c.code)}" style="text-transform:uppercase;flex:1" maxlength="24"><button type="button" class="btn btn-ghost btn-sm" id="kgen">Acak</button></div></label>
+      </div>
+      <div class="grid3">
+        <label class="f">Status<select id="ks"><option value="active">Aktif</option><option value="paused">Dijeda</option><option value="ended">Berakhir</option></select></label>
+        <label class="f">Mulai (opsional)<input id="kst" type="datetime-local" value="${toLocal(c.starts_at)}"></label>
+        <label class="f">Berakhir (opsional)<input id="ken" type="datetime-local" value="${toLocal(c.ends_at)}"></label>
+        <label class="f">Kuota voucher total (opsional)<input id="kmax" type="number" min="1" value="${c.max_rewards ?? ""}"></label>
+        <label class="f">Maks. per hari (opsional)<input id="kday" type="number" min="1" value="${c.daily_limit ?? ""}"></label>
+        <label class="f">Maks. per jaringan/IP<input id="kip" type="number" min="1" value="${c.max_per_ip}"></label>
+      </div>
+      <h3 style="margin:.4rem 0 0;font-size:1rem">Voucher hadiah</h3>
+      <div class="grid3">
+        <label class="f">Jenis<select id="kt"><option value="percent">Diskon persen</option><option value="fixed">Potongan Rupiah</option></select></label>
+        <label class="f" id="kvw">Nilai<input id="kv" type="number" min="1" value="${c.value}"></label>
+        <label class="f" id="kmw">Maks. diskon (opsional)<input id="km" type="number" min="1" value="${c.max_discount ?? ""}"></label>
+        <label class="f">Minimal belanja (Rp)<input id="kmin" type="number" min="0" step="1000" value="${c.min_spend}"></label>
+        <label class="f">Berlaku (hari)<input id="kvd" type="number" min="1" max="3650" value="${c.valid_days}"></label>
+        <label class="f">Voucher aktif<select id="kro"><option value="signup">Langsung setelah daftar</option><option value="first_payment">Setelah pembayaran pertama berhasil</option></select></label>
+      </div>
+      ${await productPicker("kp", c.applies_to_all, sel)}
+      <label class="f">Catatan internal (opsional)<input id="knote" value="${esc(c.note || "")}"></label>
+      <p class="muted" style="margin:0;font-size:.85rem">Satu akun hanya bisa dapat satu voucher referral. Pendaftaran tanpa verifikasi OTP bisa dibuat berulang dengan nomor lain, jadi pakai kuota dan "setelah pembayaran pertama" untuk membatasi penyalahgunaan.</p>
+      <p class="msg" id="kmsg"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="ksave">Simpan kampanye</button></div>`);
+    $("ks").value = c.status; $("kt").value = c.discount_type; $("kro").value = c.reward_on;
+    const sync = () => { const t = $("kt").value; $("kmw").hidden = t !== "percent"; $("kvw").firstChild.textContent = t === "percent" ? "Diskon (%)" : "Potongan (Rp)"; };
+    $("kt").onchange = sync; sync(); wirePicker("kp");
+    $("kgen").onclick = () => { $("kc").value = "CN" + randCode(6); };
+    $("ksave").onclick = async () => {
+      const num = (id) => $(id).value === "" ? null : parseInt($(id).value, 10), t = $("kt").value;
+      const row = { name: $("kn").value.trim(), code: $("kc").value.trim().toUpperCase(), status: $("ks").value,
+        starts_at: $("kst").value ? new Date($("kst").value).toISOString() : null, ends_at: $("ken").value ? new Date($("ken").value).toISOString() : null,
+        max_rewards: num("kmax"), daily_limit: num("kday"), max_per_ip: num("kip") || 3, reward_on: $("kro").value,
+        discount_type: t, value: num("kv") || 0, max_discount: t === "percent" ? num("km") : null, min_spend: num("kmin") || 0,
+        valid_days: num("kvd") || 30, applies_to_all: $("kp-all").checked, note: $("knote").value.trim() || null };
+      const fail = (m) => { $("kmsg").textContent = m; $("kmsg").className = "msg err"; };
+      if (!row.name) return fail("Nama kampanye wajib diisi.");
+      if (!/^[A-Z0-9-]{4,24}$/.test(row.code)) return fail("Kode 4–24 karakter: huruf, angka, atau tanda -.");
+      if (t === "percent" && !(row.value >= 1 && row.value <= 100)) return fail("Diskon persen harus 1–100.");
+      if (t === "fixed" && !(row.value > 0)) return fail("Isi nilai potongan.");
+      if (row.starts_at && row.ends_at && row.ends_at <= row.starts_at) return fail("Tanggal berakhir harus setelah tanggal mulai.");
+      const prods = picked("kp"); if (!row.applies_to_all && !prods.length) return fail("Pilih minimal satu produk.");
+      $("ksave").disabled = true;
+      try {
+        let id = c.id;
+        if (isNew) { const { data, error } = await sb.from("referral_campaigns").insert(row).select("id").single(); if (error) throw error; id = data.id; }
+        else { const { error } = await sb.from("referral_campaigns").update(row).eq("id", id); if (error) throw error; }
+        { const { error } = await sb.from("referral_campaign_products").delete().eq("campaign_id", id); if (error) throw error; }
+        if (!row.applies_to_all) { const { error } = await sb.from("referral_campaign_products").insert(prods.map((pid) => ({ campaign_id: id, product_id: pid }))); if (error) throw error; }
+        closeModal(); toast("Kampanye tersimpan"); renderCampaigns();
+      } catch (e) { fail("Gagal menyimpan: " + verr(e)); } finally { const b = $("ksave"); if (b) b.disabled = false; }
+    };
+  }
+  async function campaignRegs(c) {
+    openModal(`<div class="modal-head"><h2>Pendaftar · ${esc(c.code)}</h2><button class="x" data-close aria-label="Tutup">×</button></div><div id="crl"><p class="muted">Memuat…</p></div>`);
+    const { data, error } = await sb.rpc("admin_campaign_registrations", { p_campaign_id: c.id });
+    const el = $("crl"); if (!el) return;
+    if (error) { el.innerHTML = `<p class="msg err">${esc(verr(error))}</p>`; return; }
+    const REASON = { REFERRAL_DAILY_LIMIT: "kuota harian habis", REFERRAL_DEVICE_LIMIT: "batas per jaringan", REFERRAL_FULL: "kuota habis", REFERRAL_EXPIRED: "kampanye berakhir", REFERRAL_PAUSED: "kampanye dijeda" };
+    el.innerHTML = data.length ? `<div class="tbl-wrap"><table><thead><tr><th>Pelanggan</th><th>Daftar</th><th>Voucher</th><th>Status</th></tr></thead><tbody>${data.map((r) => `<tr>
+        <td><b>${esc(r.name || "–")}</b><br><span class="muted">${esc(r.phone || "")}</span></td><td>${fmtDate(r.at)}</td>
+        <td>${r.voucher ? `<code>${esc(r.voucher)}</code>` : `<span class="muted">tidak dapat (${esc(REASON[r.reason] || r.reason || "-")})</span>`}</td>
+        <td>${r.voucher_status ? `<span class="badge ${r.voucher_status}">${VSTATE[r.voucher_status]}</span>${r.used_order ? `<br><span class="muted" style="font-size:.8rem">${esc(r.used_order)}</span>` : ""}` : ""}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="muted">Belum ada yang daftar dengan kode ini.</p>`;
+  }
+
+  // ----- vouchers
+  let vFilter = { q: "", state: "", source: "" };
+  async function renderVoucherList() {
+    const el = $("vbody");
+    el.innerHTML = `<div class="bar" style="margin-bottom:.6rem">
+        <input id="vq" placeholder="Cari kode, nama, atau nomor" value="${esc(vFilter.q)}" style="flex:1;min-width:200px">
+        <select id="vst"><option value="">Semua status</option>${Object.entries(VSTATE).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
+        <select id="vsrc"><option value="">Semua sumber</option><option value="admin">Dari admin</option><option value="referral">Referral</option></select>
+        <button class="btn btn-ghost" id="vassign">Assign voucher</button><button class="btn btn-rose" id="vnew">+ Voucher baru</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Kode</th><th>Pemilik</th><th>Diskon</th><th>Produk</th><th>Berlaku sampai</th><th>Status</th><th>Catatan</th><th></th></tr></thead><tbody id="vbody2"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("vst").value = vFilter.state; $("vsrc").value = vFilter.source;
+    let t = null;
+    $("vq").oninput = () => { clearTimeout(t); t = setTimeout(() => { vFilter.q = $("vq").value; loadVouchers(); }, 350); };
+    $("vst").onchange = () => { vFilter.state = $("vst").value; loadVouchers(); };
+    $("vsrc").onchange = () => { vFilter.source = $("vsrc").value; loadVouchers(); };
+    $("vnew").onclick = () => voucherForm(null);
+    $("vassign").onclick = () => assignVoucher(null);
+    await loadVouchers();
+  }
+  async function loadVouchers() {
+    const { data, error } = await sb.rpc("admin_list_vouchers", { p_search: vFilter.q || null, p_state: vFilter.state || null, p_source: vFilter.source || null });
+    const tb = $("vbody2"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(verr(error))}</td></tr>`; return; }
+    if (!data.length) { tb.innerHTML = `<tr><td colspan="8" class="muted">Tidak ada voucher.</td></tr>`; return; }
+    tb.innerHTML = data.map((v) => `<tr>
+      <td><div class="codecell"><code>${esc(v.code)}</code><button class="btn btn-ghost btn-sm" data-vc="${esc(v.code)}" aria-label="Salin ${esc(v.code)}">Salin</button></div><span class="muted" style="font-size:.78rem">${v.source === "referral" ? "Referral" + (v.campaign ? " · " + esc(v.campaign) : "") : "Dari admin"}</span></td>
+      <td>${v.user_id ? `<b>${esc(v.owner_name || "–")}</b><br><span class="muted">${esc(v.owner_phone || "")}</span>` : `<span class="muted">Belum diberikan</span>`}</td>
+      <td>${esc(offer(v))}</td><td style="font-size:.85rem">${v.applies_to_all ? "Semua" : esc(v.products.join(", "))}</td>
+      <td style="font-size:.85rem">${v.expires_at ? fmtDate(v.expires_at) : v.status === "pending" ? "setelah aktif" : "–"}</td>
+      <td><span class="badge ${v.status}">${VSTATE[v.status] || v.status}</span>${v.used_order ? `<br><span class="muted" style="font-size:.8rem">${esc(v.used_order)}</span>` : v.reserved_order ? `<br><span class="muted" style="font-size:.8rem">${esc(v.reserved_order)}</span>` : ""}</td>
+      <td style="font-size:.85rem;max-width:180px">${esc(v.note || "")}</td>
+      <td><div class="row-actions" style="justify-content:flex-start">
+        ${!v.user_id && v.status === "available" ? `<button class="btn btn-rose btn-sm" data-va="${v.id}">Assign</button>` : ""}
+        <button class="btn btn-ghost btn-sm" data-vh="${v.id}">Riwayat</button>
+        ${["available", "pending", "expired"].includes(v.status) ? `<button class="btn btn-ghost btn-sm" data-vr="${v.id}">Cabut</button>` : ""}</div></td></tr>`).join("");
+    tb.querySelectorAll("[data-vc]").forEach((b) => b.onclick = () => copy(b.dataset.vc, "Kode"));
+    tb.querySelectorAll("[data-vh]").forEach((b) => b.onclick = () => voucherHistory(data.find((v) => v.id === +b.dataset.vh)));
+    tb.querySelectorAll("[data-va]").forEach((b) => b.onclick = () => assignVoucher(data.find((v) => v.id === +b.dataset.va)));
+    tb.querySelectorAll("[data-vr]").forEach((b) => b.onclick = async () => {
+      const note = prompt("Cabut voucher ini? Pelanggan tidak bisa memakainya lagi.\nAlasan (opsional, hanya untuk admin):", "");
+      if (note === null) return;
+      b.disabled = true;
+      const { error } = await sb.rpc("admin_revoke_voucher", { p_voucher_id: +b.dataset.vr, p_note: note || null });
+      if (error) { toast(verr(error)); b.disabled = false; } else { toast("Voucher dicabut"); loadVouchers(); }
+    });
+  }
+  async function voucherHistory(v) {
+    openModal(`<div class="modal-head"><h2>Riwayat ${esc(v.code)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <p style="margin:0">${esc(offer(v))} · <span class="badge ${v.status}">${VSTATE[v.status]}</span>${v.user_id ? ` · ${esc(v.owner_name || "")} ${esc(v.owner_phone || "")}` : ""}</p>
+      ${v.note ? `<p class="muted" style="margin:0">Catatan: ${esc(v.note)}</p>` : ""}<div id="vhl"><p class="muted">Memuat…</p></div>`);
+    const { data, error } = await sb.rpc("admin_voucher_history", { p_voucher_id: v.id });
+    const el = $("vhl"); if (!el) return;
+    el.innerHTML = error ? `<p class="msg err">${esc(verr(error))}</p>` : `<ol class="hist">${data.map((e) => `<li><b>${VEVENT[e.event] || e.event}</b> · ${fmtDate(e.at)}${e.order ? ` · ${esc(e.order)} (${esc(STATUS[e.order_status] || e.order_status)})` : ""}${e.by ? ` · oleh ${esc(e.by)}` : ""}${e.note ? `<br><span class="muted">${esc(e.note)}</span>` : ""}</li>`).join("")}</ol>`;
+  }
+  // voucher fields (create form, also used inside "Assign" when making a new one)
+  async function voucherFields(px) {
+    return `<div class="grid3">
+        <label class="f">Kode (kosongkan = dibuat otomatis)<input id="${px}c" maxlength="24" style="text-transform:uppercase" placeholder="otomatis"></label>
+        <label class="f">Jenis<select id="${px}t"><option value="fixed">Potongan Rupiah</option><option value="percent">Diskon persen</option></select></label>
+        <label class="f" id="${px}vw">Potongan (Rp)<input id="${px}v" type="number" min="1" value="10000"></label>
+        <label class="f" id="${px}mw" hidden>Maks. diskon (opsional)<input id="${px}m" type="number" min="1"></label>
+        <label class="f">Minimal belanja (Rp)<input id="${px}min" type="number" min="0" step="1000" value="0"></label>
+        <label class="f">Berlaku sampai (opsional)<input id="${px}e" type="datetime-local"></label>
+      </div>${await productPicker(px + "p", true, new Set())}
+      <p class="muted" style="margin:0;font-size:.85rem">Voucher hanya bisa dipakai <b>sekali</b>, dan hanya oleh pemiliknya setelah diberikan.</p>`;
+  }
+  function wireVoucherFields(px) {
+    const sync = () => { const t = $(px + "t").value; $(px + "mw").hidden = t !== "percent"; $(px + "vw").firstChild.textContent = t === "percent" ? "Diskon (%)" : "Potongan (Rp)"; };
+    $(px + "t").onchange = sync; sync(); wirePicker(px + "p");
+  }
+  function readVoucherFields(px) {
+    const num = (id) => $(id).value === "" ? null : parseInt($(id).value, 10), t = $(px + "t").value;
+    const v = { code: $(px + "c").value.trim().toUpperCase() || null, discount_type: t, value: num(px + "v"), min_spend: num(px + "min") || 0,
+      max_discount: t === "percent" ? num(px + "m") : null, expires_at: $(px + "e").value ? new Date($(px + "e").value).toISOString() : null,
+      applies_to_all: $(px + "p-all").checked, product_ids: picked(px + "p") };
+    if (v.code && !/^[A-Z0-9-]{4,24}$/.test(v.code)) return [null, "Kode 4–24 karakter: huruf, angka, atau tanda -."];
+    if (t === "percent" && !(v.value >= 1 && v.value <= 100)) return [null, "Diskon persen harus 1–100."];
+    if (t === "fixed" && !(v.value > 0)) return [null, "Isi nilai potongan."];
+    if (v.expires_at && new Date(v.expires_at) <= new Date()) return [null, "Tanggal berlaku harus di masa depan."];
+    if (!v.applies_to_all && !v.product_ids.length) return [null, "Pilih minimal satu produk."];
+    return [v, null];
+  }
+  async function voucherForm() {
+    openModal(`<div class="modal-head"><h2>Voucher sekali pakai baru</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      ${await voucherFields("nv")}
+      <label class="f">Catatan internal (opsional)<input id="nvnote" placeholder="mis. kompensasi pesanan telat"></label>
+      <p class="muted" style="margin:0;font-size:.85rem">Setelah dibuat, pakai <b>Assign</b> untuk memberikannya ke pelanggan.</p>
+      <p class="msg" id="nvmsg"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="nvsave">Buat voucher</button></div>`);
+    wireVoucherFields("nv");
+    $("nvsave").onclick = async () => {
+      const [v, bad] = readVoucherFields("nv");
+      if (bad) { $("nvmsg").textContent = bad; $("nvmsg").className = "msg err"; return; }
+      $("nvsave").disabled = true;
+      const { data, error } = await sb.rpc("admin_create_voucher", { p: { ...v, note: $("nvnote").value } });
+      $("nvsave").disabled = false;
+      if (error) { $("nvmsg").textContent = verr(error); $("nvmsg").className = "msg err"; return; }
+      closeModal(); toast(`Voucher ${data.code} dibuat`); vSub = "vouchers"; loadVouchers();
+    };
+  }
+  async function assignVoucher(pre) {
+    openModal(`<div class="modal-head"><h2>Assign voucher</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <label class="f">1. Cari pelanggan (nama, email, nomor WhatsApp, atau ID)<input id="asq" placeholder="mis. Ani atau 0812…"></label>
+      <div class="cust-pick" id="asl"><p class="muted" style="margin:0">Ketik untuk mencari.</p></div>
+      <div class="f" style="font-size:.78rem;font-weight:800;color:var(--muted)">2. Voucher</div>
+      ${pre ? `<p style="margin:0"><code>${esc(pre.code)}</code> · ${esc(offer(pre))}</p>` : `
+      <label class="chk"><input type="radio" name="asm" value="existing" checked> Pilih voucher yang belum diberikan</label>
+      <select id="asv"><option value="">Memuat…</option></select>
+      <label class="chk"><input type="radio" name="asm" value="new"> Buat voucher baru</label>
+      <div id="asnew" hidden>${await voucherFields("an")}</div>`}
+      <label class="f">Catatan internal (opsional)<input id="asnote" placeholder="mis. hadiah ulang tahun"></label>
+      <p class="msg" id="asmsg"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="assave">Berikan voucher</button></div>`);
+    let chosen = null, tq = null;
+    const search = async () => {
+      if (!$("asq")) return;
+      const q = $("asq").value.trim(), el = $("asl");
+      if (!q) { el.innerHTML = `<p class="muted" style="margin:0">Ketik untuk mencari.</p>`; chosen = null; return; }
+      const { data, error } = await sb.rpc("admin_find_customers", { p_search: q });
+      if ($("asq")?.value.trim() !== q) return;
+      if (error) { el.innerHTML = `<p class="msg err">${esc(verr(error))}</p>`; return; }
+      el.innerHTML = data.length ? data.map((c) => `<label><input type="radio" name="asc" value="${c.id}"> <span><b>${esc(c.full_name || "–")}</b> · ${esc(c.phone || c.email || "")}<br><span class="muted" style="font-size:.75rem">${esc(c.id)}</span></span></label>`).join("")
+        : `<p class="muted" style="margin:0">Tidak ada pelanggan yang cocok.</p>`;
+      el.querySelectorAll("input").forEach((i) => i.onchange = () => { chosen = i.value; });
+      chosen = null;
+    };
+    $("asq").oninput = () => { clearTimeout(tq); tq = setTimeout(search, 300); };
+    if (!pre) {
+      wireVoucherFields("an");
+      document.querySelectorAll('[name="asm"]').forEach((r) => r.onchange = () => { const n = document.querySelector('[name="asm"]:checked').value === "new"; $("asnew").hidden = !n; $("asv").disabled = n; });
+      const { data } = await sb.rpc("admin_list_vouchers", { p_search: null, p_state: "available", p_source: "admin" });
+      const free = (data || []).filter((v) => !v.user_id);
+      if ($("asv")) $("asv").innerHTML = free.length ? free.map((v) => `<option value="${v.id}">${esc(v.code)} · ${esc(offer(v))}${v.expires_at ? " · s/d " + fmtDate(v.expires_at) : ""}</option>`).join("") : `<option value="">Belum ada voucher yang belum diberikan — buat baru</option>`;
+      if (!free.length) { document.querySelector('[name="asm"][value="new"]').checked = true; $("asnew").hidden = false; $("asv").disabled = true; }
+    }
+    $("assave").onclick = async () => {
+      const fail = (m) => { $("asmsg").textContent = m; $("asmsg").className = "msg err"; };
+      if (!chosen) return fail("Pilih pelanggan dulu.");
+      const note = $("asnote").value.trim() || null;
+      $("assave").disabled = true;
+      let res;
+      if (pre || document.querySelector('[name="asm"]:checked').value === "existing") {
+        const vid = pre ? pre.id : +$("asv").value;
+        if (!vid) { $("assave").disabled = false; return fail("Pilih voucher, atau buat yang baru."); }
+        res = await sb.rpc("admin_assign_voucher", { p_voucher_id: vid, p_user: chosen, p_note: note });
+      } else {
+        const [v, bad] = readVoucherFields("an");
+        if (bad) { $("assave").disabled = false; return fail(bad); }
+        res = await sb.rpc("admin_create_voucher", { p: { ...v, user_id: chosen, note } });
+      }
+      $("assave").disabled = false;
+      if (res.error) return fail(verr(res.error));
+      closeModal(); toast(`Voucher ${res.data.code} diberikan. Pelanggan mendapat notifikasi.`);
+      if ($("vbody2")) loadVouchers();
+    };
+  }
+
+  // ----- sign-up limits
+  async function renderSignupLimits() {
+    const el = $("vbody");
+    const { data, error } = await sb.from("shop_settings").select("signup_limit_hour,signup_limit_day").eq("id", 1).maybeSingle();
+    if (error || !data) { el.innerHTML = `<p class="msg err">${esc(error ? err(error) : "Pengaturan tidak ditemukan")}</p>`; return; }
+    el.innerHTML = `<div class="card" style="max-width:560px;display:grid;gap:.8rem">
+      <p style="margin:0">Batas pendaftaran akun dari satu jaringan (IP), untuk menahan pembuatan akun massal. Pendaftaran yang melewati batas ditolak sementara.</p>
+      <div class="grid2"><label class="f">Maks. per jam<input id="slh" type="number" min="1" max="1000" value="${data.signup_limit_hour}"></label>
+      <label class="f">Maks. per hari<input id="sld" type="number" min="1" max="10000" value="${data.signup_limit_day}"></label></div>
+      <p class="muted" style="margin:0;font-size:.85rem">Batas voucher per kampanye (total, per hari, per jaringan) diatur di tiap kampanye. Verifikasi OTP WhatsApp bisa ditambahkan nanti untuk memastikan satu nomor = satu orang.</p>
+      <p class="msg" id="slmsg"></p><div class="row-actions"><button class="btn btn-rose" id="slsave">Simpan</button></div></div>`;
+    $("slsave").onclick = async () => {
+      const h = parseInt($("slh").value, 10), d = parseInt($("sld").value, 10);
+      if (!(h >= 1 && d >= h)) { $("slmsg").textContent = "Isi angka minimal 1, dan batas harian ≥ batas per jam."; $("slmsg").className = "msg err"; return; }
+      const { error } = await sb.from("shop_settings").update({ signup_limit_hour: h, signup_limit_day: d }).eq("id", 1);
+      $("slmsg").textContent = error ? err(error) : "Tersimpan ✓"; $("slmsg").className = "msg " + (error ? "err" : "ok");
+    };
   }
 
   // ---------------------------------------------------------------- SHOP (open / closed / hours)

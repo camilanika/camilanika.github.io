@@ -41,8 +41,21 @@
     LOCATION_REQUIRED: "Pilih lokasi pengantaran di peta dulu ya.",
     OUT_OF_RANGE: "Lokasi di luar jangkauan antar. Chat kami lewat WhatsApp untuk atur pengiriman.",
     LOCATION_INVALID: "Lokasi belum valid, pilih ulang di peta.",
+    VOUCHER_LOGIN_REQUIRED: "Masuk ke akun dulu untuk memakai voucher.",
+    VOUCHER_NOT_YOURS: "Voucher ini milik akun lain, jadi tidak bisa dipakai.",
+    VOUCHER_USED: "Voucher ini sudah pernah dipakai.",
+    VOUCHER_EXPIRED: "Voucher ini sudah kedaluwarsa.",
+    VOUCHER_REVOKED: "Voucher ini sudah dibatalkan.",
+    VOUCHER_PENDING: "Voucher ini baru aktif setelah pembayaran pertama kamu berhasil.",
+    VOUCHER_RESERVED: "Voucher ini sedang dipakai di pesanan lain yang belum dibayar.",
+    VOUCHER_NOT_APPLICABLE: "Voucher ini tidak berlaku untuk menu di keranjang.",
+    VOUCHER_MIN_SPEND: "Belanjaan belum mencapai minimal voucher.",
   };
   const errMsg = (raw) => {
+    const min = String(raw || "").match(/VOUCHER_MIN_SPEND:(\d+)/);
+    if (min) return `Voucher ini berlaku untuk belanja minimal ${rp(+min[1])}.`;
+    const held = String(raw || "").match(/VOUCHER_RESERVED:(CN-[\w-]+)/);
+    if (held) return `Voucher ini sedang dipakai di pesanan ${held[1]} yang belum dibayar. Lanjutkan pembayarannya di Pesanan, atau tunggu sampai waktunya habis.`;
     const code = String(raw || "").replace(/^.*?([A-Z_]{5,}).*$/s, "$1");
     return ERRORS[code] || "Terjadi kesalahan. Coba lagi, atau pesan lewat WhatsApp.";
   };
@@ -503,7 +516,7 @@
   async function runQuote(strictCode = false) {
     if (!cart.length) { quote = null; showErr(""); renderCart(); return; }
     let { data, error } = await sb.rpc("quote_cart", { p_items: cartItems(), p_promo_code: promoCode || null });
-    if (error && /PROMO_NOT_APPLICABLE/.test(error.message) && !strictCode) {
+    if (error && /PROMO_NOT_APPLICABLE|VOUCHER_/.test(error.message) && !strictCode) {
       promoCode = ""; $("promo-code").value = "";
       ({ data, error } = await sb.rpc("quote_cart", { p_items: cartItems(), p_promo_code: null }));
     }
@@ -544,7 +557,8 @@
     const btn = $("apply-code"); btn.disabled = true;
     const { error } = await runQuote(true);
     btn.disabled = false;
-    if (error && /PROMO_NOT_APPLICABLE/.test(error.message)) { promoCode = ""; await runQuote(); showErr(ERRORS.PROMO_NOT_APPLICABLE); }
+    if (error && /PROMO_NOT_APPLICABLE|VOUCHER_/.test(error.message)) { const m = errMsg(error.message); promoCode = ""; await runQuote(); showErr(m); }
+    if (!error && promoCode) refreshBadgesSoon();
   });
   $("promo-code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("apply-code").click(); });
 
@@ -554,7 +568,7 @@
   const closeAll = () => { document.querySelectorAll(".drawer.open").forEach((d) => { d.classList.remove("open"); d.setAttribute("aria-hidden", "true"); }); bg.hidden = true; };
   document.querySelectorAll("[data-open-cart]").forEach((b) => b.addEventListener("click", () => { openDrawer($("drawer")); scheduleQuote(); }));
   $("close-cart").addEventListener("click", closeAll); bg.addEventListener("click", closeAll);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("orders-page").hidden) closeOrders(); else closeAll(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (document.querySelector(".drawer.open")) closeAll(); else if (!$("orders-page").hidden) closeOrders(); } });
 
   // ------------------------------------------------------------------ payment
   let snapLoading = null;
@@ -711,18 +725,23 @@
     else { history.replaceState(null, "", location.pathname + location.search); route(); }
   }
   function backOrders() {
-    if (!/^#pesanan\//.test(location.hash)) return closeOrders();
+    if (!/^#pesanan\//.test(location.hash)) return closeOrders();   // list and voucher page: back = close
     if (opDepth() >= 2) return history.back();
     history.replaceState({ cnOrders: Math.max(opDepth(), 1) }, "", location.pathname + location.search + "#pesanan");
     route();
   }
+  function navVouchers() {
+    if (location.hash === "#voucher") return route();
+    history.pushState({ cnOrders: opDepth() + 1 }, "", location.pathname + location.search + "#voucher");
+    route();
+  }
   function route() {
     clearTimeout(pollTimer);
-    const m = location.hash.match(/^#pesanan(?:\/(.+))?$/);
-    if (!m) { if (!OP.hidden) { OP.hidden = true; document.body.style.overflow = ""; } return; }
+    const m = location.hash.match(/^#pesanan(?:\/(.+))?$/), mv = location.hash === "#voucher";
+    if (!m && !mv) { if (!OP.hidden) { OP.hidden = true; document.body.style.overflow = ""; } return; }
     closeAll();
     OP.hidden = false; document.body.style.overflow = "hidden"; OP.scrollTop = 0;
-    if (m[1]) renderOrderDetail(decodeURIComponent(m[1])); else renderOrderList();
+    if (mv) renderVoucherPage(); else if (m[1]) renderOrderDetail(decodeURIComponent(m[1])); else renderOrderList();
   }
   window.addEventListener("popstate", route);
   window.addEventListener("hashchange", route);
@@ -731,8 +750,28 @@
   document.addEventListener("click", (e) => {
     const row = e.target.closest("[data-order]");
     if (row) { e.preventDefault(); navOrders(row.dataset.order); return; }
-    if (e.target.closest("[data-open-orders]")) { e.preventDefault(); navOrders(); }
+    if (e.target.closest("[data-open-orders]")) { e.preventDefault(); navOrders(); return; }
+    if (e.target.closest("[data-open-vouchers]")) { e.preventDefault(); navVouchers(); return; }
+    if (e.target.closest("[data-open-notifs]")) { e.preventDefault(); openDrawer(NF); renderNotifs(); return; }
+    const cp = e.target.closest("[data-copy]");
+    if (cp) { copyText(cp.dataset.copy); return; }
+    const ap = e.target.closest("[data-apply]");
+    if (ap) applyCode(ap.dataset.apply);
   });
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); toast(`Kode ${t} disalin`); }
+    catch (e) { toast(`Kode: ${t}`); }
+  }
+  function applyCode(code) {
+    if (!OP.hidden) closeOrders();
+    setTimeout(() => {
+      $("promo-code").value = code;
+      openDrawer($("drawer"));
+      if (cart.length) { $("checkout").hidden = false; renderCart(); }
+      if (!cart.length) { promoCode = code; showErr(""); toast("Kode sudah diisi. Tambahkan menu ke keranjang, nanti langsung terpakai."); return; }
+      $("apply-code").click();
+    }, 60);
+  }
   // after paying (or closing the payment popup) show that order's page
   const showStatus = (num) => navOrders(num);
 
@@ -761,6 +800,7 @@
     };
     if (opFilter !== "all" && !opCache.some((o) => inFilter(o, opFilter))) opFilter = "all";
     draw();
+    refreshBadgesSoon();
   }
 
   async function renderOrderDetail(num) {
@@ -816,9 +856,78 @@
         catch (err) { b.insertAdjacentHTML("afterend", `<p class="form-msg err">Halaman pembayaran gagal dibuka. Coba lagi.</p>`); }
         finally { b.disabled = false; }
       });
+      refreshBadgesSoon();
       if (st === "pending" && ++tries < 60) pollTimer = setTimeout(load, 5000);
     };
     await load();
+  }
+
+  // ------------------------------------------------------------------ voucher page (#voucher)
+  const VST = { available: "Bisa dipakai", pending: "Menunggu pembayaran pertama", reserved: "Sedang dipakai", used: "Sudah dipakai", expired: "Kedaluwarsa", revoked: "Dibatalkan" };
+  const offerOf = (x) => x.discount_type === "free_item" ? `Gratis ${x.gift_text || "hadiah"}` : x.discount_type === "percent" ? `Diskon ${x.value}%` : `Potongan ${rp(x.value)}`;
+  const forWhat = (x) => (x.applies_to_all || !(x.products || []).length) ? "Berlaku untuk semua menu" : `Hanya untuk: ${x.products.map(esc).join(", ")}`;
+  const codeRow = (code, canUse) => `<div class="vc-code"><code>${esc(code)}</code>
+      <button type="button" class="btn btn-ghost" data-copy="${esc(code)}" aria-label="Salin kode ${esc(code)}">Salin kode</button>
+      ${canUse ? `<button type="button" class="btn btn-rose" data-apply="${esc(code)}" aria-label="Pakai voucher ${esc(code)}">Pakai</button>` : ""}</div>`;
+  function voucherCard(v) {
+    const st = v.status, ok = st === "available";
+    const terms = [
+      v.min_spend ? `Minimal belanja ${rp(v.min_spend)}` : "Tanpa minimal belanja",
+      v.max_discount && v.discount_type === "percent" ? `Maksimal potongan ${rp(v.max_discount)}` : "",
+      st === "pending" ? "Aktif setelah pembayaran pertama kamu berhasil" : v.expires_at ? `${st === "expired" ? "Berakhir" : "Berlaku sampai"} ${fmtDate(v.expires_at)}` : "Tanpa batas waktu",
+      forWhat(v), "Sekali pakai",
+      v.campaign ? `Dari kampanye ${esc(v.campaign)}` : "",
+      st === "reserved" && v.reserved_order ? `Sedang dipakai di pesanan <button type="button" class="linkish" data-order="${esc(v.reserved_order)}">${esc(v.reserved_order)}</button> yang belum dibayar` : "",
+      st === "used" && v.used_order ? `Dipakai di pesanan <button type="button" class="linkish" data-order="${esc(v.used_order)}">${esc(v.used_order)}</button>${v.used_at ? " · " + fmtDate(v.used_at) : ""}` : "",
+    ].filter(Boolean);
+    return `<article class="vc-card ${ok || st === "pending" ? "" : "dim"}">
+      <div class="vc-top"><span class="vc-offer">${esc(offerOf(v))}</span><span class="badge-st ${esc(st)}">${esc(VST[st] || st)}</span></div>
+      <ul class="vc-terms">${terms.map((t) => `<li>${t}</li>`).join("")}</ul>
+      ${codeRow(v.code, ok)}
+    </article>`;
+  }
+  function promoCard(pr) {
+    const terms = [
+      pr.min_spend ? `Minimal belanja ${rp(pr.min_spend)}` : "Tanpa minimal belanja",
+      pr.max_discount && pr.discount_type === "percent" ? `Maksimal potongan ${rp(pr.max_discount)}` : "",
+      pr.ends_at ? `Berlaku sampai ${fmtDate(pr.ends_at)}` : "Selama persediaan / sampai diumumkan berakhir",
+      forWhat(pr), pr.code ? "Ketik kodenya di keranjang" : "Otomatis terpakai di keranjang",
+    ].filter(Boolean);
+    return `<article class="vc-card">
+      <div class="vc-top"><b>${esc(pr.name)}</b><span class="badge-st paid">Sedang berlaku</span></div>
+      <span class="vc-offer">${esc(offerOf(pr))}</span>
+      ${pr.description ? `<p style="margin:0">${esc(pr.description)}</p>` : ""}
+      <ul class="vc-terms">${terms.map((t) => `<li>${t}</li>`).join("")}</ul>
+      ${pr.code ? codeRow(pr.code, true) : `<button type="button" class="btn btn-ghost" data-shop-now style="justify-content:center">Belanja sekarang</button>`}
+    </article>`;
+  }
+  async function renderVoucherPage() {
+    $("op-title").textContent = "Kode Voucher";
+    const body = $("op-body");
+    body.innerHTML = `<p class="form-msg">Memuat voucher…</p>`;
+    let data;
+    if (session) {
+      const r = await sb.rpc("my_vouchers");
+      if (r.error) { body.innerHTML = `<p class="form-msg err">Voucher gagal dimuat. Coba lagi sebentar.</p>`; return; }
+      data = r.data;
+    } else {
+      const r = await sb.rpc("public_promotions");
+      data = { promos: r.data || [], referral: [], admin: [] };
+    }
+    if (location.hash !== "#voucher") return;
+    const empty = (t) => `<p class="op-empty" style="padding:.6rem 0">${t}</p>`;
+    body.innerHTML = `
+      <section class="vc-sec" aria-labelledby="vc-promo"><h4 id="vc-promo">Promo</h4>
+        ${data.promos.length ? data.promos.map(promoCard).join("") : empty("Belum ada promo yang berjalan. Cek lagi nanti ya.")}</section>
+      ${session ? `
+      <section class="vc-sec" aria-labelledby="vc-ref"><h4 id="vc-ref">Voucher Referral</h4>
+        ${data.referral.length ? data.referral.map(voucherCard).join("") : empty("Belum ada voucher referral. Voucher ini didapat saat daftar dengan kode referral CamilaNika.")}</section>
+      <section class="vc-sec" aria-labelledby="vc-adm"><h4 id="vc-adm">Voucher dari Admin</h4>
+        ${data.admin.length ? data.admin.map(voucherCard).join("") : empty("Belum ada voucher khusus untuk kamu.")}</section>` : `
+      <div class="vc-card"><b>Voucher pribadi</b><p style="margin:0;color:var(--muted)">Masuk untuk melihat voucher referral dan voucher dari admin.</p>
+        <button type="button" class="btn btn-rose" data-open-account style="justify-content:center">Masuk / Daftar</button></div>`}`;
+    body.querySelectorAll("[data-shop-now]").forEach((b) => b.addEventListener("click", () => { closeOrders(); setTimeout(() => $("menu-root")?.scrollIntoView({ behavior: "smooth" }), 80); }));
+    refreshBadgesSoon();
   }
 
   // a short list for the account panel: latest orders + a link to the full page
@@ -872,17 +981,46 @@
         <div class="field"><label for="a-id">${acctMode === "signup" ? "No. WhatsApp" : "No. WhatsApp atau email"}</label>
           <input id="a-id" ${acctMode === "signup" ? 'type="tel" inputmode="tel" autocomplete="tel" placeholder="08xxxxxxxxxx"' : 'autocomplete="username" placeholder="08xxxxxxxxxx"'} required></div>
         <div class="field"><label for="a-pass">Password${acctMode === "signup" ? " <small>(minimal 8 karakter)</small>" : ""}</label><input id="a-pass" type="password" minlength="8" autocomplete="${acctMode === "signup" ? "new-password" : "current-password"}" required></div>
+        ${acctMode === "signup" ? `<div class="field"><label for="a-ref">Kode referral <small>(opsional)</small></label><input id="a-ref" autocomplete="off" maxlength="24" style="text-transform:uppercase" placeholder="mis. CAMILAJUNI" value="${esc(refCode())}"><p class="ref-hint" id="ref-hint" aria-live="polite"></p></div>` : ""}
         <button class="btn btn-rose" type="submit">${acctMode === "signup" ? "Daftar" : "Masuk"}</button>
         ${acctMode === "signup" ? "" : `<button type="button" class="linkish" data-mode="reset">Lupa password?</button>`}
         <p class="form-msg" id="f-msg"></p>
       </form>`}
-      <p class="form-msg">Dengan akun, riwayat pesanan kamu tersimpan dan data pengiriman terisi otomatis.</p>
-      ${recent.length ? `<div class="acct-sec"><h4>Pesanan di perangkat ini</h4><div id="recent-orders" class="op-list"><p class="form-msg">Memuat…</p></div></div>` : ""}`;
+      <p class="form-msg">Dengan akun, riwayat pesanan, notifikasi, dan voucher kamu tersimpan, dan data pengiriman terisi otomatis.</p>
+      <div class="am-menu">
+        ${recent.length ? `<button type="button" class="am-item" data-open-orders><span class="ic" aria-hidden="true">📦</span><span class="lbl">Pesanan di perangkat ini</span><span class="chev" aria-hidden="true">›</span></button>` : ""}
+        <button type="button" class="am-item" data-open-vouchers><span class="ic" aria-hidden="true">🏷️</span><span class="lbl">Promo yang berlaku</span><span class="chev" aria-hidden="true">›</span></button>
+      </div>`;
     body.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => renderAccount(b.dataset.mode)));
     $("f-auth")?.addEventListener("submit", onAuthSubmit);
-    if (recent.length) fillOrderPreview($("recent-orders"));
+    if ($("a-ref")) {
+      let t = null;
+      const check = async () => {
+        const code = $("a-ref").value.trim().toUpperCase(), h = $("ref-hint");
+        if (!code) { h.textContent = ""; h.className = "ref-hint"; return; }
+        const { data } = await sb.rpc("referral_preview", { p_code: code });
+        if ($("a-ref")?.value.trim().toUpperCase() !== code) return;
+        if (data?.ok) { h.textContent = `🎁 Kamu akan dapat voucher: ${data.reward}${data.reward_on === "first_payment" ? " (aktif setelah pembayaran pertama)" : ""}.`; h.className = "ref-hint ok"; }
+        else { h.textContent = REF_ERR[data?.error] || REF_ERR.REFERRAL_INVALID; h.className = "ref-hint bad"; }
+      };
+      $("a-ref").addEventListener("input", () => { clearTimeout(t); t = setTimeout(check, 400); });
+      if ($("a-ref").value) check();
+    }
   }
 
+  const REF_ERR = {
+    REFERRAL_INVALID: "Kode referral tidak ditemukan. Cek lagi, atau kosongkan.",
+    REFERRAL_EXPIRED: "Kode referral ini sudah berakhir. Kosongkan untuk daftar tanpa voucher.",
+    REFERRAL_PAUSED: "Kode referral ini sedang tidak aktif. Kosongkan untuk daftar tanpa voucher.",
+    REFERRAL_NOT_STARTED: "Kode referral ini belum mulai berlaku.",
+    REFERRAL_FULL: "Kuota voucher untuk kode ini sudah habis. Kosongkan untuk daftar tanpa voucher.",
+  };
+  const REWARD_REASON = {
+    REFERRAL_DAILY_LIMIT: "kuota voucher hari ini sudah habis", REFERRAL_DEVICE_LIMIT: "batas voucher untuk jaringan ini sudah tercapai",
+    REFERRAL_FULL: "kuota voucher sudah habis", REFERRAL_EXPIRED: "kampanye sudah berakhir", REFERRAL_PAUSED: "kampanye sedang dijeda",
+  };
+  const refCode = () => { try { return sessionStorage.getItem("cn-ref") || ""; } catch (e) { return ""; } };
+  let lastReward = null, refOpen = false;
   const formMsg = (t, err) => { const m = $("f-msg"); if (m) { m.textContent = t; m.className = "form-msg" + (err ? " err" : ""); } };
 
   // Accounts made with a WhatsApp number log in with a private address <62number>@phone.camilanika.invalid
@@ -905,7 +1043,7 @@
         const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/phone-signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}` },
-          body: JSON.stringify({ name: $("a-name").value.trim(), phone: id, password: $("a-pass").value }),
+          body: JSON.stringify({ name: $("a-name").value.trim(), phone: id, password: $("a-pass").value, referral_code: $("a-ref")?.value.trim().toUpperCase() || null }),
         });
         const out = await res.json().catch(() => ({ error: "SIGNUP_FAILED" }));
         if (out.error === "PHONE_TAKEN") {
@@ -913,8 +1051,12 @@
           return formMsg("Nomor ini sudah terdaftar. Silakan masuk, atau pakai \"Lupa password?\" kalau lupa.", true);
         }
         if (!res.ok || out.error) {
-          return formMsg({ PHONE_INVALID: "Nomor WhatsApp belum benar.", PASSWORD_TOO_SHORT: "Password minimal 8 karakter.", NAME_REQUIRED: "Isi nama dulu ya." }[out.error] || "Gagal mendaftar. Coba lagi sebentar.", true);
+          if (/^REFERRAL_/.test(out.error)) { $("a-ref")?.focus(); return formMsg(REF_ERR[out.error] || REF_ERR.REFERRAL_INVALID, true); }
+          return formMsg({ PHONE_INVALID: "Nomor WhatsApp belum benar.", PASSWORD_TOO_SHORT: "Password minimal 8 karakter.", NAME_REQUIRED: "Isi nama dulu ya.",
+            RATE_LIMITED: "Terlalu banyak pendaftaran dari jaringan ini. Coba lagi dalam 1 jam." }[out.error] || "Gagal mendaftar. Coba lagi sebentar.", true);
         }
+        lastReward = out.referral || null;
+        try { sessionStorage.removeItem("cn-ref"); } catch (e) {}
         // account exists and is ready: log straight in
         const { error } = await sb.auth.signInWithPassword({ email: out.login, password: $("a-pass").value });
         if (error) return formMsg("Akun dibuat, tapi gagal masuk otomatis. Silakan masuk.", true);
@@ -930,26 +1072,63 @@
   async function renderProfile() {
     $("acct-title").textContent = "Akun saya";
     const body = $("acct-body");
-    body.innerHTML = `
-      <form class="acct-form" id="f-profile">
-        <p class="form-msg">${esc(realEmail(session.user.email) || profile?.phone || "")}</p>
-        <div class="field"><label for="p-name">Nama</label><input id="p-name" autocomplete="name" value="${esc(profile?.full_name)}"></div>
-        <div class="field"><label for="p-phone">No. WhatsApp</label><input id="p-phone" type="tel" autocomplete="tel" value="${esc(profile?.phone)}"></div>
-        <div class="field"><label for="p-addr">Alamat</label><textarea id="p-addr" rows="2">${esc(profile?.address)}</textarea></div>
-        <button class="btn btn-ghost" type="submit">Simpan profil</button>
-        <p class="form-msg" id="f-msg"></p>
-      </form>
-      <details class="acct-sec"><summary style="cursor:pointer;font-weight:800">Ganti password</summary>
-        <form class="acct-form" id="f-pass" style="margin-top:.6rem"><div class="field"><label for="p-pass">Password baru (minimal 8 karakter)</label><input id="p-pass" type="password" minlength="8" autocomplete="new-password" required></div>
-        <button class="btn btn-ghost" type="submit">Simpan password</button><p class="form-msg" id="f-pmsg"></p></form></details>
-      <div class="acct-sec"><h4>Riwayat pesanan</h4><div id="my-orders" class="op-list"><p class="form-msg">Memuat…</p></div></div>
+    const name = profile?.full_name || "Pelanggan";
+    const rw = lastReward; lastReward = null;
+    const reward = !rw ? "" : rw.rewarded ? `
+      <div class="am-reward" role="status">
+        <b>🎉 Selamat! Kamu dapat voucher${rw.voucher.campaign ? " dari " + esc(rw.voucher.campaign) : ""}</b>
+        <div class="vc-code"><code>${esc(rw.voucher.code)}</code><button type="button" class="btn btn-ghost" data-copy="${esc(rw.voucher.code)}">Salin</button></div>
+        <small>${esc(rw.voucher.offer)} · ${rw.voucher.status === "pending" ? "aktif setelah pembayaran pertama kamu berhasil" : "berlaku sampai " + fmtDate(rw.voucher.expires_at)}</small>
+        <button type="button" class="btn btn-rose" data-open-vouchers style="justify-content:center">Lihat di Kode Voucher</button>
+      </div>` : `<p class="form-msg">Akun berhasil dibuat. Voucher referral tidak bisa diberikan karena ${esc(REWARD_REASON[rw.reason] || "kode tidak memenuhi syarat")}.</p>`;
+    const item = (key, ic, label, sub) => `<button type="button" class="am-item" data-am="${key}" ${key === "profile" ? 'aria-expanded="false" aria-controls="am-profile"' : ""}>
+        <span class="ic" aria-hidden="true">${ic}</span><span class="lbl">${label}${sub ? `<small>${sub}</small>` : ""}</span>
+        ${key === "profile" ? "" : `<span class="badge-red" data-badge="${key}" hidden></span>`}<span class="chev" aria-hidden="true">›</span></button>`;
+    body.innerHTML = `${reward}
+      <div class="am-head"><span class="am-avatar" aria-hidden="true">${esc(name.trim().charAt(0).toUpperCase() || "C")}</span>
+        <div style="min-width:0"><b>${esc(name)}</b><small>${esc(profile?.phone || realEmail(session.user.email) || "")}</small></div></div>
+      <nav class="am-menu" aria-label="Menu akun">
+        ${item("profile", "👤", "Profile", "Nama, No. WhatsApp, Alamat")}
+        <div class="am-panel" id="am-profile" hidden>
+          <form class="acct-form" id="f-profile">
+            <div class="field"><label for="p-name">Nama</label><input id="p-name" autocomplete="name" value="${esc(profile?.full_name)}"></div>
+            <div class="field"><label for="p-phone">No. WhatsApp</label><input id="p-phone" type="tel" autocomplete="tel" value="${esc(profile?.phone)}"></div>
+            <div class="field"><label for="p-addr">Alamat</label><textarea id="p-addr" rows="2">${esc(profile?.address)}</textarea></div>
+            <button class="btn btn-rose" type="submit">Simpan profil</button>
+            <p class="form-msg" id="f-msg" aria-live="polite"></p>
+          </form>
+          <details class="acct-sec" style="margin-top:.6rem"><summary style="cursor:pointer;font-weight:800">Ganti password</summary>
+            <form class="acct-form" id="f-pass" style="margin-top:.6rem"><div class="field"><label for="p-pass">Password baru (minimal 8 karakter)</label><input id="p-pass" type="password" minlength="8" autocomplete="new-password" required></div>
+            <button class="btn btn-ghost" type="submit">Simpan password</button><p class="form-msg" id="f-pmsg"></p></form></details>
+        </div>
+        ${item("orders", "📦", "Pesanan", "Riwayat & status pesanan")}
+        ${item("notifications", "🔔", "Notifikasi", "Menu baru, promo, update pesanan")}
+        ${item("vouchers", "🎟️", "Kode Voucher", "Promo, voucher referral & dari admin")}
+      </nav>
       <button class="btn btn-ghost" type="button" id="logout" style="justify-content:center">Keluar</button>`;
+    renderBadges();
+    body.querySelectorAll("[data-am]").forEach((b) => b.addEventListener("click", () => {
+      const k = b.dataset.am;
+      if (k === "profile") { const open = b.getAttribute("aria-expanded") !== "true"; b.setAttribute("aria-expanded", String(open)); $("am-profile").hidden = !open; if (open) $("p-name").focus(); }
+      else if (k === "orders") navOrders();
+      else if (k === "notifications") { openDrawer(NF); renderNotifs(); }
+      else if (k === "vouchers") navVouchers();
+    }));
     $("f-profile").addEventListener("submit", async (e) => {
       e.preventDefault();
       const upd = { full_name: $("p-name").value.trim(), phone: $("p-phone").value.trim(), address: $("p-addr").value.trim() };
+      if (!upd.full_name) return formMsg("Nama tidak boleh kosong.", true);
+      if (upd.phone && !normPhone(upd.phone)) return formMsg("Nomor WhatsApp belum benar. Contoh: 081234567890", true);
+      const btn = e.submitter; if (btn) btn.disabled = true;
       const { error } = await sb.from("profiles").update(upd).eq("id", session.user.id);
-      if (!error) { profile = { ...profile, ...upd }; prefill(true); }
-      formMsg(error ? "Gagal menyimpan." : "Tersimpan.", !!error);
+      if (btn) btn.disabled = false;
+      if (!error) {
+        profile = { ...profile, ...upd }; prefill(true);
+        $("acct-label").textContent = profile.full_name.split(" ")[0] || "Akun";
+        body.querySelector(".am-head b").textContent = profile.full_name;
+        body.querySelector(".am-head small").textContent = profile.phone || "";
+      }
+      formMsg(error ? "Gagal menyimpan. Coba lagi." : "Profil tersimpan ✓", !!error);
     });
     $("logout").addEventListener("click", async () => { await sb.auth.signOut(); closeAll(); });
     $("f-pass").addEventListener("submit", async (e) => {
@@ -958,7 +1137,7 @@
       const m = $("f-pmsg"); m.textContent = error ? "Gagal menyimpan password." : "Password baru tersimpan."; m.className = "form-msg" + (error ? " err" : "");
       if (!error) $("p-pass").value = "";
     });
-    fillOrderPreview($("my-orders"));
+    refreshBadges();
   }
 
   function prefill(force) {
@@ -983,7 +1162,18 @@
     if (acct.classList.contains("open") && acctMode !== "recovery") renderAccount();
     if (!$("orders-page").hidden) route();
     startNotifPolling();
+    if (refOpen) { refOpen = false; if (!s) { renderAccount("signup"); openDrawer(acct); } }
     if (NF.classList.contains("open")) renderNotifs();
+  }
+  // referral link: camilanika.github.io/?ref=CODE opens sign-up with the code filled in
+  {
+    const ref = new URLSearchParams(location.search).get("ref");
+    if (ref && /^[A-Za-z0-9-]{4,24}$/.test(ref)) {
+      try { sessionStorage.setItem("cn-ref", ref.toUpperCase()); } catch (e) {}
+      refOpen = true; acctMode = "signup";
+      const q = new URLSearchParams(location.search); q.delete("ref");
+      history.replaceState(history.state, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
+    }
   }
   sb.auth.onAuthStateChange((event, s) => {
     if (event === "PASSWORD_RECOVERY") { session = s; renderAccount("recovery"); openDrawer(acct); return; }
@@ -994,30 +1184,40 @@
 
   // ------------------------------------------------------------------ notifications
   const NF = $("notif");
-  const NF_ICON = { product: "🆕", promo: "🏷️", order: "📦" };
+  const NF_ICON = { product: "🆕", promo: "🏷️", order: "📦", voucher: "🎟️", account: "👋" };
   let nf = { items: [], unread: 0 }, nfTimer = null;
   const toastEl = $("toast"); let toastT = null;
   const toast = (t) => { toastEl.textContent = t; toastEl.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (toastEl.hidden = true), 3200); };
 
-  function setBadge(n) {
-    nf.unread = n;
-    const b = $("bell-count");
-    b.hidden = !n; b.textContent = n > 99 ? "99+" : String(n);
-    $("bell-btn").setAttribute("aria-label", n ? `Notifikasi, ${n} belum dibaca` : "Notifikasi");
+  // ------------------------------------------------------------------ red badges (Akun saya)
+  let badges = { orders: 0, notifications: 0, vouchers: 0, total: 0 }, badgeT = null;
+  const BADGE_LABEL = { orders: (n) => `${n} pesanan belum selesai`, notifications: (n) => `${n} notifikasi belum dibaca`, vouchers: (n) => `${n} voucher bisa dipakai` };
+  function renderBadges() {
+    const b = badges, t = (b.orders || 0) + (b.notifications || 0) + (b.vouchers || 0);
+    const main = $("acct-badge");
+    main.hidden = !t; main.textContent = t > 99 ? "99+" : String(t);
+    $("acct-btn").setAttribute("aria-label", t ? `Akun saya, ${t} perlu dilihat` : "Akun saya");
+    document.querySelectorAll("[data-badge]").forEach((el) => {
+      const n = b[el.dataset.badge] || 0;
+      el.hidden = !n; el.textContent = n > 99 ? "99+" : String(n);
+      el.setAttribute("aria-label", BADGE_LABEL[el.dataset.badge](n));
+    });
   }
-  async function refreshUnread() {
-    if (!session) return setBadge(0);
-    const { data, error } = await sb.rpc("unread_notifications");
-    if (!error && typeof data === "number") setBadge(data);
+  function setBadge(n) { nf.unread = n; badges.notifications = n; renderBadges(); }
+  async function refreshBadges() {
+    if (!session) { badges = { orders: 0, notifications: 0, vouchers: 0, total: 0 }; nf.unread = 0; return renderBadges(); }
+    const { data, error } = await sb.rpc("my_badges");
+    if (!error && data) { badges = data; nf.unread = data.notifications; renderBadges(); }
   }
+  const refreshBadgesSoon = () => { clearTimeout(badgeT); badgeT = setTimeout(refreshBadges, 300); };
+  const refreshUnread = refreshBadges;
   function startNotifPolling() {
     clearInterval(nfTimer);
-    refreshUnread();
-    if (session) nfTimer = setInterval(() => { if (document.visibilityState === "visible") refreshUnread(); }, 60000);
+    refreshBadges();
+    if (session) nfTimer = setInterval(() => { if (document.visibilityState === "visible") refreshBadges(); }, 60000);
   }
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && session) refreshUnread(); });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && session) refreshBadges(); });
 
-  $("bell-btn").addEventListener("click", () => { openDrawer(NF); renderNotifs(); });
   NF.addEventListener("click", (e) => { if (e.target.closest("[data-close-notif]")) closeAll(); });
 
   async function renderNotifs() {
@@ -1046,7 +1246,7 @@
           <span class="nf-ic" aria-hidden="true">${NF_ICON[n.kind] || "🔔"}</span>
           <b>${esc(n.title)}</b>${n.read ? "<span></span>" : `<span class="nf-dot" title="Belum dibaca"></span>`}
           ${n.body ? `<p>${esc(n.body)}</p>` : ""}
-          <small>${fmtDate(n.created_at)}${n.available ? "" : ` · <span class="gone">${n.kind === "promo" ? "promo sudah berakhir" : n.kind === "product" ? "sudah tidak tersedia" : "tidak ditemukan"}</span>`}</small>
+          <small>${fmtDate(n.created_at)}${n.available ? "" : ` · <span class="gone">${n.kind === "promo" ? "promo sudah berakhir" : n.kind === "product" ? "sudah tidak tersedia" : n.kind === "voucher" ? "voucher sudah tidak ada" : "tidak ditemukan"}</span>`}</small>
         </button>`).join("")}</div>`;
     $("nf-all")?.addEventListener("click", async () => {
       const { error } = await sb.rpc("mark_notifications_read", { p_ids: null });
@@ -1063,6 +1263,7 @@
       sb.rpc("mark_notifications_read", { p_ids: [n.id] }).then(({ error }) => { if (error) refreshUnread(); });
     }
     if (n.kind === "order") { navOrders(n.ref_id); return; }
+    if (n.kind === "voucher" || n.kind === "account") { navVouchers(); return; }
     if (n.kind === "promo") { renderPromoDetail(n.ref_id); return; }
     if (n.kind === "product") {
       const card = document.querySelector(`[data-product="${CSS.escape(String(n.ref_id))}"]`);
@@ -1153,6 +1354,6 @@
       const st = params.get("transaction_status");
       if (st === "settlement" || st === "capture" || st === "pending") clearCart();
       showStatus(num, true);
-    } else if (/^#pesanan/.test(location.hash)) route();
+    } else if (/^#(pesanan|voucher)/.test(location.hash)) route();
   })();
 })();
