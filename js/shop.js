@@ -1391,6 +1391,7 @@
   }
 
   // ------------------------------------------------------------------ copy phone
+  if ($("foot-year")) $("foot-year").textContent = new Date().getFullYear();
   $("copy-phone").addEventListener("click", (e) => {
     const btn = e.currentTarget;
     navigator.clipboard?.writeText("0" + WA.replace(/^62/, "")).then(() => { btn.textContent = "Tersalin"; setTimeout(() => (btn.textContent = "Salin nomor"), 1500); })
