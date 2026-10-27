@@ -179,3 +179,9 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - If an order has no ongkir (inside the free radius, or delivery fees off), the voucher can't be used, so it isn't wasted; the cart explains why.
 - Orders show it as **Potongan ongkir** (cart, order page, admin order card, Chat Customer message). On the Midtrans bill it is included in the discount line, so the bill still adds up.
 - Loyalty counts the items paid, not the ongkir.
+
+## Admin page on phones and tablets
+- **Desktop (1024px and wider)**: menu in a sidebar on the left; the Voucher & Loyalty submenu (Kampanye referral, Voucher, Loyalty, Batas pendaftaran) sits under it. The rest of the screen is content.
+- **Phones and tablets**: the sidebar is hidden; the **☰** button opens it as a drawer (close with ×, Escape, or by tapping outside; it also closes after choosing a page). The top bar shows the current page name.
+- On phones, tables turn into cards (each value labelled with its column name) and popups use the whole screen, so nothing needs sideways scrolling.
+- Each page has its own address (e.g. `admin.html#vouchers/loyalty`), so refresh and bookmarks keep you on the same page.

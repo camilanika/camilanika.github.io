@@ -19,16 +19,56 @@ body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body)}
 h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.15}
 a{color:inherit}
 [hidden]{display:none!important}
-.wrap{max-width:1200px;margin:0 auto;padding:0 16px}
-header.top{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;align-items:center;gap:1rem;padding-block:.6rem;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;font-family:var(--f-display);font-weight:800;font-size:1.2rem}
-.brand img{width:36px;height:36px;border-radius:50%}
-.tabs{display:flex;gap:.3rem;flex-wrap:wrap}
-.tabs button{font:800 .9rem var(--f-body);border:1.5px solid var(--line);background:transparent;color:var(--fg);padding:.45rem .9rem;border-radius:999px;cursor:pointer}
-.tabs button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.top .me{margin-left:auto;display:flex;gap:.6rem;align-items:center;color:var(--muted);font-weight:700;font-size:.85rem}
-main{padding-block:1.4rem 4rem}
+/* layout: top bar + sidebar + content */
+:root{--top-h:58px;--side-w:236px}
+header.top{position:sticky;top:0;z-index:30;background:var(--paper);border-bottom:1px solid var(--line)}
+.topin{display:flex;align-items:center;gap:.8rem;height:var(--top-h);padding:0 16px}
+.brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;font-family:var(--f-display);font-weight:800;font-size:1.2rem;min-width:0;white-space:nowrap}
+.brand img{width:36px;height:36px;border-radius:50%;flex:none}
+.crumb{font-weight:800;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.crumb:not(:empty)::before{content:"/";margin-right:.5rem;color:var(--line)}
+.top .me{margin-left:auto;display:flex;gap:.6rem;align-items:center;color:var(--muted);font-weight:700;font-size:.85rem;white-space:nowrap}
+.nav-toggle{display:none;border:1.5px solid var(--line);background:transparent;color:var(--fg);width:42px;height:42px;border-radius:12px;cursor:pointer;place-items:center;flex:none}
+.shell{display:flex;align-items:flex-start;min-height:calc(100vh - var(--top-h))}
+.sidenav{position:sticky;top:var(--top-h);width:var(--side-w);flex:none;height:calc(100vh - var(--top-h));overflow-y:auto;background:var(--paper);border-right:1px solid var(--line);padding:.8rem .6rem 1rem;display:flex;flex-direction:column;gap:.6rem}
+.sidenav-head,.sidenav-foot{display:none}
+.tabs{display:grid;gap:.15rem}
+.tabs > button{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;font:800 .92rem var(--f-body);border:0;background:transparent;color:var(--fg);padding:.6rem .75rem;border-radius:12px;cursor:pointer}
+.tabs > button span{width:1.4rem;text-align:center;flex:none}
+.tabs > button:hover{background:var(--bg)}
+.tabs > button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.subnav{display:grid;gap:.1rem;margin:.15rem 0 .35rem 1.55rem;padding-left:.6rem;border-left:2px solid var(--line)}
+.subnav button{text-align:left;font:700 .86rem var(--f-body);border:0;background:transparent;color:var(--muted);padding:.45rem .7rem;border-radius:10px;cursor:pointer}
+.subnav button:hover{background:var(--bg);color:var(--fg)}
+.subnav button[aria-pressed="true"]{background:var(--rose-soft);color:var(--fg);box-shadow:inset 3px 0 0 var(--rose)}
+.nav-scrim{position:fixed;inset:0;background:rgba(20,10,6,.45);z-index:40}
+main#app{flex:1;min-width:0;padding:1.3rem clamp(16px,2.5vw,32px) 4rem;max-width:1280px}
+:focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+/* tablet & phone: sidebar becomes a drawer */
+@media (max-width:1023px){
+  .nav-toggle{display:grid}
+  .sidenav{position:fixed;top:0;left:0;bottom:0;height:auto;z-index:50;width:min(300px,86vw);transform:translateX(-105%);transition:transform .25s ease;box-shadow:0 0 40px -10px rgba(0,0,0,.4);padding-top:.6rem}
+  .sidenav.open{transform:none}
+  .sidenav-head{display:flex;justify-content:space-between;align-items:center;padding:.2rem .4rem .5rem}
+  .sidenav-foot{display:flex;margin-top:auto;justify-content:space-between;align-items:center;gap:.5rem;padding:.6rem .4rem 0;border-top:1px solid var(--line);color:var(--muted);font-weight:700;font-size:.85rem}
+}
+@media (max-width:640px){
+  :root{--top-h:54px}
+  .topin{gap:.5rem;padding:0 10px}
+  .brand-tx,.top .me{display:none}
+  .brand img{width:32px;height:32px}
+  .crumb::before{display:none}
+  #shop-pill{margin-left:auto}
+  main#app{padding:.9rem 10px 4.5rem}
+  .bar{gap:.5rem}
+  .bar h2{font-size:1.3rem;flex:1 1 100%}
+  .bar > input,.bar > select{flex:1 1 140px}
+  .card{padding:.85rem}
+  .order .acts{justify-content:flex-start}
+  .row-actions .btn{flex:1 1 auto}
+  .pchk{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.sidenav{transition:none}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font:800 .88rem/1 var(--f-body);padding:.6rem .95rem;border-radius:999px;border:1.5px solid transparent;cursor:pointer;text-decoration:none;white-space:nowrap}
 .btn:disabled{opacity:.55;cursor:wait}
 .btn-rose{background:var(--rose);color:var(--rose-ink)}
@@ -58,6 +98,24 @@ label.f input,label.f select,label.f textarea{font-size:.95rem;font-weight:600}
 .order ul{margin:.2rem 0 0;padding-left:1.1rem}
 .order .acts{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:flex-end}
 .tbl-wrap{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:16px}
+/* phones: each table row becomes a card, each cell shows its column name */
+@media (max-width:700px){
+  .tbl-wrap{background:transparent;border:0;border-radius:0;overflow:visible}
+  .tbl-wrap table,.tbl-wrap tbody,.tbl-wrap tr,.tbl-wrap td{display:block;width:100%}
+  .tbl-wrap thead{display:none}
+  .tbl-wrap tr{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:.35rem 0;margin-bottom:.6rem}
+  .tbl-wrap td{border:0;padding:.4rem .85rem;text-align:right;min-width:0;max-width:none!important;overflow-wrap:anywhere}
+  .tbl-wrap td::before{content:attr(data-label);float:left;width:36%;padding-right:.6rem;padding-top:.15rem;text-align:left;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);overflow-wrap:normal}
+  .tbl-wrap td::after{content:"";display:table;clear:both}
+  .tbl-wrap td[data-label=""]::before,.tbl-wrap td:not([data-label])::before{display:none}
+  .tbl-wrap td[data-label=""],.tbl-wrap td:not([data-label]),.tbl-wrap td[colspan]{display:block;text-align:left}
+  .tbl-wrap td:first-child{font-size:1rem}
+  .tbl-wrap td .row-actions,.tbl-wrap td .adj,.tbl-wrap td .codecell{justify-content:flex-end;overflow:hidden}
+  .tbl-wrap td[data-label=""] .row-actions,.tbl-wrap td:not([data-label]) .row-actions{justify-content:flex-start}
+  .tbl-wrap tr.group{background:transparent;border:0;padding:0;margin:1rem 0 .3rem}
+  .tbl-wrap tr.group td{background:transparent;padding:0 .2rem}
+  .tbl-wrap .vt td::before{width:34%}
+}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 th,td{padding:.55rem .7rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
 th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--bg);position:sticky;top:0}
@@ -93,31 +151,54 @@ td.num,th.num{text-align:right}
 .login{max-width:400px;margin:10vh auto;display:grid;gap:.8rem}
 .thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;background:var(--line)}
 .pchk{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.3rem .8rem;max-height:200px;overflow:auto;padding:.5rem;border:1px solid var(--line);border-radius:12px}
-.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:.7rem 1.1rem;border-radius:999px;font-weight:800;z-index:99}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);text-align:center;background:var(--fg);color:var(--bg);padding:.7rem 1.1rem;border-radius:999px;font-weight:800;z-index:99}
+/* phones: popups use the whole screen (kept last so it wins over the base modal rules) */
+@media (max-width:640px){
+  .modal-bg{padding:0;place-items:stretch}
+  .modal{border-radius:0;min-height:100%;width:100%;padding:1rem .9rem 1.4rem;align-content:start;box-shadow:none}
+  .modal-head h2{font-size:1.15rem;overflow-wrap:anywhere}
+}
 </style>
 </head>
 <body>
 <header class="top" id="topbar" hidden>
-  <div class="wrap">
-    <a class="brand" href="./"><img src="img/logo-cireng.jpg" alt="">CamilaNika Admin</a>
+  <div class="topin">
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-controls="sidenav" aria-expanded="false" aria-label="Buka menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <a class="brand" href="./"><img src="img/logo-cireng.jpg" alt=""><span class="brand-tx">CamilaNika Admin</span></a>
+    <span class="crumb" id="crumb" aria-live="polite"></span>
     <button type="button" class="badge" id="shop-pill" hidden style="border:0;cursor:pointer" title="Atur buka/tutup toko"></button>
-    <nav class="tabs" id="tabs">
-      <button type="button" data-tab="orders" aria-pressed="true">Pesanan</button>
-      <button type="button" data-tab="shop" aria-pressed="false">Toko</button>
-      <button type="button" data-tab="stock" aria-pressed="false">Stok</button>
-      <button type="button" data-tab="menu" aria-pressed="false">Menu</button>
-      <button type="button" data-tab="products" aria-pressed="false">Produk</button>
-      <button type="button" data-tab="promos" aria-pressed="false">Promo</button>
-      <button type="button" data-tab="customers" aria-pressed="false">Pelanggan</button>
-      <button type="button" data-tab="vouchers" aria-pressed="false">Voucher &amp; Loyalty</button>
-    </nav>
     <div class="me"><span id="me"></span><button class="btn btn-ghost btn-sm" type="button" id="logout">Keluar</button></div>
   </div>
 </header>
 
-<main class="wrap" id="app">
-  <p class="muted">Memuat…</p>
-</main>
+<div class="shell">
+  <aside class="sidenav" id="sidenav" aria-label="Menu admin" hidden>
+    <div class="sidenav-head"><b>Menu</b><button type="button" class="x" id="nav-close" aria-label="Tutup menu">×</button></div>
+    <nav class="tabs" id="tabs">
+      <button type="button" data-tab="orders" aria-pressed="true"><span aria-hidden="true">📦</span>Pesanan</button>
+      <button type="button" data-tab="shop" aria-pressed="false"><span aria-hidden="true">🏪</span>Toko</button>
+      <button type="button" data-tab="stock" aria-pressed="false"><span aria-hidden="true">📊</span>Stok</button>
+      <button type="button" data-tab="menu" aria-pressed="false"><span aria-hidden="true">🗂️</span>Menu</button>
+      <button type="button" data-tab="products" aria-pressed="false"><span aria-hidden="true">☕</span>Produk</button>
+      <button type="button" data-tab="promos" aria-pressed="false"><span aria-hidden="true">🏷️</span>Promo</button>
+      <button type="button" data-tab="customers" aria-pressed="false"><span aria-hidden="true">👥</span>Pelanggan</button>
+      <button type="button" data-tab="vouchers" aria-pressed="false" aria-controls="subnav-vouchers"><span aria-hidden="true">🎟️</span>Voucher &amp; Loyalty</button>
+      <div class="subnav" id="subnav-vouchers" role="group" aria-label="Voucher & Loyalty">
+        <button type="button" data-vs="campaigns" aria-pressed="false">Kampanye referral</button>
+        <button type="button" data-vs="vouchers" aria-pressed="false">Voucher</button>
+        <button type="button" data-vs="loyalty" aria-pressed="false">Loyalty</button>
+        <button type="button" data-vs="settings" aria-pressed="false">Batas pendaftaran</button>
+      </div>
+    </nav>
+    <div class="sidenav-foot"><span id="me2"></span><button class="btn btn-ghost btn-sm" type="button" id="logout2">Keluar</button></div>
+  </aside>
+  <div class="nav-scrim" id="nav-scrim" hidden></div>
+  <main id="app">
+    <p class="muted">Memuat…</p>
+  </main>
+</div>
 
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
@@ -171,19 +252,20 @@ td.num,th.num{text-align:right}
     if (!session) return showLogin();
     const { data: prof } = await sb.from("profiles").select("full_name,role").eq("id", session.user.id).maybeSingle();
     if (prof?.role !== "admin") {
-      $("topbar").hidden = true;
+      setChrome(false);
       app.innerHTML = `<div class="login card"><h2>Bukan akun admin</h2><p class="muted">${esc(session.user.email)} tidak punya akses admin. Minta pemilik toko menjadikan akun ini admin.</p><button class="btn btn-ghost" id="lo2">Keluar</button></div>`;
       $("lo2").onclick = () => sb.auth.signOut();
       return;
     }
-    $("topbar").hidden = false;
-    $("me").textContent = prof.full_name || realEmail(session.user.email) || "Admin";
+    setChrome(true);
+    $("me").textContent = $("me2").textContent = prof.full_name || realEmail(session.user.email) || "Admin";
+    placeFromHash();
     refreshShopPill(); if (!gate.timer) gate.timer = setInterval(refreshShopPill, 60000);
     $("shop-pill").onclick = () => show("shop");
     show(tab);
   }
   function showLogin() {
-    $("topbar").hidden = true;
+    setChrome(false);
     app.innerHTML = `<form class="login card" id="lf"><h2>Masuk admin</h2>
       <label class="f">Email atau No. WhatsApp<input id="le" autocomplete="username" required></label>
       <label class="f">Password<input id="lp" type="password" autocomplete="current-password" required></label>
@@ -194,7 +276,60 @@ td.num,th.num{text-align:right}
       if (error) { $("lm").textContent = "Email atau password salah."; $("lm").className = "msg err"; }
     };
   }
-  $("logout").onclick = () => sb.auth.signOut();
+  $("logout").onclick = $("logout2").onclick = () => sb.auth.signOut();
+
+  // ---------------------------------------------------------------- layout: sidebar / drawer
+  const TAB_NAME = { orders: "Pesanan", shop: "Toko", stock: "Stok", menu: "Menu", products: "Produk", promos: "Promo", customers: "Pelanggan", vouchers: "Voucher & Loyalty" };
+  const SUB_NAME = { campaigns: "Kampanye referral", vouchers: "Voucher", loyalty: "Loyalty", settings: "Batas pendaftaran" };
+  const setChrome = (on) => { $("topbar").hidden = !on; $("sidenav").hidden = !on; if (!on) closeNav(); };
+  const isDrawer = () => matchMedia("(max-width:1023px)").matches;
+  function openNav() {
+    $("sidenav").classList.add("open"); $("nav-scrim").hidden = false;
+    $("nav-toggle").setAttribute("aria-expanded", "true");
+    ($("sidenav").querySelector('[aria-pressed="true"]') || $("nav-close")).focus();
+  }
+  function closeNav(focusToggle) {
+    $("sidenav").classList.remove("open"); $("nav-scrim").hidden = true;
+    $("nav-toggle").setAttribute("aria-expanded", "false");
+    if (focusToggle) $("nav-toggle").focus();
+  }
+  $("nav-toggle").onclick = () => ($("sidenav").classList.contains("open") ? closeNav() : openNav());
+  $("nav-close").onclick = () => closeNav(true);
+  $("nav-scrim").onclick = () => closeNav(true);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("modal").hidden) return closeModal();
+    if ($("sidenav").classList.contains("open")) closeNav(true);
+  });
+  // column names for the phone card layout of tables
+  const labelTables = (root) => root.querySelectorAll("table").forEach((t) => {
+    const heads = [...t.querySelectorAll("thead th")].map((th) => th.textContent.trim());
+    if (!heads.length) return;
+    t.querySelectorAll("tbody tr").forEach((tr) => {
+      let i = 0;
+      [...tr.children].forEach((td) => {
+        if (td.colSpan > 1) { i += td.colSpan; return; }
+        if (!td.hasAttribute("data-label")) td.setAttribute("data-label", heads[i] || "");
+        i++;
+      });
+    });
+  });
+  let labelQueued = false;
+  const queueLabels = () => { if (labelQueued) return; labelQueued = true; requestAnimationFrame(() => { labelQueued = false; labelTables(document); }); };
+  new MutationObserver(queueLabels).observe(document.body, { childList: true, subtree: true });
+  // the current page goes in the address (#orders, #vouchers/loyalty) so refresh and back work
+  function syncPlace() {
+    const h = "#" + tab + (tab === "vouchers" ? "/" + vSub : "");
+    if (location.hash !== h) history.replaceState(null, "", h);
+    $("crumb").textContent = tab === "vouchers" ? SUB_NAME[vSub] : TAB_NAME[tab];
+    document.title = `${tab === "vouchers" ? SUB_NAME[vSub] : TAB_NAME[tab]} · CamilaNika Admin`;
+  }
+  function placeFromHash() {
+    const [t, sub] = location.hash.replace(/^#/, "").split("/");
+    if (TAB_NAME[t]) tab = t;
+    if (t === "vouchers" && SUB_NAME[sub]) vSub = sub;
+  }
+  window.addEventListener("hashchange", () => { const prev = tab + vSub; placeFromHash(); if (prev !== tab + vSub && !$("topbar").hidden) show(tab); });
   let lastUser;
   sb.auth.onAuthStateChange((ev, s) => {
     const uid = s?.user?.id || null;
@@ -203,10 +338,20 @@ td.num,th.num{text-align:right}
     setTimeout(() => gate(s), 0);
   });
 
-  $("tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
+  $("tabs").addEventListener("click", (e) => {
+    const sub = e.target.closest("[data-vs]");
+    if (sub) { vSub = sub.dataset.vs; if (isDrawer()) closeNav(); if (tab === "vouchers" && $("vbody")) { drawSub(); } else show("vouchers"); return; }
+    const b = e.target.closest("[data-tab]");
+    if (!b) return;
+    if (isDrawer()) closeNav();
+    show(b.dataset.tab);
+  });
   function show(t) {
     tab = t; clearInterval(refreshTimer);
-    document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === t));
+    document.querySelectorAll("#tabs > button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tab === t)));
+    document.querySelectorAll("#subnav-vouchers [data-vs]").forEach((b) => b.setAttribute("aria-pressed", String(t === "vouchers" && b.dataset.vs === vSub)));
+    syncPlace();
+    app.scrollTop = 0; window.scrollTo(0, 0);
     ({ orders: renderOrders, shop: renderShopTab, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers, vouchers: renderVouchersTab })[t]();
   }
 
@@ -1055,15 +1200,13 @@ td.num,th.num{text-align:right}
   const picked = (id) => [...$(id + "-list").querySelectorAll("input:checked")].map((i) => +i.value);
 
   async function renderVouchersTab() {
-    app.innerHTML = `<div class="bar"><h2>Referral, Voucher & Loyalty</h2></div>
-      <div class="subtabs" role="group" aria-label="Bagian">
-        <button type="button" data-vs="campaigns">Kampanye referral</button><button type="button" data-vs="vouchers">Voucher</button><button type="button" data-vs="loyalty">Loyalty</button><button type="button" data-vs="settings">Batas pendaftaran</button>
-      </div><div id="vbody"></div>`;
-    app.querySelectorAll("[data-vs]").forEach((b) => b.onclick = () => { vSub = b.dataset.vs; drawSub(); });
+    app.innerHTML = `<div class="bar"><h2 id="vtitle"></h2></div><div id="vbody"></div>`;
     drawSub();
   }
   function drawSub() {
-    app.querySelectorAll("[data-vs]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.vs === vSub));
+    document.querySelectorAll("#subnav-vouchers [data-vs]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.vs === vSub)));
+    $("vtitle").textContent = SUB_NAME[vSub];
+    syncPlace();
     ({ campaigns: renderCampaigns, vouchers: renderVoucherList, loyalty: renderLoyalty, settings: renderSignupLimits })[vSub]();
   }
 
