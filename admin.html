@@ -109,7 +109,7 @@ td.num,th.num{text-align:right}
       <button type="button" data-tab="products" aria-pressed="false">Produk</button>
       <button type="button" data-tab="promos" aria-pressed="false">Promo</button>
       <button type="button" data-tab="customers" aria-pressed="false">Pelanggan</button>
-      <button type="button" data-tab="vouchers" aria-pressed="false">Referral & Voucher</button>
+      <button type="button" data-tab="vouchers" aria-pressed="false">Voucher &amp; Loyalty</button>
     </nav>
     <div class="me"><span id="me"></span><button class="btn btn-ghost btn-sm" type="button" id="logout">Keluar</button></div>
   </div>
@@ -122,7 +122,7 @@ td.num,th.num{text-align:right}
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/config.js?v=202610270900"></script>
+<script src="js/config.js?v=202610271128"></script>
 <script src="js/vendor/supabase.js"></script>
 <script>
 (() => {
@@ -1054,16 +1054,16 @@ td.num,th.num{text-align:right}
   const picked = (id) => [...$(id + "-list").querySelectorAll("input:checked")].map((i) => +i.value);
 
   async function renderVouchersTab() {
-    app.innerHTML = `<div class="bar"><h2>Referral & Voucher</h2></div>
+    app.innerHTML = `<div class="bar"><h2>Referral, Voucher & Loyalty</h2></div>
       <div class="subtabs" role="group" aria-label="Bagian">
-        <button type="button" data-vs="campaigns">Kampanye referral</button><button type="button" data-vs="vouchers">Voucher</button><button type="button" data-vs="settings">Batas pendaftaran</button>
+        <button type="button" data-vs="campaigns">Kampanye referral</button><button type="button" data-vs="vouchers">Voucher</button><button type="button" data-vs="loyalty">Loyalty</button><button type="button" data-vs="settings">Batas pendaftaran</button>
       </div><div id="vbody"></div>`;
     app.querySelectorAll("[data-vs]").forEach((b) => b.onclick = () => { vSub = b.dataset.vs; drawSub(); });
     drawSub();
   }
   function drawSub() {
     app.querySelectorAll("[data-vs]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.vs === vSub));
-    ({ campaigns: renderCampaigns, vouchers: renderVoucherList, settings: renderSignupLimits })[vSub]();
+    ({ campaigns: renderCampaigns, vouchers: renderVoucherList, loyalty: renderLoyalty, settings: renderSignupLimits })[vSub]();
   }
 
   // ----- campaigns
@@ -1192,7 +1192,7 @@ td.num,th.num{text-align:right}
     el.innerHTML = `<div class="bar" style="margin-bottom:.6rem">
         <input id="vq" placeholder="Cari kode, nama, atau nomor" value="${esc(vFilter.q)}" style="flex:1;min-width:200px">
         <select id="vst"><option value="">Semua status</option>${Object.entries(VSTATE).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
-        <select id="vsrc"><option value="">Semua sumber</option><option value="admin">Dari admin</option><option value="referral">Referral</option></select>
+        <select id="vsrc"><option value="">Semua sumber</option><option value="admin">Dari admin</option><option value="referral">Referral</option><option value="loyalty">Loyalty</option></select>
         <button class="btn btn-ghost" id="vassign">Assign voucher</button><button class="btn btn-rose" id="vnew">+ Voucher baru</button></div>
       <div class="tbl-wrap"><table><thead><tr><th>Kode</th><th>Pemilik</th><th>Diskon</th><th>Produk</th><th>Berlaku sampai</th><th>Status</th><th>Catatan</th><th></th></tr></thead><tbody id="vbody2"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
     $("vst").value = vFilter.state; $("vsrc").value = vFilter.source;
@@ -1210,7 +1210,7 @@ td.num,th.num{text-align:right}
     if (error) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(verr(error))}</td></tr>`; return; }
     if (!data.length) { tb.innerHTML = `<tr><td colspan="8" class="muted">Tidak ada voucher.</td></tr>`; return; }
     tb.innerHTML = data.map((v) => `<tr>
-      <td><div class="codecell"><code>${esc(v.code)}</code><button class="btn btn-ghost btn-sm" data-vc="${esc(v.code)}" aria-label="Salin ${esc(v.code)}">Salin</button></div><span class="muted" style="font-size:.78rem">${v.source === "referral" ? "Referral" + (v.campaign ? " · " + esc(v.campaign) : "") : "Dari admin"}</span></td>
+      <td><div class="codecell"><code>${esc(v.code)}</code><button class="btn btn-ghost btn-sm" data-vc="${esc(v.code)}" aria-label="Salin ${esc(v.code)}">Salin</button></div><span class="muted" style="font-size:.78rem">${v.source === "referral" ? "Referral" + (v.campaign ? " · " + esc(v.campaign) : "") : v.source === "loyalty" ? "Loyalty" + (v.tier ? " · " + esc(v.tier) : "") : "Dari admin"}</span></td>
       <td>${v.user_id ? `<b>${esc(v.owner_name || "–")}</b><br><span class="muted">${esc(v.owner_phone || "")}</span>` : `<span class="muted">Belum diberikan</span>`}</td>
       <td>${esc(offer(v))}</td><td style="font-size:.85rem">${v.applies_to_all ? "Semua" : esc(v.products.join(", "))}</td>
       <td style="font-size:.85rem">${v.expires_at ? fmtDate(v.expires_at) : v.status === "pending" ? "setelah aktif" : "–"}</td>
@@ -1340,6 +1340,129 @@ td.num,th.num{text-align:right}
       closeModal(); toast(`Voucher ${res.data.code} diberikan. Pelanggan mendapat notifikasi.`);
       if ($("vbody2")) loadVouchers();
     };
+  }
+
+  // ----- loyalty
+  let loySearch = "";
+  async function renderLoyalty() {
+    const el = $("vbody");
+    el.innerHTML = `<div class="bar" style="margin-bottom:.6rem"><p class="muted" style="margin:0;flex:1;min-width:260px">Pelanggan otomatis dapat voucher saat <b>total belanja yang sudah dibayar</b> melewati milestone. Tiap milestone hanya sekali per pelanggan (kecuali diatur berulang). Pembatalan pesanan yang sudah dibayar mengurangi total.</p>
+        <label class="chk"><input type="checkbox" id="lship"> Ongkir ikut dihitung</label><button class="btn btn-rose" id="newtier">+ Milestone baru</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Milestone</th><th class="num">Total belanja</th><th>Hadiah</th><th>Berlaku</th><th class="num">Diberikan</th><th class="num">Dipakai</th><th>Status</th><th></th></tr></thead><tbody id="ltbody"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>
+      <div class="bar" style="margin:1.4rem 0 .6rem"><h3 style="margin:0;margin-right:auto">Pelanggan</h3><input id="lq" placeholder="Cari nama atau nomor" value="${esc(loySearch)}" style="min-width:220px"></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Pelanggan</th><th class="num">Total belanja</th><th class="num">Pesanan dibayar</th><th>Milestone tertinggi</th><th>Berikutnya</th><th class="num">Voucher (bisa dipakai / terpakai)</th><th></th></tr></thead><tbody id="lcbody"><tr><td colspan="7" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("newtier").onclick = () => editTier(null);
+    let t = null; $("lq").oninput = () => { clearTimeout(t); t = setTimeout(() => { loySearch = $("lq").value.trim(); loadLoyCustomers(); }, 350); };
+    const { data: st } = await sb.from("shop_settings").select("loyalty_include_shipping").eq("id", 1).maybeSingle();
+    if ($("lship")) {
+      $("lship").checked = !!st?.loyalty_include_shipping;
+      $("lship").onchange = async () => {
+        const { error } = await sb.from("shop_settings").update({ loyalty_include_shipping: $("lship").checked }).eq("id", 1);
+        toast(error ? err(error) : "Tersimpan. Berlaku untuk pembayaran berikutnya.");
+      };
+    }
+    await Promise.all([loadTiers(), loadLoyCustomers()]);
+  }
+  async function loadTiers() {
+    const [{ data, error }, { data: stats }] = await Promise.all([sb.from("loyalty_tiers").select("*").order("threshold").order("id"), sb.rpc("admin_loyalty_tier_stats")]);
+    const tb = $("ltbody"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    if (!data.length) { tb.innerHTML = `<tr><td colspan="8" class="muted">Belum ada milestone. Contoh: Rp100.000 → voucher Rp10.000.</td></tr>`; return; }
+    tb.innerHTML = data.map((t) => { const st = (stats || {})[t.id] || {}; return `<tr>
+      <td><b>${esc(t.name)}</b>${t.description ? `<br><span class="muted" style="font-size:.8rem">${esc(t.description)}</span>` : ""}</td>
+      <td class="num">${t.recurring ? "setiap " : ""}${rp(t.threshold)}</td>
+      <td>${esc(offer(t))}</td>
+      <td style="font-size:.85rem">${t.valid_days} hari${t.valid_until ? `<br>maks. ${fmtDate(t.valid_until)}` : ""}</td>
+      <td class="num">${st.issued || 0}</td><td class="num">${st.used || 0}</td>
+      <td><span class="badge ${t.is_active ? "active" : "off"}">${t.is_active ? "Aktif" : "Nonaktif"}</span></td>
+      <td><div class="row-actions" style="justify-content:flex-start">
+        <button class="btn btn-ghost btn-sm" data-te="${t.id}">Ubah</button>
+        <button class="btn btn-ghost btn-sm" data-tt="${t.id}" data-on="${!t.is_active}">${t.is_active ? "Nonaktifkan" : "Aktifkan"}</button>
+        ${t.is_active && st.qualify_missing ? `<button class="btn btn-ok btn-sm" data-tg="${t.id}" data-n="${st.qualify_missing}" title="Pelanggan yang totalnya sudah melewati milestone ini tapi belum dapat">Berikan ke ${st.qualify_missing} pelanggan</button>` : ""}</div></td></tr>`; }).join("");
+    tb.querySelectorAll("[data-te]").forEach((b) => b.onclick = () => editTier(data.find((x) => x.id === +b.dataset.te)));
+    tb.querySelectorAll("[data-tt]").forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      const { error } = await sb.from("loyalty_tiers").update({ is_active: b.dataset.on === "true" }).eq("id", +b.dataset.tt);
+      if (error) { toast(err(error)); b.disabled = false; } else { toast("Status milestone diperbarui"); loadTiers(); }
+    });
+    tb.querySelectorAll("[data-tg]").forEach((b) => b.onclick = async () => {
+      if (!confirm(`Berikan voucher milestone ini ke ${b.dataset.n} pelanggan yang totalnya sudah melewati milestone tapi belum pernah dapat? Mereka akan dapat notifikasi.`)) return;
+      b.disabled = true;
+      const { data: n, error } = await sb.rpc("admin_loyalty_grant_existing", { p_tier_id: +b.dataset.tg });
+      if (error) { toast(err(error)); b.disabled = false; } else { toast(`${n} voucher diberikan`); loadTiers(); loadLoyCustomers(); }
+    });
+  }
+  function editTier(t) {
+    const isNew = !t;
+    t = t || { name: "", threshold: 100000, discount_type: "fixed", value: 10000, min_spend: 0, valid_days: 30, recurring: false, is_active: true };
+    openModal(`<div class="modal-head"><h2>${isNew ? "Milestone baru" : "Ubah milestone"}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <div class="grid2">
+        <label class="f">Nama<input id="tn" value="${esc(t.name)}" placeholder="mis. Pelanggan Setia"></label>
+        <label class="f">Total belanja minimal (Rp)<input id="tth" type="number" min="1000" step="1000" value="${t.threshold}"></label>
+      </div>
+      <label class="chk"><input type="checkbox" id="trec" ${t.recurring ? "checked" : ""}> Berulang: hadiah lagi setiap kelipatan jumlah ini</label>
+      <div class="grid3">
+        <label class="f">Jenis voucher<select id="tt"><option value="fixed">Potongan Rupiah</option><option value="percent">Diskon persen</option></select></label>
+        <label class="f" id="tvw">Nilai<input id="tv" type="number" min="1" value="${t.value}"></label>
+        <label class="f" id="tmw">Maks. diskon (opsional)<input id="tm" type="number" min="1" value="${t.max_discount ?? ""}"></label>
+        <label class="f">Minimal belanja pakai voucher (Rp)<input id="tmin" type="number" min="0" step="1000" value="${t.min_spend}"></label>
+        <label class="f">Voucher berlaku (hari)<input id="tvd" type="number" min="1" max="3650" value="${t.valid_days}"></label>
+        <label class="f">Paling lambat (opsional)<input id="tvu" type="datetime-local" value="${toLocal(t.valid_until)}"></label>
+      </div>
+      <label class="f">Keterangan untuk pelanggan (opsional)<input id="tdesc" value="${esc(t.description || "")}" placeholder="mis. Terima kasih sudah langganan!"></label>
+      <label class="chk"><input type="checkbox" id="tact" ${t.is_active ? "checked" : ""}> Aktif</label>
+      <p class="muted" style="margin:0;font-size:.85rem">Perubahan berlaku untuk pembayaran berikutnya. Pelanggan yang totalnya <b>sudah</b> melewati milestone baru/yang diturunkan tidak otomatis dapat; pakai tombol <b>Berikan ke … pelanggan</b> kalau memang ingin memberi. Voucher yang sudah diberikan tidak berubah.</p>
+      <p class="msg" id="tmsg"></p>
+      <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="tdel" style="margin-right:auto">Hapus</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="tsave">Simpan</button></div>`);
+    $("tt").value = t.discount_type;
+    const sync = () => { const k = $("tt").value; $("tmw").hidden = k !== "percent"; $("tvw").firstChild.textContent = k === "percent" ? "Diskon (%)" : "Potongan (Rp)"; };
+    $("tt").onchange = sync; sync();
+    if (!isNew) $("tdel").onclick = async () => {
+      if (!confirm("Hapus milestone ini? Voucher yang sudah diberikan tetap berlaku. Lebih aman dinonaktifkan saja.")) return;
+      const { error } = await sb.from("loyalty_tiers").delete().eq("id", t.id);
+      if (error) return toast(err(error));
+      closeModal(); toast("Milestone dihapus"); loadTiers();
+    };
+    $("tsave").onclick = async () => {
+      const num = (id) => $(id).value === "" ? null : parseInt($(id).value, 10), k = $("tt").value;
+      const row = { name: $("tn").value.trim(), threshold: num("tth"), recurring: $("trec").checked, discount_type: k, value: num("tv"),
+        max_discount: k === "percent" ? num("tm") : null, min_spend: num("tmin") || 0, valid_days: num("tvd") || 30,
+        valid_until: $("tvu").value ? new Date($("tvu").value).toISOString() : null, description: $("tdesc").value.trim() || null, is_active: $("tact").checked };
+      const fail = (m) => { $("tmsg").textContent = m; $("tmsg").className = "msg err"; };
+      if (!row.name) return fail("Isi nama milestone.");
+      if (!(row.threshold > 0)) return fail("Isi total belanja minimal.");
+      if (k === "percent" && !(row.value >= 1 && row.value <= 100)) return fail("Diskon persen harus 1–100.");
+      if (k === "fixed" && !(row.value > 0)) return fail("Isi nilai potongan.");
+      if (row.valid_until && new Date(row.valid_until) <= new Date()) return fail("Tanggal paling lambat harus di masa depan.");
+      $("tsave").disabled = true;
+      const { error } = isNew ? await sb.from("loyalty_tiers").insert(row) : await sb.from("loyalty_tiers").update(row).eq("id", t.id);
+      if ($("tsave")) $("tsave").disabled = false;
+      if (error) return fail("Gagal menyimpan: " + err(error));
+      closeModal(); toast("Milestone tersimpan"); loadTiers(); loadLoyCustomers();
+    };
+  }
+  async function loadLoyCustomers() {
+    const { data, error } = await sb.rpc("admin_loyalty_customers", { p_search: loySearch || null });
+    const tb = $("lcbody"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="7" class="msg err">${esc(err(error))}</td></tr>`; return; }
+    if (!data.length) { tb.innerHTML = `<tr><td colspan="7" class="muted">${loySearch ? "Tidak ada yang cocok." : "Belum ada pelanggan dengan pesanan dibayar."}</td></tr>`; return; }
+    tb.innerHTML = data.map((c) => `<tr><td><b>${esc(c.name || "–")}</b><br><span class="muted">${esc(c.phone || "")}</span></td>
+      <td class="num"><b>${rp(c.spend)}</b></td><td class="num">${c.paid_orders}</td><td>${esc(c.highest || "–")}</td>
+      <td style="font-size:.85rem">${c.next ? `${rp(c.next.threshold)} <span class="muted">(kurang ${rp(c.next.threshold - c.spend)})</span>` : "Semua tercapai"}</td>
+      <td class="num">${c.available} / ${c.used}</td><td><button class="btn btn-ghost btn-sm" data-lh="${c.id}">Riwayat</button></td></tr>`).join("");
+    tb.querySelectorAll("[data-lh]").forEach((b) => b.onclick = () => loyaltyHistory(data.find((c) => c.id === b.dataset.lh)));
+  }
+  async function loyaltyHistory(c) {
+    openModal(`<div class="modal-head"><h2>Loyalty · ${esc(c.name || "")}</h2><button class="x" data-close aria-label="Tutup">×</button></div><div id="lhb"><p class="muted">Memuat…</p></div>`);
+    const { data, error } = await sb.rpc("admin_loyalty_history", { p_user: c.id });
+    const el = $("lhb"); if (!el) return;
+    if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
+    el.innerHTML = `<p style="margin:0">Total belanja dihitung: <b>${rp(data.spend)}</b></p>
+      <h3 style="margin:.6rem 0 .3rem;font-size:1rem">Hadiah</h3>
+      ${data.rewards.length ? `<ol class="hist">${data.rewards.map((r) => `<li><b>${esc(r.tier)}</b>${r.cycle > 1 ? ` #${r.cycle}` : ""} · ${fmtDate(r.at)} · total saat itu ${rp(r.spend_at)}${r.manual ? " · diberikan admin" : ""}<br>
+        <code>${esc(r.voucher || "–")}</code> <span class="badge ${r.voucher_status}">${VSTATE[r.voucher_status] || "–"}</span>${r.used_order ? ` · dipakai di ${esc(r.used_order)}` : ""}</li>`).join("")}</ol>` : `<p class="muted" style="margin:0">Belum ada.</p>`}
+      <h3 style="margin:.6rem 0 .3rem;font-size:1rem">Pembayaran yang dihitung</h3>
+      ${data.ledger.length ? `<ol class="hist">${data.ledger.map((l) => `<li>${esc(l.order || "–")} · ${fmtDate(l.at)} · <b style="color:${l.amount < 0 ? "var(--rose)" : "var(--ok)"}">${l.amount < 0 ? "−" : "+"}${rp(Math.abs(l.amount))}</b>${l.kind === "reverse" ? " (dibatalkan)" : ""}</li>`).join("")}</ol>` : `<p class="muted" style="margin:0">Belum ada.</p>`}`;
   }
 
   // ----- sign-up limits

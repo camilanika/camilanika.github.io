@@ -735,13 +735,18 @@
     history.pushState({ cnOrders: opDepth() + 1 }, "", location.pathname + location.search + "#voucher");
     route();
   }
+  function navLoyalty() {
+    if (location.hash === "#loyalty") return route();
+    history.pushState({ cnOrders: opDepth() + 1 }, "", location.pathname + location.search + "#loyalty");
+    route();
+  }
   function route() {
     clearTimeout(pollTimer);
-    const m = location.hash.match(/^#pesanan(?:\/(.+))?$/), mv = location.hash === "#voucher";
-    if (!m && !mv) { if (!OP.hidden) { OP.hidden = true; document.body.style.overflow = ""; } return; }
+    const m = location.hash.match(/^#pesanan(?:\/(.+))?$/), mv = location.hash === "#voucher", ml = location.hash === "#loyalty";
+    if (!m && !mv && !ml) { if (!OP.hidden) { OP.hidden = true; document.body.style.overflow = ""; } return; }
     closeAll();
     OP.hidden = false; document.body.style.overflow = "hidden"; OP.scrollTop = 0;
-    if (mv) renderVoucherPage(); else if (m[1]) renderOrderDetail(decodeURIComponent(m[1])); else renderOrderList();
+    if (ml) renderLoyaltyPage(); else if (mv) renderVoucherPage(); else if (m[1]) renderOrderDetail(decodeURIComponent(m[1])); else renderOrderList();
   }
   window.addEventListener("popstate", route);
   window.addEventListener("hashchange", route);
@@ -752,6 +757,7 @@
     if (row) { e.preventDefault(); navOrders(row.dataset.order); return; }
     if (e.target.closest("[data-open-orders]")) { e.preventDefault(); navOrders(); return; }
     if (e.target.closest("[data-open-vouchers]")) { e.preventDefault(); navVouchers(); return; }
+    if (e.target.closest("[data-open-loyalty]")) { e.preventDefault(); navLoyalty(); return; }
     if (e.target.closest("[data-open-notifs]")) { e.preventDefault(); openDrawer(NF); renderNotifs(); return; }
     const cp = e.target.closest("[data-copy]");
     if (cp) { copyText(cp.dataset.copy); return; }
@@ -862,6 +868,62 @@
     await load();
   }
 
+  // ------------------------------------------------------------------ loyalty (#loyalty + card in Akun saya)
+  const loyBar = (pct, label) => `<div class="loy-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${esc(label)}"><span style="width:${pct}%"></span></div>`;
+  async function fillLoyaltyCard() {
+    const el = $("am-loyalty"); if (!el || !session) return;
+    const { data, error } = await sb.rpc("my_loyalty");
+    if (!$("am-loyalty") || error || !data?.enabled) { if ($("am-loyalty")) $("am-loyalty").innerHTML = ""; return; }
+    const nx = data.next;
+    $("am-loyalty").innerHTML = `<button type="button" class="loy-card" data-open-loyalty aria-label="Program loyalty: total belanja ${rp(data.spend)}">
+      <span class="loy-top"><b>⭐ Loyalty</b><span>${rp(data.spend)}</span></span>
+      ${nx ? `${loyBar(nx.percent, `Progres ${nx.percent}% menuju ${rp(nx.threshold)}`)}<small>Belanja <b>${rp(nx.remaining)}</b> lagi untuk ${esc(nx.reward)}</small>`
+           : `<small>Semua hadiah loyalty sudah terbuka 🎉</small>`}
+    </button>`;
+  }
+  async function renderLoyaltyPage() {
+    $("op-title").textContent = "Program Loyalty";
+    const body = $("op-body");
+    if (!session) {
+      body.innerHTML = `<div class="vc-card"><b>Program Loyalty</b><p style="margin:0;color:var(--muted)">Masuk untuk melihat total belanja dan hadiah voucher kamu.</p>
+        <button type="button" class="btn btn-rose" data-open-account style="justify-content:center">Masuk / Daftar</button></div>`;
+      return;
+    }
+    body.innerHTML = `<p class="form-msg">Memuat…</p>`;
+    const { data, error } = await sb.rpc("my_loyalty");
+    if (location.hash !== "#loyalty") return;
+    if (error || !data) { body.innerHTML = `<p class="form-msg err">Data loyalty gagal dimuat. Coba lagi sebentar.</p>`; return; }
+    if (!data.enabled && !data.vouchers.length) { body.innerHTML = `<p class="op-empty">Program loyalty belum aktif. Nantikan ya!</p>`; return; }
+    const nx = data.next;
+    const tierLine = (t) => {
+      const got = t.times > 0;
+      return `<li class="loy-tier ${got ? "got" : ""}">
+        <span class="loy-ic" aria-hidden="true">${got ? "✓" : "🔒"}</span>
+        <span class="loy-tx"><b>${t.recurring ? "Setiap " : ""}${rp(t.threshold)} → ${esc(t.reward)}</b>
+          <small>${esc(t.name)}${t.min_spend ? ` · min. belanja ${rp(t.min_spend)}` : ""} · berlaku ${t.valid_days} hari${t.description ? " · " + esc(t.description) : ""}</small></span>
+        <span class="loy-st">${got ? (t.recurring ? `${t.times}× didapat` : "Terbuka") : "Belum"}</span></li>`;
+    };
+    body.innerHTML = `
+      <section class="vc-card loy-hero" aria-labelledby="loy-h">
+        <h3 id="loy-h" style="margin:0">Hadiah Loyalty Kamu</h3>
+        <p style="margin:0">Kamu sudah belanja <b class="loy-big">${rp(data.spend)}</b></p>
+        ${data.highest ? `<small class="od-muted">Milestone tertinggi: ${esc(data.highest.name)} (${rp(data.highest.threshold)})</small>` : ""}
+        ${nx ? `<p style="margin:.3rem 0 0">Hadiah berikutnya di <b>${rp(nx.threshold)}</b></p>
+          ${loyBar(nx.percent, `Progres ${nx.percent}%`)}
+          <div class="loy-row"><span>Progres: <b>${nx.percent}%</b></span><span>${rp(data.spend)} / ${rp(nx.threshold)}</span></div>
+          <p style="margin:0">Belanja <b>${rp(nx.remaining)}</b> lagi untuk dapat <b>${esc(nx.reward)}</b>${nx.min_spend ? ` (min. belanja ${rp(nx.min_spend)})` : ""}.</p>`
+          : `<p style="margin:.3rem 0 0">🎉 Semua hadiah loyalty yang tersedia sudah kamu buka. Terima kasih sudah jadi pelanggan setia!</p>`}
+        <small class="od-muted">Dihitung dari pesanan yang sudah dibayar, setelah diskon${data.include_shipping ? "" : ", tanpa ongkir"}. Pesanan yang dibatalkan tidak dihitung.</small>
+      </section>
+      <section class="vc-sec" aria-labelledby="loy-t"><h4 id="loy-t">Milestone</h4>
+        ${data.tiers.length ? `<ul class="loy-tiers">${data.tiers.map(tierLine).join("")}</ul>` : `<p class="op-empty">Belum ada milestone aktif.</p>`}</section>
+      <section class="vc-sec" aria-labelledby="loy-v"><h4 id="loy-v">Voucher Loyalty</h4>
+        ${data.vouchers.length ? data.vouchers.map(voucherCard).join("") : `<p class="op-empty" style="padding:.6rem 0">Belum ada. Voucher muncul di sini otomatis saat milestone tercapai.</p>`}</section>
+      ${data.history.length ? `<section class="vc-sec" aria-labelledby="loy-r"><h4 id="loy-r">Riwayat belanja yang dihitung</h4>
+        <div class="vc-card" style="gap:.3rem">${data.history.map((h) => `<div class="od-line"><span>${h.order ? `<button type="button" class="linkish" data-order="${esc(h.order)}">${esc(h.order)}</button>` : "–"} <small style="display:inline">${fmtDate(h.at)}${h.kind === "reverse" ? " · dibatalkan" : ""}</small></span><span style="color:${h.amount < 0 ? "var(--rose)" : "var(--wa)"}">${h.amount < 0 ? "−" : "+"}${rp(Math.abs(h.amount))}</span></div>`).join("")}</div></section>` : ""}`;
+    refreshBadgesSoon();
+  }
+
   // ------------------------------------------------------------------ voucher page (#voucher)
   const VST = { available: "Bisa dipakai", pending: "Menunggu pembayaran pertama", reserved: "Sedang dipakai", used: "Sudah dipakai", expired: "Kedaluwarsa", revoked: "Dibatalkan" };
   const offerOf = (x) => x.discount_type === "free_item" ? `Gratis ${x.gift_text || "hadiah"}` : x.discount_type === "percent" ? `Diskon ${x.value}%` : `Potongan ${rp(x.value)}`;
@@ -877,6 +939,7 @@
       st === "pending" ? "Aktif setelah pembayaran pertama kamu berhasil" : v.expires_at ? `${st === "expired" ? "Berakhir" : "Berlaku sampai"} ${fmtDate(v.expires_at)}` : "Tanpa batas waktu",
       forWhat(v), "Sekali pakai",
       v.campaign ? `Dari kampanye ${esc(v.campaign)}` : "",
+      v.tier ? `Hadiah loyalty: ${esc(v.tier)}` : "",
       st === "reserved" && v.reserved_order ? `Sedang dipakai di pesanan <button type="button" class="linkish" data-order="${esc(v.reserved_order)}">${esc(v.reserved_order)}</button> yang belum dibayar` : "",
       st === "used" && v.used_order ? `Dipakai di pesanan <button type="button" class="linkish" data-order="${esc(v.used_order)}">${esc(v.used_order)}</button>${v.used_at ? " · " + fmtDate(v.used_at) : ""}` : "",
     ].filter(Boolean);
@@ -922,6 +985,8 @@
       ${session ? `
       <section class="vc-sec" aria-labelledby="vc-ref"><h4 id="vc-ref">Voucher Referral</h4>
         ${data.referral.length ? data.referral.map(voucherCard).join("") : empty("Belum ada voucher referral. Voucher ini didapat saat daftar dengan kode referral CamilaNika.")}</section>
+      <section class="vc-sec" aria-labelledby="vc-loy"><h4 id="vc-loy">Voucher Loyalty</h4>
+        ${(data.loyalty || []).length ? data.loyalty.map(voucherCard).join("") : empty(`Belum ada voucher loyalty. Kumpulkan total belanja untuk membuka hadiah. <button type="button" class="linkish" data-open-loyalty>Lihat progres</button>`)}</section>
       <section class="vc-sec" aria-labelledby="vc-adm"><h4 id="vc-adm">Voucher dari Admin</h4>
         ${data.admin.length ? data.admin.map(voucherCard).join("") : empty("Belum ada voucher khusus untuk kamu.")}</section>` : `
       <div class="vc-card"><b>Voucher pribadi</b><p style="margin:0;color:var(--muted)">Masuk untuk melihat voucher referral dan voucher dari admin.</p>
@@ -1087,6 +1152,7 @@
     body.innerHTML = `${reward}
       <div class="am-head"><span class="am-avatar" aria-hidden="true">${esc(name.trim().charAt(0).toUpperCase() || "C")}</span>
         <div style="min-width:0"><b>${esc(name)}</b><small>${esc(profile?.phone || realEmail(session.user.email) || "")}</small></div></div>
+      <div id="am-loyalty"></div>
       <nav class="am-menu" aria-label="Menu akun">
         ${item("profile", "👤", "Profile", "Nama, No. WhatsApp, Alamat")}
         <div class="am-panel" id="am-profile" hidden>
@@ -1107,6 +1173,7 @@
       </nav>
       <button class="btn btn-ghost" type="button" id="logout" style="justify-content:center">Keluar</button>`;
     renderBadges();
+    fillLoyaltyCard();
     body.querySelectorAll("[data-am]").forEach((b) => b.addEventListener("click", () => {
       const k = b.dataset.am;
       if (k === "profile") { const open = b.getAttribute("aria-expanded") !== "true"; b.setAttribute("aria-expanded", String(open)); $("am-profile").hidden = !open; if (open) $("p-name").focus(); }
@@ -1263,6 +1330,7 @@
       sb.rpc("mark_notifications_read", { p_ids: [n.id] }).then(({ error }) => { if (error) refreshUnread(); });
     }
     if (n.kind === "order") { navOrders(n.ref_id); return; }
+    if (n.link === "#loyalty") { navLoyalty(); return; }
     if (n.kind === "voucher" || n.kind === "account") { navVouchers(); return; }
     if (n.kind === "promo") { renderPromoDetail(n.ref_id); return; }
     if (n.kind === "product") {
@@ -1354,6 +1422,6 @@
       const st = params.get("transaction_status");
       if (st === "settlement" || st === "capture" || st === "pending") clearCart();
       showStatus(num, true);
-    } else if (/^#(pesanan|voucher)/.test(location.hash)) route();
+    } else if (/^#(pesanan|voucher|loyalty)/.test(location.hash)) route();
   })();
 })();
