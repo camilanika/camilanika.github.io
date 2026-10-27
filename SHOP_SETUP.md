@@ -83,6 +83,11 @@ Open `https://camilanika.github.io/admin.html`.
 - **Sign-up with a WhatsApp number:** customers register with name, WhatsApp number and password, and are logged in straight away. No SMS or email is sent. Behind the scenes the login is a private address `<62number>@phone.camilanika.invalid`, created by the `phone-signup` Edge Function. Customers log in with their number (or email, for accounts made with email).
 - **Forgotten passwords:** number accounts can't get a reset email. The customer chats you on WhatsApp; in **Pelanggan** press **Reset password**, then send the new password with the WhatsApp button. This uses the `admin-users` Edge Function, which only admins can call. Customers can change their password themselves under **Akun → Ganti password**.
 - **Deleting an account:** in **Pelanggan** press **Hapus akun** and type HAPUS to confirm. The person can no longer log in and their profile is removed; their past orders stay in **Pesanan** (unlinked, like guest orders). You can't delete yourself or another admin (remove admin access first). The same number or email can register again later.
+- **Admins:** Pelanggan → **Kelola admin**:
+  - *Daftar admin* lists everyone with admin access; **Cabut admin** turns them back into a normal customer (the account stays). You can't remove your own access.
+  - *Dari akun yang ada*: search by name, number, email or ID and press **Jadikan admin**.
+  - *Buat akun admin baru*: name, WhatsApp number and a temporary password make a ready-to-use admin account (uses the `admin-users` Edge Function), with a button to send the login details over WhatsApp. If the number already has an account, you're offered to make that account admin instead.
+  - The **Jadikan admin / Cabut admin** button on each customer row still works too.
 - **Confirm email** is turned off (Authentication → Sign In / Providers), so email sign-ups can also log in right away.
 - Anyone can register any number, since nothing is sent to verify it. Orders still need payment, so the risk is low; if it ever becomes a problem, add an SMS provider and switch to codes.
 
