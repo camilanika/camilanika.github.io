@@ -349,6 +349,24 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
 .am-reward{background:color-mix(in srgb,var(--wa) 12%,var(--paper));border:2px dashed var(--wa);border-radius:18px;padding:1rem;display:grid;gap:.5rem}
 .ref-hint{font-size:.85rem;font-weight:700;margin:0}
 .ref-hint.ok{color:var(--wa)} .ref-hint.bad{color:var(--rose)}
+/* loyalty */
+.loy-card{display:grid;gap:.45rem;width:100%;text-align:left;background:linear-gradient(135deg,color-mix(in srgb,var(--caramel) 18%,var(--paper)),var(--paper));border:1.5px solid color-mix(in srgb,var(--caramel) 45%,var(--line));border-radius:18px;padding:.85rem 1rem;color:var(--fg);font:inherit;cursor:pointer}
+.loy-card:hover{border-color:var(--caramel)}
+.loy-top{display:flex;justify-content:space-between;gap:.6rem;font-weight:800}
+.loy-card small{color:var(--muted);font-weight:600}
+.loy-bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden}
+.loy-bar span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--caramel),var(--rose))}
+.loy-hero{gap:.55rem}
+.loy-big{font-family:var(--f-display);font-size:1.5rem;color:var(--rose)}
+.loy-row{display:flex;justify-content:space-between;gap:.6rem;font-size:.88rem;color:var(--muted)}
+.loy-tiers{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}
+.loy-tier{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.7rem;align-items:center;background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:.75rem .9rem}
+.loy-tier.got{border-color:color-mix(in srgb,var(--wa) 50%,var(--line))}
+.loy-ic{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--line);font-weight:800}
+.loy-tier.got .loy-ic{background:color-mix(in srgb,var(--wa) 20%,transparent);color:var(--wa)}
+.loy-tx small{display:block;color:var(--muted);font-size:.82rem}
+.loy-st{font-weight:800;font-size:.82rem;color:var(--muted);white-space:nowrap}
+.loy-tier.got .loy-st{color:var(--wa)}
 /* voucher page */
 .vc-sec{display:grid;gap:.6rem}
 .vc-sec h4{margin:.4rem 0 0;font:800 .8rem var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
@@ -618,9 +636,9 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   <div class="op-body" id="op-body"></div>
 </section>
 
-<script src="js/config.js?v=202610270900"></script>
+<script src="js/config.js?v=202610271128"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202610270900"></script>
+<script src="js/shop.js?v=202610271128"></script>
 
 </body>
 </html>
