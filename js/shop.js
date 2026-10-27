@@ -83,27 +83,38 @@
   const usesSize = (p) => p.attr_names.includes(SIZE_ATTR);
   const sizeLabel = (s) => (SIZES[s] ? `${s} · ${SIZES[s]}` : s);
 
-  const chipGroup = (opts, label, def = 0, attr = "") =>
-    `<div class="opt-label">${esc(label)}</div><div class="chips" role="group" aria-label="${esc(label)}" data-attr="${esc(attr)}" data-label="${esc(label)}">${opts
-      .map((o, i) => `<button type="button" class="chip" data-v="${esc(o)}" aria-pressed="${i === def}">${esc(o)}</button>`)
-      .join("")}</div>`;
+  const chipGroup = (opts, label, def = 0, attr = "", show = (o) => o) =>
+    `<div class="opt"><div class="opt-label">${esc(label)}</div><div class="chips" role="group" aria-label="${esc(label)}" data-attr="${esc(attr)}" data-label="${esc(label)}">${opts
+      .map((o, i) => `<button type="button" class="chip" data-v="${esc(o)}" aria-pressed="${i === def}">${esc(show(o))}</button>`)
+      .join("")}</div></div>`;
 
-  const ADD_LABEL = 'Tambah<span class="add-long">ke keranjang</span>';
-  const cardHTML = (p) => {
-    const drinkStyle = usesSize(p);
+  // ---- menu card: photo, name, price, Tambah. Options (size, flavour, sugar, extra shot) open in a sheet.
+  const sizesOf = (p) => attrValues(p, SIZE_ATTR).sort((a, b) => (SIZE_ORDER.indexOf(a) + 1 || 99) - (SIZE_ORDER.indexOf(b) + 1 || 99));
+  const hasOptions = (p) => p.variants.length > 1 || (p.choices || []).length > 0 || !!p.addon_label;
+  const cardImg = (p, cls = "pc-img") => `<div class="${cls}${usesSize(p) ? " ill" : ""}">${p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" onerror="this.remove()">` : ""}</div>`;
+  const cardHTML = (p) => `<article class="pcard" data-card="${p.id}">
+      <div class="pc-media">${cardImg(p)}<b class="pc-qty num" data-qty hidden></b></div>
+      <h3>${esc(p.name)}</h3>
+      <div class="pc-foot"><div class="pc-price num" data-from></div><span class="stock-tag" data-stock></span>
+      <button class="pc-add" type="button" data-pick>Tambah</button></div>
+    </article>`;
+  // the sheet: everything you can choose for one product
+  function sheetHTML(p) {
     const attrs = p.attr_names.filter((a) => a !== SIZE_ATTR);
-    const chips = attrs.map((a) => chipGroup(attrValues(p, a), a === "Rasa" ? "Pilih rasa" : a, 0, a)).join("") +
-      (p.choices || []).map((c) => chipGroup(c.options, c.label, c.default ?? 0)).join("");
-    const addon = p.addon_label
-      ? `<label class="check" data-addon-wrap><input type="checkbox" data-addon> ${esc(p.addon_label)} <span class="num" data-addon-price></span></label>` : "";
-    const head = `<div class="item-top"><h3>${esc(p.name)}${p.subtitle ? `<span>${esc(p.subtitle)}</span>` : ""}${p.note ? `<em class="note-tag">${esc(p.note)}</em>` : ""}</h3><div class="price num" data-price></div></div>`;
-    const btn = `<span class="stock-tag" data-stock></span><button class="btn btn-rose add" type="button" data-add>${ADD_LABEL}</button>`;
-    if (drinkStyle || !p.image_url) {
-      const img = drinkStyle && p.image_url ? `<img class="drink-ill" src="${esc(p.image_url)}" alt="Ilustrasi ${esc(p.name)}" width="200" height="200" loading="lazy" onerror="this.remove()">` : "";
-      return `<article class="item" data-product="${p.id}">${img}${head}${chips}${addon}${btn}</article>`;
-    }
-    return `<article class="item kuah" data-product="${p.id}"><img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" onerror="this.remove()"><div style="display:grid;gap:.6rem;min-width:0">${head}${chips}${addon}${btn}</div></article>`;
-  };
+    const sizes = usesSize(p) ? sizesOf(p) : [];
+    const sizeDef = Math.max(0, sizes.indexOf(size) >= 0 ? sizes.indexOf(size) : sizes.indexOf("M"));
+    const opts = (sizes.length ? chipGroup(sizes, "Ukuran", sizeDef, SIZE_ATTR, sizeLabel) : "") +
+      attrs.map((a) => chipGroup(attrValues(p, a), a === "Rasa" ? "Pilih rasa" : a, 0, a)).join("") +
+      (p.choices || []).map((c) => chipGroup(c.options, c.label, c.default ?? 0)).join("") +
+      (p.addon_label ? `<div class="opt"><div class="opt-label">Tambahan</div><label class="check" data-addon-wrap><input type="checkbox" data-addon> <span>${esc(p.addon_label)}</span> <span class="num" data-addon-price></span></label></div>` : "");
+    return `<article class="os-card" data-product="${p.id}">
+      <div class="os-top">${cardImg(p, "os-img")}<div class="os-info"><h3 id="os-title">${esc(p.name)}</h3>${p.subtitle ? `<p>${esc(p.subtitle)}</p>` : ""}${p.note ? `<em class="note-tag">${esc(p.note)}</em>` : ""}<div class="price num" data-price></div></div></div>
+      <div class="os-opts">${opts}</div>
+      <div class="os-foot"><span class="stock-tag" data-stock></span>
+        <div class="os-row"><div class="qty os-qty" role="group" aria-label="Jumlah"><button type="button" data-step="-1" aria-label="Kurangi">−</button><span class="num" data-n>1</span><button type="button" data-step="1" aria-label="Tambah satu">+</button></div>
+        <button class="btn btn-rose add" type="button" data-add>Tambah</button></div></div>
+    </article>`;
+  }
 
   // ---- photo showcase + info lines for a main menu (all configured in the admin page)
   const TAG_COLORS = ["#E8C07A", "#D9586F", "#F2D46B", "#A14A2E", "#6E9A3E", "#2F7FA8"];
@@ -123,7 +134,7 @@
     return `<div class="mosaic" style="--rows:${rows};grid-template-rows:repeat(${rows},var(--mosaic-row)) auto">
       ${imgs.map((i, n) => `<figure class="${solo ? "solo" : n === k - 1 && lastWide ? "wide" : ""}">${img(i)}${i.caption ? `<figcaption>${esc(i.caption)}</figcaption>` : ""}</figure>`).join("")}
       ${c.showcase_note ? `<div class="note" aria-hidden="true">${esc(c.showcase_note)}</div>` : ""}
-      <img class="sticker" src="img/logo-cireng.jpg" alt="">
+      <img class="sticker" src="img/logo.jpg" alt="">
     </div>`;
   }
   const infoHTML = (c) =>
@@ -145,36 +156,40 @@
         <h2 id="cat-${esc(c.slug)}">${esc(c.heading || c.name)}${c.heading_script ? ` <span class="script" style="font-size:.6em">${esc(c.heading_script)}</span>` : ""}</h2>
         ${c.description ? `<p>${esc(c.description)}</p>` : ""}
       </div>${infoHTML(c) ? `<div class="cat-info">${infoHTML(c)}</div>` : ""}`;
-    const sw = sizes.length
-      ? `<div class="size-switch" role="group" aria-label="Pilih ukuran">${sizes.map((s) => `<button type="button" data-size="${esc(s)}" aria-pressed="${s === size}">${esc(sizeLabel(s))}${s === "L" && sizes.length > 1 ? '<span class="hemat"> · lebih hemat</span>' : ""}</button>`).join("")}</div>` : "";
-    const bar = sizes.length ? `<div class="menu-bar">${sw}</div>` : "";
     const secs = c.sections.map((s) => `
       <section class="series acc-${esc(s.accent || "caramel")}" id="sub-${esc(s.slug)}" aria-labelledby="sub-h-${esc(s.slug)}">
         <div class="series-head"><h3 id="sub-h-${esc(s.slug)}">${esc(s.name)}</h3>${s.tagline ? `<p>${esc(s.tagline)}</p>` : ""}</div>
         <div class="menu-grid">${s.products.map(cardHTML).join("")}</div>
       </section>`).join("");
-    const main = head + (side ? "" : showcase) + bar + secs;
-    return `<section class="block cat${i % 2 ? " alt" : ""}${sizes.length ? " has-sizes" : ""}" id="${esc(c.slug)}" aria-labelledby="cat-${esc(c.slug)}">
+    const main = head + (side ? "" : showcase) + secs;
+    return `<section class="block cat${i % 2 ? " alt" : ""}" id="${esc(c.slug)}" aria-labelledby="cat-${esc(c.slug)}">
       <div class="wrap${side ? " cat-side" : ""}">${side ? `<div class="cat-media">${showcase}</div>` : ""}<div class="cat-main">${main}</div></div>
     </section>`;
   }
 
   // ---- shop bar: search + one chip per submenu (or per main menu with a single submenu); sticky while browsing the menu
   const ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+  const ICON_LIST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
   function shopBarHTML(cats) {
-    const chips = cats.flatMap((c) => c.sections.length > 1
-      ? c.sections.map((s) => `<a href="#sub-${esc(s.slug)}">${s.icon ? esc(s.icon) + " " : ""}${esc(s.name.replace(/ Series$/, ""))}</a>`)
-      : [`<a href="#${esc(c.slug)}">${c.sections[0]?.icon ? esc(c.sections[0].icon) + " " : ""}${esc(c.name)}</a>`]);
+    const tabs = cats.flatMap((c) => c.sections.map((s) => `<a href="#sub-${esc(s.slug)}" data-cat="${esc(c.slug)}">${esc(s.name.replace(/ Series$/, ""))}</a>`));
+    const list = cats.map((c) => `<div class="sb-cat"><a href="#${esc(c.slug)}" class="sb-cat-name">${esc(c.name)}</a>${c.sections.length > 1 ? c.sections.map((s) => `<a href="#sub-${esc(s.slug)}">${s.icon ? esc(s.icon) + " " : ""}${esc(s.name.replace(/ Series$/, ""))}</a>`).join("") : ""}</div>`).join("");
     return `<div class="shopbar" id="shopbar"><div class="wrap sb-row">
-      <button class="sb-btn" type="button" id="sb-open" aria-label="Cari menu" aria-controls="sb-search" aria-expanded="false">${ICON_SEARCH}</button>
+      <button class="sb-catbtn" type="button" id="sb-catbtn" aria-haspopup="true" aria-expanded="false" aria-controls="sb-cats">${ICON_LIST}<span id="sb-catname">${esc(cats[0].name)}</span></button>
+      <nav class="sb-chips" aria-label="Submenu">${tabs.join("")}</nav>
       <div class="sb-search" id="sb-search" role="search" hidden>${ICON_SEARCH}<input type="search" id="sb-q" placeholder="Cari menu, mis. latte, cireng" aria-label="Cari menu" autocomplete="off" enterkeyhint="search"><button class="sb-x" type="button" id="sb-close" aria-label="Tutup pencarian">×</button></div>
-      <nav class="sb-chips" aria-label="Kategori menu">${chips.join("")}</nav>
-    </div></div>`;
+      <button class="sb-btn" type="button" id="sb-open" aria-label="Cari menu" aria-controls="sb-search" aria-expanded="false">${ICON_SEARCH}</button>
+    </div><div class="sb-cats" id="sb-cats" hidden><div class="wrap">${list}</div></div></div>`;
   }
+  const catMenu = (open) => { const m = $("sb-cats"); if (!m) return; m.hidden = !open; $("sb-catbtn").setAttribute("aria-expanded", String(open)); };
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#sb-catbtn")) { catMenu($("sb-cats").hidden); return; }
+    if (!e.target.closest("#sb-cats a") && e.target.closest("#sb-cats")) return;
+    if ($("sb-cats") && !$("sb-cats").hidden) catMenu(false);
+  });
   const fold = (t) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   function indexSearch() {
-    document.querySelectorAll("#menu-root [data-product]").forEach((card) => {
-      const p = productById(card.dataset.product); if (!p) return;
+    document.querySelectorAll("#menu-root [data-card]").forEach((card) => {
+      const p = productById(card.dataset.card); if (!p) return;
       const words = [p.name, p.subtitle, p.note, card.closest(".series")?.querySelector(".series-head")?.textContent, card.closest(".cat")?.querySelector(".sec-head h2")?.textContent,
         ...(p.variants || []).flatMap((v) => [v.name, ...Object.values(v.attrs || {})]), ...(p.choices || []).flatMap((c) => c.options || [])];
       card.dataset.hay = fold(words.filter(Boolean).join(" "));
@@ -184,22 +199,23 @@
     const words = fold(raw).trim().split(/\s+/).filter(Boolean), on = words.length > 0, root = $("menu-root");
     root.classList.toggle("searching", on);
     let hits = 0;
-    root.querySelectorAll("[data-product]").forEach((card) => { const ok = !on || words.every((w) => card.dataset.hay?.includes(w)); card.hidden = !ok; if (ok) hits++; });
-    root.querySelectorAll(".series, .cat").forEach((el) => { el.hidden = on && !el.querySelector("[data-product]:not([hidden])"); });
+    root.querySelectorAll("[data-card]").forEach((card) => { const ok = !on || words.every((w) => card.dataset.hay?.includes(w)); card.hidden = !ok; if (ok) hits++; });
+    root.querySelectorAll(".series, .cat").forEach((el) => { el.hidden = on && !el.querySelector("[data-card]:not([hidden])"); });
     $("sb-empty").hidden = !on || hits > 0;
     setOffsets(); setActive();
   }
   // put the top of the menu right under the header (results start there)
   const toMenuTop = () => { const r = $("menu-root"); scrollTo({ top: r.getBoundingClientRect().top + scrollY - hdr.offsetHeight + 1, behavior: "instant" }); };
   function openSearch() {
+    catMenu(false);
     $("sb-search").hidden = false; $("sb-open").hidden = true; $("sb-open").setAttribute("aria-expanded", "true");
-    document.querySelector(".sb-chips").hidden = true;
+    document.querySelector(".sb-chips").hidden = true; $("sb-catbtn").hidden = true;
     toMenuTop(); $("sb-q").focus();
   }
   function closeSearch() {
     $("sb-q").value = ""; applySearch("");
     $("sb-search").hidden = true; $("sb-open").hidden = false; $("sb-open").setAttribute("aria-expanded", "false");
-    document.querySelector(".sb-chips").hidden = false;
+    document.querySelector(".sb-chips").hidden = false; $("sb-catbtn").hidden = false;
     setOffsets(); toMenuTop(); $("sb-open").focus();
   }
   document.addEventListener("click", (e) => {
@@ -237,7 +253,7 @@
     $("nav-menus").innerHTML = cats.map((c) => `<a href="#${esc(c.slug)}">${esc(c.name)}</a>`).join("");
     $("see-menu").href = "#" + cats[0].slug;
     navLinks = [...root.querySelectorAll(".sb-chips a")];
-    document.querySelectorAll("[data-product]").forEach(updateCard);
+    refreshCards();
     setOffsets(); setActive();
     // jump to an anchor from the URL once the menu exists (e.g. camilanika.github.io/#camilan)
     if (location.hash && !renderMenu.jumped) { renderMenu.jumped = true; document.getElementById(location.hash.slice(1))?.scrollIntoView(); }
@@ -252,47 +268,113 @@
       const v = g.querySelector('[aria-pressed="true"]')?.dataset.v;
       if (g.dataset.attr) sel[g.dataset.attr] = v; else choices[g.dataset.label] = v;
     });
-    if (usesSize(p)) sel[SIZE_ATTR] = size;
+    if (usesSize(p) && !sel[SIZE_ATTR]) sel[SIZE_ATTR] = size;
     const variant = p.variants.find((v) => p.attr_names.every((a) => v.attrs?.[a] === sel[a]));
     const addonBox = card.querySelector("[data-addon]");
     const addon = !!(addonBox && addonBox.checked && variant && variant.addon_price != null);
     return { p, variant, choices, addon };
   }
 
+  const inCartOf = (vid) => cart.filter((l) => l.variant_id === vid).reduce((s, l) => s + l.qty, 0);
+  const leftOf = (v) => (v.available == null ? Infinity : v.available - inCartOf(v.id));
+  // the sheet (one product, the options chosen in it)
   function updateCard(card) {
-    const { p, variant } = selection(card);
+    if (!card) return;
+    const { p, variant, addon } = selection(card);
     const priceEl = card.querySelector("[data-price]"), btn = card.querySelector("[data-add]"), tag = card.querySelector("[data-stock]");
-    const wrap = card.querySelector("[data-addon-wrap]");
+    const wrap = card.querySelector("[data-addon-wrap]"), nEl = card.querySelector("[data-n]");
     if (!variant) {
       priceEl.innerHTML = "–"; btn.disabled = true; btn.textContent = "Tidak tersedia"; tag.textContent = ""; if (wrap) wrap.hidden = true;
       return;
     }
-    const sub = usesSize(p) ? SIZES[size] || size : "";
-    priceEl.innerHTML = `${rp(variant.price)}${sub ? `<small>${esc(sub)}</small>` : ""}`;
+    const sz = variant.attrs?.[SIZE_ATTR];
+    priceEl.innerHTML = `${rp(variant.price)}${sz && SIZES[sz] ? `<small>${esc(SIZES[sz])}</small>` : ""}`;
     if (wrap) {
-      wrap.hidden = variant.addon_price == null;
+      wrap.closest(".opt").hidden = variant.addon_price == null;
       card.querySelector("[data-addon-price]").textContent = variant.addon_price != null ? "+" + rp(variant.addon_price) : "";
     }
-    const inCart = cart.filter((l) => l.variant_id === variant.id).reduce((s, l) => s + l.qty, 0);
-    if (!shop.open) {
-      btn.disabled = true; btn.textContent = "Toko tutup"; tag.className = "stock-tag"; tag.textContent = "";
-      return;
-    }
-    if (variant.available == null) { // unlimited stock
-      btn.disabled = false; btn.innerHTML = ADD_LABEL; tag.className = "stock-tag"; tag.textContent = "";
-      return;
-    }
-    const left = variant.available - inCart;
-    btn.disabled = left <= 0;
-    if (variant.available <= 0) btn.textContent = "Habis"; else if (left <= 0) btn.textContent = "Stok di keranjang"; else btn.innerHTML = ADD_LABEL;
-    tag.className = "stock-tag" + (variant.available <= 0 ? " out" : "");
-    tag.textContent = variant.available <= 0 ? "Stok habis" : variant.available <= 5 ? `Sisa ${variant.available}` : "";
+    const left = leftOf(variant);
+    let n = Math.max(1, Math.min(+nEl.textContent || 1, left === Infinity ? 99 : Math.max(left, 1)));
+    nEl.textContent = n;
+    card.querySelector('[data-step="-1"]').disabled = n <= 1;
+    card.querySelector('[data-step="1"]').disabled = n >= left || n >= 99;
+    tag.className = "stock-tag" + (variant.available != null && variant.available <= 0 ? " out" : "");
+    tag.textContent = variant.available == null ? "" : variant.available <= 0 ? "Stok habis" : variant.available <= 5 ? `Sisa ${variant.available}` : "";
+    btn.disabled = !shop.open || left <= 0;
+    btn.textContent = !shop.open ? "Toko tutup" : variant.available != null && variant.available <= 0 ? "Habis" : left <= 0 ? "Stok di keranjang"
+      : `Tambah · ${rp((variant.price + (addon ? variant.addon_price : 0)) * n)}`;
   }
+  // a menu card: lowest price, sold out / closed state, how many are in the cart
+  function updateMenuCard(card) {
+    const p = productById(card.dataset.card); if (!p) return;
+    const btn = card.querySelector("[data-pick]"), tag = card.querySelector("[data-stock]"), q = card.querySelector("[data-qty]");
+    const prices = [...new Set(p.variants.map((v) => v.price))];
+    card.querySelector("[data-from]").innerHTML = (prices.length > 1 ? '<small>mulai</small> ' : "") + rp(Math.min(...prices));
+    const n = cart.filter((l) => l.product_id === p.id).reduce((s, l) => s + l.qty, 0);
+    q.hidden = !n; q.textContent = n; q.setAttribute("aria-label", `${n} di keranjang`);
+    const soldOut = p.variants.every((v) => v.available != null && v.available <= 0);
+    const full = !soldOut && p.variants.every((v) => leftOf(v) <= 0);
+    btn.disabled = !shop.open || soldOut || (full && !hasOptions(p));
+    btn.textContent = !shop.open ? "Toko tutup" : soldOut ? "Habis" : full && !hasOptions(p) ? "Stok di keranjang" : "Tambah";
+    tag.className = "stock-tag" + (soldOut ? " out" : "");
+    const avail = p.variants.filter((v) => v.available != null).map((v) => v.available);
+    tag.textContent = soldOut ? "Stok habis" : avail.length === p.variants.length && Math.max(...avail) <= 5 ? `Sisa ${Math.max(...avail)}` : "";
+  }
+  function refreshCards() {
+    document.querySelectorAll("[data-card]").forEach(updateMenuCard);
+    updateCard(document.querySelector("#opt-sheet [data-product]"));
+  }
+
+  // ---- option sheet
+  let sheetFrom = null;
+  function openSheet(p, from) {
+    sheetFrom = from || null;
+    $("opt-body").innerHTML = sheetHTML(p);
+    updateCard($("opt-body").firstElementChild);
+    $("opt-bg").hidden = false; $("opt-sheet").hidden = false;
+    document.body.classList.add("sheet-open");
+    requestAnimationFrame(() => $("opt-sheet").classList.add("open"));
+    $("opt-close").focus();
+  }
+  function closeSheet() {
+    if ($("opt-sheet").hidden) return;
+    $("opt-sheet").classList.remove("open"); $("opt-bg").hidden = true; $("opt-sheet").hidden = true;
+    document.body.classList.remove("sheet-open");
+    $("opt-body").innerHTML = "";
+    sheetFrom?.focus?.({ preventScroll: true }); sheetFrom = null;
+  }
+  // focus stays inside the sheet while it is open
+  document.addEventListener("keydown", (e) => {
+    if ($("opt-sheet").hidden) return;
+    if (e.key === "Escape") { e.stopPropagation(); closeSheet(); return; }
+    if (e.key !== "Tab") return;
+    const f = [...$("opt-sheet").querySelectorAll("button:not([disabled]),input")].filter((x) => x.offsetParent);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  }, true);
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#opt-close") || e.target.id === "opt-bg") { closeSheet(); return; }
+    const st = e.target.closest("[data-step]");
+    if (st) { const card = st.closest("[data-product]"), nEl = card.querySelector("[data-n]"); nEl.textContent = Math.max(1, +nEl.textContent + +st.dataset.step); updateCard(card); return; }
+    const pick = e.target.closest("[data-pick]");
+    if (!pick) return;
+    const p = productById(pick.closest("[data-card]").dataset.card);
+    if (hasOptions(p)) { openSheet(p, pick); return; }
+    // nothing to choose: straight into the cart
+    const v = p.variants[0];
+    if (!v || !shop.open || leftOf(v) <= 0) return;
+    addLine({ key: `${v.id}|{}|false`, variant_id: v.id, product_id: p.id, choices: {}, addon: false, name: p.name, detail: v.name || "", price: v.price });
+    refreshCards();
+    pick.classList.remove("added"); void pick.offsetWidth; pick.classList.add("added"); pick.textContent = "Ditambahkan ✓";
+    setTimeout(() => updateMenuCard(pick.closest("[data-card]")), 1100);
+  });
 
   document.addEventListener("click", (e) => {
     const c = e.target.closest(".chip");
     if (c) {
       c.parentElement.querySelectorAll(".chip").forEach((b) => b.setAttribute("aria-pressed", b === c));
+      if (c.parentElement.dataset.attr === SIZE_ATTR) size = c.dataset.v;
       const card = c.closest("[data-product]"); if (card) updateCard(card);
       return;
     }
@@ -304,23 +386,20 @@
       const flavor = variant.attrs?.Rasa;
       // "Flavored Americano" + Peach -> "Peach Americano"
       const name = flavor && usesSize(p) ? `${flavor} ${p.name.replace(/^Flavou?red\s+/i, "")}` : p.name;
-      const detailParts = [usesSize(p) ? `${size} · ${SIZES[size] || ""}` : variant.name, ...Object.values(choices), addon ? p.addon_label.toLowerCase() : null];
+      const sz = variant.attrs?.[SIZE_ATTR];
+      const detailParts = [usesSize(p) ? `${sz} · ${SIZES[sz] || ""}` : variant.name, ...Object.values(choices), addon ? p.addon_label.toLowerCase() : null];
+      const n = Math.max(1, Math.min(+card.querySelector("[data-n]")?.textContent || 1, leftOf(variant)));
       addLine({
         key: `${variant.id}|${JSON.stringify(choices)}|${addon}`, variant_id: variant.id, product_id: p.id,
         choices, addon, name, detail: detailParts.filter(Boolean).join(" · "),
         price: variant.price + (addon ? variant.addon_price : 0),
-      }, add);
-      updateCard(card);
+      }, null, n);
+      toast(`${n}× ${name} masuk keranjang`);
+      closeSheet(); refreshCards();
     }
   });
   document.addEventListener("change", (e) => { if (e.target.matches("[data-addon]")) updateCard(e.target.closest("[data-product]")); });
 
-  document.addEventListener("click", (e) => {
-    const b = e.target.closest(".size-switch button"); if (!b) return;
-    size = b.dataset.size;
-    document.querySelectorAll(".size-switch button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.size === size));
-    document.querySelectorAll("[data-product]").forEach(updateCard);
-  });
 
   // sticky submenu bar
   const hdr = document.querySelector("header");
@@ -336,13 +415,25 @@
     const line = hdr.offsetHeight + (sbar ? sbar.offsetHeight : 0) + (bar ? bar.offsetHeight : 0) + 40;
     let cur = navLinks[0]?.getAttribute("href").slice(1) ?? null;
     navLinks.forEach((a) => { const el = document.getElementById(a.getAttribute("href").slice(1)); if (el && !el.hidden && el.getBoundingClientRect().top <= line) cur = el.id; });
+    // reaching a main menu's heading switches to that menu (its first submenu) even before its first submenu
+    let catNow = null;
+    document.querySelectorAll("#menu-root .cat").forEach((c) => { if (!c.hidden && c.getBoundingClientRect().top <= line) catNow = c.id; });
+    const curLink = navLinks.find((a) => a.getAttribute("href") === "#" + cur);
+    if (catNow && curLink && curLink.dataset.cat !== catNow) { const first = navLinks.find((a) => a.dataset.cat === catNow); if (first) cur = first.getAttribute("href").slice(1); }
     let active = null;
     navLinks.forEach((a) => { const on = a.getAttribute("href") === "#" + cur; a.setAttribute("aria-current", on); if (on) active = a; });
+    const cat = active?.dataset.cat;
+    if (cat && cat !== setActive.cat) {
+      setActive.cat = cat;
+      navLinks.forEach((a) => { a.hidden = a.dataset.cat !== cat; });
+      $("sb-catname").textContent = document.querySelector(`#sb-cats a[href="#${cat}"]`)?.textContent || "";
+      setActive.last = null;
+    }
     // keep the active chip in view inside the scrolling chip row
     if (active && active !== setActive.last) {
       setActive.last = active;
       const row = active.parentElement;
-      row.scrollTo({ left: active.offsetLeft - (row.clientWidth - active.offsetWidth) / 2, behavior: "smooth" });
+      requestAnimationFrame(() => row.scrollTo({ left: row.scrollLeft + active.getBoundingClientRect().left - row.getBoundingClientRect().left - (row.clientWidth - active.offsetWidth) / 2, behavior: "smooth" }));
     }
   }
   addEventListener("resize", setOffsets);
@@ -362,9 +453,9 @@
   }
 
   // ------------------------------------------------------------------ cart
-  function addLine(item, btn) {
+  function addLine(item, btn, n = 1) {
     const ex = cart.find((l) => l.key === item.key);
-    ex ? ex.qty++ : cart.push({ ...item, qty: 1 });
+    ex ? (ex.qty += n) : cart.push({ ...item, qty: n });
     save(); renderCart(); scheduleQuote();
     if (btn) { btn.classList.remove("added"); void btn.offsetWidth; btn.classList.add("added"); const t = btn.innerHTML; btn.textContent = "Ditambahkan ✓"; setTimeout(() => { if (btn.textContent === "Ditambahkan ✓") btn.innerHTML = t; }, 1100); }
   }
@@ -447,7 +538,7 @@
       <div class="line"><b>${esc(l.name)}</b><span class="lp num">${rp(l.price * l.qty)}</span>
         <small>${esc(l.detail)} · ${rp(l.price)}</small>
         <div class="qty"><button type="button" data-q="${i}" data-d="-1" aria-label="Kurangi">−</button><span class="num">${l.qty}</span><button type="button" data-q="${i}" data-d="1" aria-label="Tambah">+</button></div>
-      </div>`).join("") : `<div class="empty"><img src="img/logo-cireng.jpg" alt="" style="width:110px;margin:0 auto;border-radius:50%"><b>Keranjang masih kosong</b><span>Pilih minuman atau cireng, lalu tekan Tambah ke keranjang.</span></div>`;
+      </div>`).join("") : `<div class="empty"><img src="img/logo.jpg" alt="" style="width:110px;margin:0 auto;border-radius:50%"><b>Keranjang masih kosong</b><span>Pilih minuman atau cireng, lalu tekan Tambah ke keranjang.</span></div>`;
 
     const pr = mainPromo();
     const bar = document.querySelector(".drawer .progress");
@@ -591,7 +682,7 @@
     const banner = $("shop-banner");
     banner.hidden = shop.open;
     banner.textContent = shopClosedText();
-    document.querySelectorAll("[data-product]").forEach(updateCard);
+    refreshCards();
     renderCart();
   }
   async function loadShop() {
@@ -642,7 +733,7 @@
     const l = cart[+b.dataset.q]; l.qty += +b.dataset.d;
     if (l.qty <= 0) cart.splice(+b.dataset.q, 1);
     save(); renderCart(); scheduleQuote();
-    document.querySelectorAll("[data-product]").forEach(updateCard);
+    refreshCards();
   });
   ["cust-name", "cust-phone", "cust-addr"].forEach((id) => $(id).addEventListener("input", renderCart));
   $("send-wa").addEventListener("click", (e) => { if (!shop.open) { e.preventDefault(); showErr(shopClosedText()); } });
@@ -695,7 +786,7 @@
       onClose: () => showStatus(orderNumber, true),
     });
   }
-  function clearCart() { cart = []; promoCode = ""; quote = null; $("promo-code").value = ""; save(); renderCart(); document.querySelectorAll("[data-product]").forEach(updateCard); }
+  function clearCart() { cart = []; promoCode = ""; quote = null; $("promo-code").value = ""; save(); renderCart(); refreshCards(); }
 
   $("pay-btn").addEventListener("click", async () => {
     showErr("");
@@ -1432,7 +1523,7 @@
     if (n.kind === "voucher" || n.kind === "account") { navVouchers(); return; }
     if (n.kind === "promo") { renderPromoDetail(n.ref_id); return; }
     if (n.kind === "product") {
-      const card = document.querySelector(`[data-product="${CSS.escape(String(n.ref_id))}"]`);
+      const card = document.querySelector(`[data-card="${CSS.escape(String(n.ref_id))}"]`);
       if (!n.available || !card) { drawNotifs(); toast("Produk ini sudah tidak tersedia."); return; }
       closeAll();
       card.scrollIntoView({ behavior: "smooth", block: "center" });
