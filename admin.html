@@ -811,13 +811,14 @@ td.num,th.num{text-align:right}
   async function renderCustomers() {
     app.innerHTML = `<div class="bar"><h2>Pelanggan</h2>
       <input id="cq" type="search" placeholder="Cari nama, email, atau no. WA" style="min-width:min(100%,280px)" aria-label="Cari pelanggan">
-      <button class="btn btn-ghost" id="cref">Muat ulang</button></div>
+      <button class="btn btn-ghost" id="cref">Muat ulang</button><button class="btn btn-rose" id="cadmins">Kelola admin</button></div>
       <p class="muted" style="margin:-.4rem 0 1rem">Akun yang mendaftar di toko. Pesanan tamu (tanpa akun) ada di tab Pesanan.</p>
       <div class="tbl-wrap"><table><thead><tr><th>Pelanggan</th><th>Kontak</th><th class="num">Pesanan</th><th class="num">Total belanja</th><th>Terakhir pesan</th><th>Peran</th><th></th></tr></thead>
       <tbody id="cbody"><tr><td colspan="7" class="muted">Memuat…</td></tr></tbody></table></div>`;
     $("cq").value = custSearch;
     let t; $("cq").oninput = () => { clearTimeout(t); t = setTimeout(() => { custSearch = $("cq").value.trim(); loadCustomers(); }, 300); };
     $("cref").onclick = loadCustomers;
+    $("cadmins").onclick = () => manageAdmins();
     await loadCustomers();
   }
   async function loadCustomers() {
@@ -864,7 +865,115 @@ td.num,th.num{text-align:right}
       body: JSON.stringify(body),
     });
     const out = await res.json().catch(() => ({ error: "FAILED" }));
-    return res.ok && !out.error ? { ok: true } : { error: out.error || "FAILED" };
+    return res.ok && !out.error ? { ok: true, ...out } : { error: out.error || "FAILED" };
+  }
+
+  // ----- admins: list, remove, add (existing account or a new one)
+  const tempPassword = () => {
+    const words = "kopi,latte,aren,cireng,keju,mocha,matcha,gula,susu,botol".split(",");
+    const pick = () => words[crypto.getRandomValues(new Uint32Array(1))[0] % words.length];
+    return `${pick()}-${pick()}-${String(crypto.getRandomValues(new Uint32Array(1))[0] % 9000 + 1000)}`;
+  };
+  const waNum = (raw) => { let d = String(raw || "").replace(/\D/g, ""); if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d; return /^62\d{8,13}$/.test(d) ? d : null; };
+  const ADM_ERR = { CANNOT_REMOVE_OWN_ADMIN: "Kamu tidak bisa mencabut akses adminmu sendiri.", NOT_ADMIN: "Hanya admin yang bisa mengubah admin.", USER_NOT_FOUND: "Akun tidak ditemukan." };
+  async function manageAdmins(mode = "list") {
+    const me = (await sb.auth.getUser()).data.user?.id;
+    openModal(`<div class="modal-head"><h2>Admin toko</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <div class="subtabs" role="group" aria-label="Kelola admin" style="margin:0">
+        <button type="button" data-am="list">Daftar admin</button><button type="button" data-am="existing">+ Dari akun yang ada</button><button type="button" data-am="new">+ Buat akun admin baru</button></div>
+      <div id="ambody"></div>`);
+    document.querySelectorAll("#modal [data-am]").forEach((b) => b.onclick = () => draw(b.dataset.am));
+    const draw = async (m) => {
+      document.querySelectorAll("#modal [data-am]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.am === m));
+      const el = $("ambody");
+      if (m === "list") {
+        el.innerHTML = `<p class="muted">Memuat…</p>`;
+        const { data, error } = await sb.rpc("admin_list_customers", { p_search: null });
+        if (!$("ambody")) return;
+        if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
+        const admins = data.filter((c) => c.role === "admin");
+        el.innerHTML = `<p class="muted" style="margin:0 0 .4rem">Admin bisa melihat semua pesanan dan data pelanggan, serta mengubah menu, stok, promo, dan voucher.</p>
+          <div class="list">${admins.map((c) => `<div class="card" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;padding:.7rem .9rem">
+            <div style="flex:1;min-width:160px"><b>${esc(c.full_name || "–")}</b>${c.id === me ? ' <span class="badge processing">Kamu</span>' : ""}<br><span class="muted">${esc(c.phone || realEmail(c.email) || "")}</span></div>
+            ${c.id === me ? "" : `<button class="btn btn-ghost btn-sm" data-unadmin="${c.id}" data-name="${esc(c.full_name || c.phone || "")}">Cabut admin</button>`}</div>`).join("")}</div>
+          <p class="msg" id="ammsg"></p>`;
+        el.querySelectorAll("[data-unadmin]").forEach((b) => b.onclick = async () => {
+          if (!confirm(`Cabut akses admin ${b.dataset.name}? Akunnya tetap ada sebagai pelanggan.`)) return;
+          b.disabled = true;
+          const { error } = await sb.rpc("admin_set_role", { p_user_id: b.dataset.unadmin, p_role: "customer" });
+          if (error) { $("ammsg").textContent = ADM_ERR[err(error).split(":")[0]] || err(error); $("ammsg").className = "msg err"; b.disabled = false; return; }
+          toast("Akses admin dicabut"); draw("list"); if ($("cbody")) loadCustomers();
+        });
+      } else if (m === "existing") {
+        el.innerHTML = `<label class="f">Cari akun (nama, nomor WhatsApp, email, atau ID)<input id="amq" placeholder="mis. Rina atau 0812…" autocomplete="off"></label>
+          <div class="cust-pick" id="aml" style="margin-top:.5rem"><p class="muted" style="margin:0">Ketik untuk mencari. Orangnya harus sudah punya akun.</p></div>
+          <p class="msg" id="ammsg"></p>
+          <div class="row-actions"><button class="btn btn-rose" id="amgo">Jadikan admin</button></div>`;
+        let chosen = null, t = null;
+        const search = async () => {
+          if (!$("amq")) return;
+          const q = $("amq").value.trim(), box = $("aml");
+          chosen = null;
+          if (!q) { box.innerHTML = `<p class="muted" style="margin:0">Ketik untuk mencari.</p>`; return; }
+          const [{ data, error }, { data: all }] = await Promise.all([sb.rpc("admin_find_customers", { p_search: q }), sb.rpc("admin_list_customers", { p_search: null })]);
+          if ($("amq")?.value.trim() !== q) return;
+          if (error) { box.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
+          const isAdmin = new Set((all || []).filter((c) => c.role === "admin").map((c) => c.id));
+          box.innerHTML = data.length ? data.map((c) => `<label${isAdmin.has(c.id) ? ' style="opacity:.6"' : ""}><input type="radio" name="amc" value="${c.id}" ${isAdmin.has(c.id) ? "disabled" : ""}>
+              <span><b>${esc(c.full_name || "–")}</b> · ${esc(c.phone || c.email || "")}${isAdmin.has(c.id) ? ' <span class="badge processing">Sudah admin</span>' : ""}</span></label>`).join("")
+            : `<p class="muted" style="margin:0">Tidak ada akun yang cocok. Pakai "Buat akun admin baru".</p>`;
+          box.querySelectorAll("input").forEach((i) => i.onchange = () => { chosen = { id: i.value, name: i.closest("label").querySelector("b").textContent }; });
+        };
+        $("amq").oninput = () => { clearTimeout(t); t = setTimeout(search, 300); };
+        $("amq").focus();
+        $("amgo").onclick = async () => {
+          const fail = (x) => { $("ammsg").textContent = x; $("ammsg").className = "msg err"; };
+          if (!chosen) return fail("Pilih akunnya dulu.");
+          if (!confirm(`Jadikan ${chosen.name} admin? Admin bisa melihat semua pesanan dan data pelanggan.`)) return;
+          $("amgo").disabled = true;
+          const { error } = await sb.rpc("admin_set_role", { p_user_id: chosen.id, p_role: "admin" });
+          $("amgo").disabled = false;
+          if (error) return fail(ADM_ERR[err(error).split(":")[0]] || err(error));
+          toast(`${chosen.name} sekarang admin`); if ($("cbody")) loadCustomers(); draw("list");
+        };
+      } else {
+        el.innerHTML = `<p class="muted" style="margin:0">Buat akun untuk orang yang belum daftar. Mereka masuk dengan nomor WhatsApp dan password ini, lalu bisa menggantinya di Akun.</p>
+          <div class="grid2"><label class="f">Nama<input id="amn" autocomplete="off"></label>
+          <label class="f">No. WhatsApp<input id="amp" type="tel" inputmode="tel" placeholder="08xxxxxxxxxx" autocomplete="off"></label></div>
+          <label class="f">Password sementara (minimal 8 karakter)<div style="display:flex;gap:.4rem"><input id="amw" value="${esc(tempPassword())}" autocomplete="off" style="flex:1"><button type="button" class="btn btn-ghost btn-sm" id="amwr">Acak</button></div></label>
+          <p class="msg" id="ammsg"></p>
+          <div class="row-actions"><button class="btn btn-rose" id="amcreate">Buat akun admin</button></div>`;
+        $("amwr").onclick = () => { $("amw").value = tempPassword(); };
+        $("amcreate").onclick = async () => {
+          const fail = (x) => { $("ammsg").textContent = x; $("ammsg").className = "msg err"; };
+          const name = $("amn").value.trim(), phone = $("amp").value.trim(), pw = $("amw").value.trim();
+          if (!name) return fail("Isi nama.");
+          if (!waNum(phone)) return fail("Nomor WhatsApp belum benar. Contoh: 081234567890");
+          if (pw.length < 8) return fail("Password minimal 8 karakter.");
+          $("amcreate").disabled = true;
+          const r = await adminUsers({ action: "create_admin", name, phone, password: pw });
+          if ($("amcreate")) $("amcreate").disabled = false;
+          if (r.error === "PHONE_TAKEN") {
+            el.querySelector("#ammsg").innerHTML = `Nomor ini sudah punya akun. <button type="button" class="btn btn-ghost btn-sm" id="amswitch">Jadikan akun itu admin</button>`;
+            $("ammsg").className = "msg err";
+            $("amswitch").onclick = async () => { await draw("existing"); $("amq").value = phone; $("amq").dispatchEvent(new Event("input")); };
+            return;
+          }
+          if (r.error) return fail({ NOT_ADMIN: "Hanya admin yang bisa membuat admin.", PHONE_INVALID: "Nomor WhatsApp belum benar.", NAME_REQUIRED: "Isi nama.", PASSWORD_TOO_SHORT: "Password minimal 8 karakter." }[r.error] || "Gagal membuat akun. Coba lagi.");
+          const site = (CFG.SITE_URL || "https://camilanika.github.io/").replace(/\/?$/, "/");
+          const msg = `Halo ${name}, kamu sudah jadi admin toko CamilaNika.\nMasuk di ${site}admin.html\nNo. WhatsApp: ${r.phone}\nPassword: ${pw}\nSetelah masuk, ganti password lewat menu Akun di ${site}`;
+          el.innerHTML = `<div class="card" style="display:grid;gap:.5rem"><b>✅ Akun admin dibuat untuk ${esc(name)}</b>
+            <span>Login: <b>${esc(r.phone)}</b> · Password: <code style="user-select:all">${esc(pw)}</code></span>
+            <span class="muted" style="font-size:.85rem">Password ini tidak disimpan di sini. Kirim sekarang, lalu minta dia menggantinya.</span>
+            <div class="row-actions" style="justify-content:flex-start"><a class="btn btn-ok" id="amwa" target="_blank" rel="noopener" href="https://wa.me/${waNum(phone)}?text=${encodeURIComponent(msg)}">Kirim lewat WhatsApp</a>
+            <button class="btn btn-ghost" id="amcopy">Salin pesan</button><button class="btn btn-ghost" id="amlist">Lihat daftar admin</button></div></div>`;
+          $("amcopy").onclick = async () => { try { await navigator.clipboard.writeText(msg); toast("Pesan disalin"); } catch (e) { prompt("Salin:", msg); } };
+          $("amlist").onclick = () => draw("list");
+          if ($("cbody")) loadCustomers();
+        };
+      }
+    };
+    draw(mode);
   }
 
   function deleteAccount(c) {

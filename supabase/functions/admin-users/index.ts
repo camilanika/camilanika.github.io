@@ -3,8 +3,18 @@
 //   POST { action: "reset_password", user_id, password }  set a new password (e.g. forgotten, number accounts)
 //   POST { action: "delete_user", user_id }               delete an account (not yourself, not another admin);
 //                                                         its orders are kept, unlinked like guest orders
+//   POST { action: "create_admin", name, phone, password } make a new account (WhatsApp number login) that is
+//                                                         an admin straight away; PHONE_TAKEN if the number exists
 // The website sends the public anon key in Authorization and the admin's login token in x-user-token.
 // Secrets used: ALLOWED_ORIGINS. "Verify JWT" can stay ON.
+
+const PHONE_DOMAIN = "phone.camilanika.invalid";
+function normalizePhone(raw: string) {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (d.startsWith("0")) d = "62" + d.slice(1);
+  else if (d.startsWith("8")) d = "62" + d;
+  return /^62\d{8,13}$/.test(d) ? d : null;
+}
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
@@ -58,6 +68,33 @@ Deno.serve(async (req) => {
     const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) { console.error("delete failed", error.message); return reply({ error: "DELETE_FAILED" }, 400); }
     return reply({ ok: true });
+  }
+  if (b?.action === "create_admin") {
+    const name = String(b.name ?? "").trim().slice(0, 100);
+    const phone = normalizePhone(b.phone);
+    const password = String(b.password ?? "");
+    if (!name) return reply({ error: "NAME_REQUIRED" }, 400);
+    if (!phone) return reply({ error: "PHONE_INVALID" }, 400);
+    if (password.length < 8) return reply({ error: "PASSWORD_TOO_SHORT" }, 400);
+    const display = "0" + phone.slice(2);
+    const { data: created, error } = await admin.auth.admin.createUser({
+      email: `${phone}@${PHONE_DOMAIN}`, password, email_confirm: true,
+      user_metadata: { full_name: name, phone: display, signup: "admin" },
+    });
+    if (error) {
+      if (/already|registered|exists/i.test(error.message)) return reply({ error: "PHONE_TAKEN" }, 409);
+      console.error("create admin failed", error.message);
+      return reply({ error: "CREATE_FAILED" }, 400);
+    }
+    const uid = created.user.id;
+    // the profile row is made by a trigger when the account is created; set name, number and role
+    const { data: upd, error: pErr } = await admin.from("profiles").update({ full_name: name, phone: display, role: "admin" }).eq("id", uid).select("id");
+    if (pErr || !upd?.length) {
+      console.error("make admin failed", pErr?.message ?? "no profile row");
+      await admin.auth.admin.deleteUser(uid);
+      return reply({ error: "CREATE_FAILED" }, 400);
+    }
+    return reply({ ok: true, user_id: uid, phone: display });
   }
   return reply({ error: "UNKNOWN_ACTION" }, 400);
 });
