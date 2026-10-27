@@ -88,6 +88,7 @@
       .map((o, i) => `<button type="button" class="chip" data-v="${esc(o)}" aria-pressed="${i === def}">${esc(o)}</button>`)
       .join("")}</div>`;
 
+  const ADD_LABEL = 'Tambah<span class="add-long">ke keranjang</span>';
   const cardHTML = (p) => {
     const drinkStyle = usesSize(p);
     const attrs = p.attr_names.filter((a) => a !== SIZE_ATTR);
@@ -96,7 +97,7 @@
     const addon = p.addon_label
       ? `<label class="check" data-addon-wrap><input type="checkbox" data-addon> ${esc(p.addon_label)} <span class="num" data-addon-price></span></label>` : "";
     const head = `<div class="item-top"><h3>${esc(p.name)}${p.subtitle ? `<span>${esc(p.subtitle)}</span>` : ""}${p.note ? `<em class="note-tag">${esc(p.note)}</em>` : ""}</h3><div class="price num" data-price></div></div>`;
-    const btn = `<span class="stock-tag" data-stock></span><button class="btn btn-rose add" type="button" data-add>Tambah ke keranjang</button>`;
+    const btn = `<span class="stock-tag" data-stock></span><button class="btn btn-rose add" type="button" data-add>${ADD_LABEL}</button>`;
     if (drinkStyle || !p.image_url) {
       const img = drinkStyle && p.image_url ? `<img class="drink-ill" src="${esc(p.image_url)}" alt="Ilustrasi ${esc(p.name)}" width="200" height="200" loading="lazy" onerror="this.remove()">` : "";
       return `<article class="item" data-product="${p.id}">${img}${head}${chips}${addon}${btn}</article>`;
@@ -144,21 +145,79 @@
         <h2 id="cat-${esc(c.slug)}">${esc(c.heading || c.name)}${c.heading_script ? ` <span class="script" style="font-size:.6em">${esc(c.heading_script)}</span>` : ""}</h2>
         ${c.description ? `<p>${esc(c.description)}</p>` : ""}
       </div>${infoHTML(c) ? `<div class="cat-info">${infoHTML(c)}</div>` : ""}`;
-    const nav = c.sections.length > 1
-      ? `<nav class="series-nav" aria-label="Submenu ${esc(c.name)}">${c.sections.map((s) => `<a href="#sub-${esc(s.slug)}">${s.icon ? esc(s.icon) + " " : ""}${esc(s.name.replace(/ Series$/, ""))}</a>`).join("")}</nav>` : "<span></span>";
     const sw = sizes.length
       ? `<div class="size-switch" role="group" aria-label="Pilih ukuran">${sizes.map((s) => `<button type="button" data-size="${esc(s)}" aria-pressed="${s === size}">${esc(sizeLabel(s))}${s === "L" && sizes.length > 1 ? '<span class="hemat"> · lebih hemat</span>' : ""}</button>`).join("")}</div>` : "";
-    const bar = c.sections.length > 1 || sizes.length ? `<div class="menu-bar">${nav}${sw}</div>` : "";
+    const bar = sizes.length ? `<div class="menu-bar">${sw}</div>` : "";
     const secs = c.sections.map((s) => `
       <section class="series acc-${esc(s.accent || "caramel")}" id="sub-${esc(s.slug)}" aria-labelledby="sub-h-${esc(s.slug)}">
         <div class="series-head"><h3 id="sub-h-${esc(s.slug)}">${esc(s.name)}</h3>${s.tagline ? `<p>${esc(s.tagline)}</p>` : ""}</div>
         <div class="menu-grid">${s.products.map(cardHTML).join("")}</div>
       </section>`).join("");
     const main = head + (side ? "" : showcase) + bar + secs;
-    return `<section class="block cat${i % 2 ? " alt" : ""}" id="${esc(c.slug)}" aria-labelledby="cat-${esc(c.slug)}">
+    return `<section class="block cat${i % 2 ? " alt" : ""}${sizes.length ? " has-sizes" : ""}" id="${esc(c.slug)}" aria-labelledby="cat-${esc(c.slug)}">
       <div class="wrap${side ? " cat-side" : ""}">${side ? `<div class="cat-media">${showcase}</div>` : ""}<div class="cat-main">${main}</div></div>
     </section>`;
   }
+
+  // ---- shop bar: search + one chip per submenu (or per main menu with a single submenu); sticky while browsing the menu
+  const ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+  function shopBarHTML(cats) {
+    const chips = cats.flatMap((c) => c.sections.length > 1
+      ? c.sections.map((s) => `<a href="#sub-${esc(s.slug)}">${s.icon ? esc(s.icon) + " " : ""}${esc(s.name.replace(/ Series$/, ""))}</a>`)
+      : [`<a href="#${esc(c.slug)}">${c.sections[0]?.icon ? esc(c.sections[0].icon) + " " : ""}${esc(c.name)}</a>`]);
+    return `<div class="shopbar" id="shopbar"><div class="wrap sb-row">
+      <button class="sb-btn" type="button" id="sb-open" aria-label="Cari menu" aria-controls="sb-search" aria-expanded="false">${ICON_SEARCH}</button>
+      <div class="sb-search" id="sb-search" role="search" hidden>${ICON_SEARCH}<input type="search" id="sb-q" placeholder="Cari menu, mis. latte, cireng" aria-label="Cari menu" autocomplete="off" enterkeyhint="search"><button class="sb-x" type="button" id="sb-close" aria-label="Tutup pencarian">×</button></div>
+      <nav class="sb-chips" aria-label="Kategori menu">${chips.join("")}</nav>
+    </div></div>`;
+  }
+  const fold = (t) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  function indexSearch() {
+    document.querySelectorAll("#menu-root [data-product]").forEach((card) => {
+      const p = productById(card.dataset.product); if (!p) return;
+      const words = [p.name, p.subtitle, p.note, card.closest(".series")?.querySelector(".series-head")?.textContent, card.closest(".cat")?.querySelector(".sec-head h2")?.textContent,
+        ...(p.variants || []).flatMap((v) => [v.name, ...Object.values(v.attrs || {})]), ...(p.choices || []).flatMap((c) => c.options || [])];
+      card.dataset.hay = fold(words.filter(Boolean).join(" "));
+    });
+  }
+  function applySearch(raw) {
+    const words = fold(raw).trim().split(/\s+/).filter(Boolean), on = words.length > 0, root = $("menu-root");
+    root.classList.toggle("searching", on);
+    let hits = 0;
+    root.querySelectorAll("[data-product]").forEach((card) => { const ok = !on || words.every((w) => card.dataset.hay?.includes(w)); card.hidden = !ok; if (ok) hits++; });
+    root.querySelectorAll(".series, .cat").forEach((el) => { el.hidden = on && !el.querySelector("[data-product]:not([hidden])"); });
+    $("sb-empty").hidden = !on || hits > 0;
+    setOffsets(); setActive();
+  }
+  // put the top of the menu right under the header (results start there)
+  const toMenuTop = () => { const r = $("menu-root"); scrollTo({ top: r.getBoundingClientRect().top + scrollY - hdr.offsetHeight + 1, behavior: "instant" }); };
+  function openSearch() {
+    $("sb-search").hidden = false; $("sb-open").hidden = true; $("sb-open").setAttribute("aria-expanded", "true");
+    document.querySelector(".sb-chips").hidden = true;
+    toMenuTop(); $("sb-q").focus();
+  }
+  function closeSearch() {
+    $("sb-q").value = ""; applySearch("");
+    $("sb-search").hidden = true; $("sb-open").hidden = false; $("sb-open").setAttribute("aria-expanded", "false");
+    document.querySelector(".sb-chips").hidden = false;
+    setOffsets(); toMenuTop(); $("sb-open").focus();
+  }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#sb-open")) openSearch();
+    else if (e.target.closest("#sb-close")) closeSearch();
+  });
+  // fade the chip row's edge only while more chips are hidden off to the right
+  document.addEventListener("scroll", (e) => { const r = e.target; if (r.classList?.contains("sb-chips")) r.classList.toggle("at-end", r.scrollLeft + r.clientWidth >= r.scrollWidth - 4); }, true);
+  document.addEventListener("input", (e) => {
+    if (e.target.id !== "sb-q") return;
+    applySearch(e.target.value);
+    const r = $("menu-root"); if (r.getBoundingClientRect().top < hdr.offsetHeight - 2) toMenuTop();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.id !== "sb-q") return;
+    if (e.key === "Escape") { e.stopPropagation(); closeSearch(); }
+    if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
+  });
 
   function renderMenu() {
     const root = $("menu-root");
@@ -172,10 +231,12 @@
       $("nav-menus").innerHTML = "";
       return;
     }
-    root.innerHTML = cats.map(catHTML).join("");
+    root.innerHTML = shopBarHTML(cats) + cats.map(catHTML).join("") +
+      `<section class="block sb-none" id="sb-empty" hidden><div class="wrap"><p class="op-empty">Menu yang kamu cari belum ada. Coba kata lain, atau <a href="https://wa.me/${WA}" target="_blank" rel="noopener">tanya kami lewat WhatsApp</a>.</p></div></section>`;
+    indexSearch();
     $("nav-menus").innerHTML = cats.map((c) => `<a href="#${esc(c.slug)}">${esc(c.name)}</a>`).join("");
     $("see-menu").href = "#" + cats[0].slug;
-    navLinks = [...root.querySelectorAll(".series-nav a")];
+    navLinks = [...root.querySelectorAll(".sb-chips a")];
     document.querySelectorAll("[data-product]").forEach(updateCard);
     setOffsets(); setActive();
     // jump to an anchor from the URL once the menu exists (e.g. camilanika.github.io/#camilan)
@@ -218,12 +279,12 @@
       return;
     }
     if (variant.available == null) { // unlimited stock
-      btn.disabled = false; btn.textContent = "Tambah ke keranjang"; tag.className = "stock-tag"; tag.textContent = "";
+      btn.disabled = false; btn.innerHTML = ADD_LABEL; tag.className = "stock-tag"; tag.textContent = "";
       return;
     }
     const left = variant.available - inCart;
     btn.disabled = left <= 0;
-    btn.textContent = variant.available <= 0 ? "Habis" : left <= 0 ? "Stok di keranjang" : "Tambah ke keranjang";
+    if (variant.available <= 0) btn.textContent = "Habis"; else if (left <= 0) btn.textContent = "Stok di keranjang"; else btn.innerHTML = ADD_LABEL;
     tag.className = "stock-tag" + (variant.available <= 0 ? " out" : "");
     tag.textContent = variant.available <= 0 ? "Stok habis" : variant.available <= 5 ? `Sisa ${variant.available}` : "";
   }
@@ -268,13 +329,21 @@
     const bar = document.querySelector(".menu-bar");
     document.documentElement.style.setProperty("--hdr", hdr.offsetHeight + "px");
     document.documentElement.style.setProperty("--bar", (bar ? bar.offsetHeight : 0) + "px");
+    document.documentElement.style.setProperty("--sbar", ($("shopbar")?.offsetHeight || 0) + "px");
   }
   function setActive() {
-    const bar = document.querySelector(".menu-bar");
-    const line = hdr.offsetHeight + (bar ? bar.offsetHeight : 0) + 40;
-    let cur = null;
-    document.querySelectorAll(".series").forEach((sec) => { if (sec.getBoundingClientRect().top <= line) cur = sec.id; });
-    navLinks.forEach((a) => a.setAttribute("aria-current", a.getAttribute("href") === "#" + cur));
+    const bar = document.querySelector(".menu-bar"), sbar = $("shopbar");
+    const line = hdr.offsetHeight + (sbar ? sbar.offsetHeight : 0) + (bar ? bar.offsetHeight : 0) + 40;
+    let cur = navLinks[0]?.getAttribute("href").slice(1) ?? null;
+    navLinks.forEach((a) => { const el = document.getElementById(a.getAttribute("href").slice(1)); if (el && !el.hidden && el.getBoundingClientRect().top <= line) cur = el.id; });
+    let active = null;
+    navLinks.forEach((a) => { const on = a.getAttribute("href") === "#" + cur; a.setAttribute("aria-current", on); if (on) active = a; });
+    // keep the active chip in view inside the scrolling chip row
+    if (active && active !== setActive.last) {
+      setActive.last = active;
+      const row = active.parentElement;
+      row.scrollTo({ left: active.offsetLeft - (row.clientWidth - active.offsetWidth) / 2, behavior: "smooth" });
+    }
   }
   addEventListener("resize", setOffsets);
   addEventListener("scroll", setActive, { passive: true });
@@ -297,7 +366,7 @@
     const ex = cart.find((l) => l.key === item.key);
     ex ? ex.qty++ : cart.push({ ...item, qty: 1 });
     save(); renderCart(); scheduleQuote();
-    if (btn) { btn.classList.remove("added"); void btn.offsetWidth; btn.classList.add("added"); const t = btn.textContent; btn.textContent = "Ditambahkan ✓"; setTimeout(() => { if (btn.textContent === "Ditambahkan ✓") btn.textContent = t; }, 1100); }
+    if (btn) { btn.classList.remove("added"); void btn.offsetWidth; btn.classList.add("added"); const t = btn.innerHTML; btn.textContent = "Ditambahkan ✓"; setTimeout(() => { if (btn.textContent === "Ditambahkan ✓") btn.innerHTML = t; }, 1100); }
   }
   const subtotal = () => cart.reduce((s, l) => s + l.price * l.qty, 0);
   const cartItems = () => cart.map((l) => ({ variant_id: l.variant_id, quantity: l.qty, addon: l.addon, choices: l.choices }));
@@ -334,6 +403,19 @@
 
   // a voucher that only takes money off the ongkir: never more than the ongkir itself
   const shipDiscount = (q, fee) => (q?.shipping_cap ? Math.min(q.shipping_cap, fee) : 0);
+  // contextual cart bar: same count and total as the cart drawer; hidden while the cart is empty
+  function renderCartBar(count, total) {
+    const bar = $("cart-bar"), was = renderCartBar.count || 0;
+    bar.hidden = !count;
+    $("cb-count").textContent = count;
+    $("cb-items").textContent = `${count} item`;
+    $("cb-total").textContent = rp(total);
+    bar.setAttribute("aria-label", `Lihat keranjang: ${count} item, total ${rp(total)}`);
+    if (count > was && was) { bar.classList.remove("bump"); void bar.offsetWidth; bar.classList.add("bump"); }
+    renderCartBar.count = count;
+    // leave room at the bottom of the page so the bar never covers the last content
+    document.documentElement.style.setProperty("--cartbar", count ? bar.offsetHeight + 24 + "px" : "0px");
+  }
   function renderCart() {
     const sub = subtotal(), count = cart.reduce((s, l) => s + l.qty, 0);
     const q = quote && quote.subtotal === sub ? quote : null;
@@ -346,6 +428,8 @@
     $("shipdisc-note").hidden = !(q?.shipping_cap && !ds.fee && !ds.blocking);
     $("shipdisc-note").textContent = ds.fee ? "" : (deliv.settings?.enabled && !deliv.loc ? "Pilih lokasi pengantaran dulu supaya potongan ongkir bisa dihitung." : ERRORS.VOUCHER_NO_SHIPPING);
     $("cart-count").textContent = count;
+    $("cart-count").hidden = !count;
+    renderCartBar(count, total);
     $("cart-subtotal").textContent = rp(sub);
     $("disc-row").hidden = !disc;
     $("disc-label").textContent = q?.promo_name ? `Diskon (${q.promo_name})` : "Diskon";
