@@ -75,7 +75,7 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
@@ -172,3 +172,10 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - **Pelanggan** table: total spending, paid orders, highest milestone, next milestone, vouchers available / used, and **Riwayat** (each counted payment, refunds, and every reward with its voucher status).
 - Customers see a **⭐ Loyalty** card in Akun saya, a **Program Loyalty** page (total, progress bar to the next reward, remaining amount, all milestones ✓/🔒, their loyalty vouchers, history), and a **Voucher Loyalty** section in Kode Voucher.
 - Notifications: reward unlocked, "Sedikit lagi" when 80% of the way to the next one, and a reminder 3 days before any voucher expires.
+
+## Ongkir vouchers ("Potongan ongkir saja")
+- Available as a voucher type everywhere vouchers are made: **+ Voucher baru / Assign voucher**, referral campaign rewards, and loyalty milestones.
+- The amount is the **most it takes off the ongkir** (e.g. Rp10.000). It never takes more than the order's ongkir, and never touches item prices, so automatic item promos still apply next to it. Minimum purchase and eligible products are checked on the items.
+- If an order has no ongkir (inside the free radius, or delivery fees off), the voucher can't be used, so it isn't wasted; the cart explains why.
+- Orders show it as **Potongan ongkir** (cart, order page, admin order card, Chat Customer message). On the Midtrans bill it is included in the discount line, so the bill still adds up.
+- Loyalty counts the items paid, not the ongkir.
