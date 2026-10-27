@@ -277,26 +277,26 @@ td.num,th.num{text-align:right}
     const detail = (i) => [i.variant_name, ...Object.values(i.choices || {}), i.addon ? "+ " + i.addon : null].filter(Boolean).join(", ");
     let dest = (o.address || "").trim().replace(/\s*\n\s*/g, ", ");
     const pin = o.delivery_lat != null ? `https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}` : "";
-    if (!dest) dest = pin ? "(see map pin below)" : "(not provided yet)";
+    if (!dest) dest = pin ? "(lihat titik peta di bawah)" : "(belum diisi)";
     const lines = [
-      `Hello ${(o.customer_name || "").trim() || "there"}! 👋`,
-      "Thank you for ordering from CamilaNika Foods & Drinks.",
+      `Halo Kak ${(o.customer_name || "").trim() || "Pelanggan"}! 👋`,
+      "Terima kasih sudah memesan di CamilaNika Foods & Drinks.",
       "",
-      "Here are your order details:",
+      "Berikut detail pesanan Kakak:",
       "",
-      `📦 Order Number: ${o.order_number}`,
-      `📍 Delivery Destination: ${dest}`,
-      ...(pin ? [`🗺️ Map: ${pin}`] : []),
+      `📦 No. Pesanan: ${o.order_number}`,
+      `📍 Alamat Pengantaran: ${dest}`,
+      ...(pin ? [`🗺️ Peta: ${pin}`] : []),
       "",
-      "🛒 Order Summary:",
+      "🛒 Ringkasan Pesanan:",
       ...items.map((i) => `• ${i.product_name}${detail(i) ? ` (${detail(i)})` : ""} × ${i.quantity} — ${rp(i.line_total)}`),
-      ...(o.gifts || []).map((g) => `🎁 Bonus: ${g.gift}`),
+      ...(o.gifts || []).map((g) => `🎁 Bonus gratis: ${g.gift}`),
       "",
-      ...(o.discount ? [`Discount${o.promo_code ? " (" + o.promo_code + ")" : ""}: −${rp(o.discount)}`] : []),
-      ...(o.delivery_fee ? [`Delivery fee: ${rp(o.delivery_fee)}`] : []),
+      ...(o.discount ? [`Diskon${o.promo_code ? " (" + o.promo_code + ")" : ""}: −${rp(o.discount)}`] : []),
+      ...(o.delivery_fee ? [`Ongkos kirim: ${rp(o.delivery_fee)}`] : []),
       `Total: ${rp(o.total)}`,
       "",
-      "If you have any questions about your order, feel free to contact us. Thank you for choosing CamilaNika! ❤️",
+      "Kalau ada pertanyaan tentang pesanan ini, langsung balas chat ini ya. Terima kasih sudah memilih CamilaNika! ❤️",
     ];
     return lines.join("\n");
   }

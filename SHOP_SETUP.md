@@ -135,7 +135,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 
 ## Order steps in Pesanan
 - Each paid order has a button for its next step: **Proses** → **Siap diantar** → **Sedang diantar**, plus **Selesai** and **Batalkan**. Every step notifies the customer.
-- **💬 Chat Customer** opens a ready-made message with the order number, delivery address (and map pin), every item with quantity and subtotal, discount, ongkir and total. Edit it if you like, then **Buka WhatsApp** opens a chat with the customer's number and the message filled in; nothing is sent until you press send in WhatsApp. If the number is missing or invalid you'll see a warning and can copy the message instead.
+- **💬 Chat Customer** opens a ready-made message in Bahasa Indonesia with the order number, delivery address (and map pin), every item with quantity and subtotal, discount, ongkir and total. Edit it if you like, then **Buka WhatsApp** opens a chat with the customer's number and the message filled in; nothing is sent until you press send in WhatsApp. If the number is missing or invalid you'll see a warning and can copy the message instead.
 
 ## Akun saya (customer menu)
 - **Profile**: Nama, No. WhatsApp, Alamat (edit and save), plus Ganti password.
