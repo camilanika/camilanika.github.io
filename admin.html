@@ -122,7 +122,7 @@ td.num,th.num{text-align:right}
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/config.js?v=202610271128"></script>
+<script src="js/config.js?v=202610271213"></script>
 <script src="js/vendor/supabase.js"></script>
 <script>
 (() => {
@@ -251,7 +251,7 @@ td.num,th.num{text-align:right}
           ${o.delivery_lat != null ? `<div style="margin-top:.3rem"><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}">📍 Buka di Google Maps</a>${o.delivery_km != null ? ` <span class="muted" style="font-size:.85rem">${String(o.delivery_km).replace(".", ",")} km</span>` : ""}</div>` : ""}</div>
         <div><ul>${o.order_items.map((i) => `<li>${i.quantity}× ${esc(i.product_name)} · ${esc(i.variant_name)}${Object.values(i.choices || {}).map((c) => " · " + esc(c)).join("")}${i.addon ? " · <b>" + esc(i.addon) + "</b>" : ""} <span class="muted">${rp(i.line_total)}</span></li>`).join("")}</ul>
           ${(o.gifts || []).map((g) => `<div>🎁 <b>${esc(g.gift)}</b></div>`).join("")}
-          <div style="margin-top:.3rem">${o.discount ? `Subtotal ${rp(o.subtotal)} · Diskon −${rp(o.discount)}${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}<br>` : ""}${o.delivery_fee ? `Ongkir ${rp(o.delivery_fee)}<br>` : ""}<b>Total ${rp(o.total)}</b></div></div>
+          <div style="margin-top:.3rem">${o.discount - (o.shipping_discount || 0) > 0 ? `Subtotal ${rp(o.subtotal)} · Diskon −${rp(o.discount - (o.shipping_discount || 0))}${o.promo_code && !o.shipping_discount ? " (" + esc(o.promo_code) + ")" : ""}<br>` : ""}${o.delivery_fee ? `Ongkir ${rp(o.delivery_fee)}${o.shipping_discount ? ` · potongan ongkir −${rp(o.shipping_discount)}${o.promo_code ? " (" + esc(o.promo_code) + ")" : ""}` : ""}<br>` : ""}<b>Total ${rp(o.total)}</b></div></div>
         <div class="acts">${acts.join("")}</div></div>`;
     }).join("");
     el.querySelectorAll("[data-chat]").forEach((b) => b.onclick = () => chatCustomer(b.dataset.chat));
@@ -292,8 +292,9 @@ td.num,th.num{text-align:right}
       ...items.map((i) => `• ${i.product_name}${detail(i) ? ` (${detail(i)})` : ""} × ${i.quantity} — ${rp(i.line_total)}`),
       ...(o.gifts || []).map((g) => `🎁 Bonus gratis: ${g.gift}`),
       "",
-      ...(o.discount ? [`Diskon${o.promo_code ? " (" + o.promo_code + ")" : ""}: −${rp(o.discount)}`] : []),
+      ...(o.discount - (o.shipping_discount || 0) > 0 ? [`Diskon${o.promo_code && !o.shipping_discount ? " (" + o.promo_code + ")" : ""}: −${rp(o.discount - (o.shipping_discount || 0))}`] : []),
       ...(o.delivery_fee ? [`Ongkos kirim: ${rp(o.delivery_fee)}`] : []),
+      ...(o.shipping_discount ? [`Potongan ongkir${o.promo_code ? " (" + o.promo_code + ")" : ""}: −${rp(o.shipping_discount)}`] : []),
       `Total: ${rp(o.total)}`,
       "",
       "Kalau ada pertanyaan tentang pesanan ini, langsung balas chat ini ya. Terima kasih sudah memilih CamilaNika! ❤️",
@@ -1040,7 +1041,7 @@ td.num,th.num{text-align:right}
     VOUCHER_NOT_FOUND: "Voucher tidak ditemukan.", NOT_ADMIN: "Hanya admin.",
   };
   const verr = (e) => { const m = (e?.message || String(e)); const k = Object.keys(VERR).find((x) => m.includes(x)); return k ? VERR[k] : /duplicate key/i.test(m) ? VERR.CODE_TAKEN : /check constraint/i.test(m) ? "Isian belum valid (cek nilai diskon dan format kode: huruf/angka/tanda -)." : m; };
-  const offer = (x) => (x.discount_type === "percent" ? `${x.value}%${x.max_discount ? " (maks " + rp(x.max_discount) + ")" : ""}` : rp(x.value)) + (x.min_spend ? ` · min ${rp(x.min_spend)}` : "");
+  const offer = (x) => (x.discount_type === "percent" ? `${x.value}%${x.max_discount ? " (maks " + rp(x.max_discount) + ")" : ""}` : x.discount_type === "shipping" ? `Ongkir s/d ${rp(x.value)}` : rp(x.value)) + (x.min_spend ? ` · min ${rp(x.min_spend)}` : "");
   const randCode = (n = 8) => { const a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < n; i++) c += a[Math.floor(Math.random() * a.length)]; return c; };
   const copy = async (t, what) => { try { await navigator.clipboard.writeText(t); toast(`${what} disalin`); } catch (e) { prompt("Salin:", t); } };
   const regLink = (code) => `${(CFG.SITE_URL || "https://camilanika.github.io/").replace(/\/?$/, "/")}?ref=${encodeURIComponent(code)}`;
@@ -1131,7 +1132,7 @@ td.num,th.num{text-align:right}
       </div>
       <h3 style="margin:.4rem 0 0;font-size:1rem">Voucher hadiah</h3>
       <div class="grid3">
-        <label class="f">Jenis<select id="kt"><option value="percent">Diskon persen</option><option value="fixed">Potongan Rupiah</option></select></label>
+        <label class="f">Jenis<select id="kt"><option value="percent">Diskon persen</option><option value="fixed">Potongan Rupiah</option><option value="shipping">Potongan ongkir saja</option></select></label>
         <label class="f" id="kvw">Nilai<input id="kv" type="number" min="1" value="${c.value}"></label>
         <label class="f" id="kmw">Maks. diskon (opsional)<input id="km" type="number" min="1" value="${c.max_discount ?? ""}"></label>
         <label class="f">Minimal belanja (Rp)<input id="kmin" type="number" min="0" step="1000" value="${c.min_spend}"></label>
@@ -1144,7 +1145,7 @@ td.num,th.num{text-align:right}
       <p class="msg" id="kmsg"></p>
       <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="ksave">Simpan kampanye</button></div>`);
     $("ks").value = c.status; $("kt").value = c.discount_type; $("kro").value = c.reward_on;
-    const sync = () => { const t = $("kt").value; $("kmw").hidden = t !== "percent"; $("kvw").firstChild.textContent = t === "percent" ? "Diskon (%)" : "Potongan (Rp)"; };
+    const sync = () => { const t = $("kt").value; $("kmw").hidden = t !== "percent"; $("kvw").firstChild.textContent = t === "percent" ? "Diskon (%)" : t === "shipping" ? "Potongan ongkir maks. (Rp)" : "Potongan (Rp)"; };
     $("kt").onchange = sync; sync(); wirePicker("kp");
     $("kgen").onclick = () => { $("kc").value = "CN" + randCode(6); };
     $("ksave").onclick = async () => {
@@ -1158,7 +1159,7 @@ td.num,th.num{text-align:right}
       if (!row.name) return fail("Nama kampanye wajib diisi.");
       if (!/^[A-Z0-9-]{4,24}$/.test(row.code)) return fail("Kode 4–24 karakter: huruf, angka, atau tanda -.");
       if (t === "percent" && !(row.value >= 1 && row.value <= 100)) return fail("Diskon persen harus 1–100.");
-      if (t === "fixed" && !(row.value > 0)) return fail("Isi nilai potongan.");
+      if ((t === "fixed" || t === "shipping") && !(row.value > 0)) return fail("Isi nilai potongan.");
       if (row.starts_at && row.ends_at && row.ends_at <= row.starts_at) return fail("Tanggal berakhir harus setelah tanggal mulai.");
       const prods = picked("kp"); if (!row.applies_to_all && !prods.length) return fail("Pilih minimal satu produk.");
       $("ksave").disabled = true;
@@ -1243,7 +1244,7 @@ td.num,th.num{text-align:right}
   async function voucherFields(px) {
     return `<div class="grid3">
         <label class="f">Kode (kosongkan = dibuat otomatis)<input id="${px}c" maxlength="24" style="text-transform:uppercase" placeholder="otomatis"></label>
-        <label class="f">Jenis<select id="${px}t"><option value="fixed">Potongan Rupiah</option><option value="percent">Diskon persen</option></select></label>
+        <label class="f">Jenis<select id="${px}t"><option value="fixed">Potongan Rupiah</option><option value="percent">Diskon persen</option><option value="shipping">Potongan ongkir saja</option></select></label>
         <label class="f" id="${px}vw">Potongan (Rp)<input id="${px}v" type="number" min="1" value="10000"></label>
         <label class="f" id="${px}mw" hidden>Maks. diskon (opsional)<input id="${px}m" type="number" min="1"></label>
         <label class="f">Minimal belanja (Rp)<input id="${px}min" type="number" min="0" step="1000" value="0"></label>
@@ -1252,7 +1253,7 @@ td.num,th.num{text-align:right}
       <p class="muted" style="margin:0;font-size:.85rem">Voucher hanya bisa dipakai <b>sekali</b>, dan hanya oleh pemiliknya setelah diberikan.</p>`;
   }
   function wireVoucherFields(px) {
-    const sync = () => { const t = $(px + "t").value; $(px + "mw").hidden = t !== "percent"; $(px + "vw").firstChild.textContent = t === "percent" ? "Diskon (%)" : "Potongan (Rp)"; };
+    const sync = () => { const t = $(px + "t").value; $(px + "mw").hidden = t !== "percent"; $(px + "vw").firstChild.textContent = t === "percent" ? "Diskon (%)" : t === "shipping" ? "Potongan ongkir maks. (Rp)" : "Potongan (Rp)"; };
     $(px + "t").onchange = sync; sync(); wirePicker(px + "p");
   }
   function readVoucherFields(px) {
@@ -1262,7 +1263,7 @@ td.num,th.num{text-align:right}
       applies_to_all: $(px + "p-all").checked, product_ids: picked(px + "p") };
     if (v.code && !/^[A-Z0-9-]{4,24}$/.test(v.code)) return [null, "Kode 4–24 karakter: huruf, angka, atau tanda -."];
     if (t === "percent" && !(v.value >= 1 && v.value <= 100)) return [null, "Diskon persen harus 1–100."];
-    if (t === "fixed" && !(v.value > 0)) return [null, "Isi nilai potongan."];
+    if ((t === "fixed" || t === "shipping") && !(v.value > 0)) return [null, "Isi nilai potongan."];
     if (v.expires_at && new Date(v.expires_at) <= new Date()) return [null, "Tanggal berlaku harus di masa depan."];
     if (!v.applies_to_all && !v.product_ids.length) return [null, "Pilih minimal satu produk."];
     return [v, null];
@@ -1402,7 +1403,7 @@ td.num,th.num{text-align:right}
       </div>
       <label class="chk"><input type="checkbox" id="trec" ${t.recurring ? "checked" : ""}> Berulang: hadiah lagi setiap kelipatan jumlah ini</label>
       <div class="grid3">
-        <label class="f">Jenis voucher<select id="tt"><option value="fixed">Potongan Rupiah</option><option value="percent">Diskon persen</option></select></label>
+        <label class="f">Jenis voucher<select id="tt"><option value="fixed">Potongan Rupiah</option><option value="percent">Diskon persen</option><option value="shipping">Potongan ongkir saja</option></select></label>
         <label class="f" id="tvw">Nilai<input id="tv" type="number" min="1" value="${t.value}"></label>
         <label class="f" id="tmw">Maks. diskon (opsional)<input id="tm" type="number" min="1" value="${t.max_discount ?? ""}"></label>
         <label class="f">Minimal belanja pakai voucher (Rp)<input id="tmin" type="number" min="0" step="1000" value="${t.min_spend}"></label>
@@ -1415,7 +1416,7 @@ td.num,th.num{text-align:right}
       <p class="msg" id="tmsg"></p>
       <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="tdel" style="margin-right:auto">Hapus</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="tsave">Simpan</button></div>`);
     $("tt").value = t.discount_type;
-    const sync = () => { const k = $("tt").value; $("tmw").hidden = k !== "percent"; $("tvw").firstChild.textContent = k === "percent" ? "Diskon (%)" : "Potongan (Rp)"; };
+    const sync = () => { const k = $("tt").value; $("tmw").hidden = k !== "percent"; $("tvw").firstChild.textContent = k === "percent" ? "Diskon (%)" : k === "shipping" ? "Potongan ongkir maks. (Rp)" : "Potongan (Rp)"; };
     $("tt").onchange = sync; sync();
     if (!isNew) $("tdel").onclick = async () => {
       if (!confirm("Hapus milestone ini? Voucher yang sudah diberikan tetap berlaku. Lebih aman dinonaktifkan saja.")) return;
@@ -1432,7 +1433,7 @@ td.num,th.num{text-align:right}
       if (!row.name) return fail("Isi nama milestone.");
       if (!(row.threshold > 0)) return fail("Isi total belanja minimal.");
       if (k === "percent" && !(row.value >= 1 && row.value <= 100)) return fail("Diskon persen harus 1–100.");
-      if (k === "fixed" && !(row.value > 0)) return fail("Isi nilai potongan.");
+      if ((k === "fixed" || k === "shipping") && !(row.value > 0)) return fail("Isi nilai potongan.");
       if (row.valid_until && new Date(row.valid_until) <= new Date()) return fail("Tanggal paling lambat harus di masa depan.");
       $("tsave").disabled = true;
       const { error } = isNew ? await sb.from("loyalty_tiers").insert(row) : await sb.from("loyalty_tiers").update(row).eq("id", t.id);

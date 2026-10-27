@@ -558,6 +558,8 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
       <div class="sum"><span>Subtotal</span><span class="num" id="cart-subtotal">Rp0</span></div>
       <div class="sum disc" id="disc-row" hidden><span id="disc-label">Diskon</span><span class="num" id="cart-discount">−Rp0</span></div>
       <div class="sum" id="ship-row" hidden><span>Ongkir</span><span class="num" id="cart-ship">Gratis</span></div>
+      <div class="sum disc" id="shipdisc-row" hidden><span id="shipdisc-label">Potongan ongkir</span><span class="num" id="cart-shipdisc">–</span></div>
+      <p class="cart-err" id="shipdisc-note" hidden></p>
       <p class="gift-msg" id="gift-msg" hidden></p>
     </div>
     <div class="total"><span>Total</span><span class="num" id="cart-total">Rp0</span></div>
@@ -636,9 +638,9 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
   <div class="op-body" id="op-body"></div>
 </section>
 
-<script src="js/config.js?v=202610271128"></script>
+<script src="js/config.js?v=202610271213"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202610271128"></script>
+<script src="js/shop.js?v=202610271213"></script>
 
 </body>
 </html>
