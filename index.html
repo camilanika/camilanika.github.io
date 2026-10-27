@@ -261,15 +261,22 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 
 /* footer */
 footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
-.foot{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:2rem 2.5rem;align-items:start}
-.foot-col{display:grid;gap:.6rem;justify-items:start;min-width:0}
-.foot-btns{display:flex;flex-wrap:wrap;gap:.5rem}
-.foot-btns .btn svg{width:18px;height:18px}
-.foot-link{display:flex;gap:.7rem;align-items:center;text-decoration:none;color:var(--fg);padding:.55rem .8rem .55rem .6rem;border:1.5px solid var(--line);border-radius:14px;background:var(--paper);max-width:100%}
-.foot-link:hover{border-color:var(--rose)}
-.foot-link svg{width:22px;height:22px;flex:none;color:var(--rose)}
-.foot-link b{display:block;line-height:1.25}
-.foot-link small{display:block;color:var(--muted);font-weight:600;font-size:.82rem;line-height:1.3}
+.foot{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:2rem 2.5rem;align-items:start}
+.foot-col{display:grid;gap:.7rem;align-content:start;min-width:0}
+.foot-col .brand{justify-self:start}
+.foot-col .phone{justify-self:start}
+/* four identical link tiles: same height, same width per column, same layout */
+.tile{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:.8rem;height:72px;padding:0 1rem 0 .8rem;border:1.5px solid var(--line);border-radius:18px;background:var(--paper);color:var(--fg);text-decoration:none;transition:border-color .15s,transform .15s}
+.tile:hover{border-color:var(--tile,var(--rose));transform:translateY(-1px)}
+.tile:focus-visible{outline:3px solid var(--tile,var(--rose));outline-offset:2px}
+.tile-ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--tile,var(--rose));color:#fff}
+.tile-ic svg{width:24px;height:24px}
+.tile-tx{min-width:0}
+.tile-tx b{display:block;font-size:1rem;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile-tx small{display:block;color:var(--muted);font-weight:600;font-size:.82rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile-go{font-size:1.5rem;font-weight:800;color:var(--muted);line-height:1}
+.t-wa{--tile:var(--wa)} .t-go{--tile:var(--go)} .t-map{--tile:var(--rose)} .t-ig{--tile:#C13584}
+@media (prefers-reduced-motion:reduce){.tile{transition:none}.tile:hover{transform:none}}
 .foot-copy{margin-top:2rem;color:var(--muted);font-size:.85rem;font-weight:700}
 .foot .tagline{font-family:var(--f-script);font-size:1.6rem;color:var(--rose)}
 .phone{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
@@ -431,6 +438,32 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
 .form-msg.err{color:var(--rose)}
 .acct-sec{display:grid;gap:.6rem;padding-top:.4rem}
 .acct-sec h4{margin:0;font-family:var(--f-display);font-size:1.1rem}
+
+/* ===== uniform look: one set of corners, borders and icon boxes for the whole site ===== */
+:root{--r-xl:24px;--r-lg:20px;--r-md:16px;--r-sm:12px;--bd:1.5px solid var(--line)}
+/* cards */
+.item,.perks li,.steps li,.vc-card,.od-sec,.pd-card,.am-head,.order-card{border:var(--bd);border-radius:var(--r-lg)}
+/* rows, tiles and small panels */
+.op-row,.nf-item,.am-item,.loy-tier,.line,.tile,.am-panel,.loy-card,.fillings div,.mosaic .note{border-radius:var(--r-md)}
+.line,.am-panel{border:var(--bd)}
+/* category panels: solid tinted outline instead of a second dashed frame around dashed cards */
+.series{border:1.5px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:var(--r-xl)}
+/* big banners and photos */
+.gofood,.promo,.hero-media .photo{border-radius:var(--r-xl)}
+.bottle,.mosaic figure,.kuah img{border-radius:var(--r-md)}
+/* inputs, code boxes, small labels */
+.field input,.field textarea,.promo-code input,.cart-err,.vc-code,.pd-code,.hero-media .tag,.toast{border-radius:var(--r-sm)}
+.modal{border-radius:var(--r-lg)}
+/* list icons: the same rounded square everywhere */
+.am-item .ic,.nf-ic,.tile-ic{width:40px;height:40px;border-radius:var(--r-sm);display:grid;place-items:center;flex:none}
+.am-item .ic,.nf-ic{background:var(--rose-soft);font-size:1.1rem}
+.tile{grid-template-columns:40px minmax(0,1fr) auto}
+/* the same hover for everything you can tap */
+.op-row:hover,.nf-item:hover,.am-item:hover,.tile:hover,.loy-card:hover{border-color:var(--rose)}
+/* step cards: content starts at the top, so titles line up */
+.steps li{align-content:start}
+/* empty sections look like an empty slot, aligned like the cards around them */
+.vc-sec > .op-empty{display:block;text-align:left;padding:.9rem 1rem!important;border:1.5px dashed var(--line);border-radius:var(--r-md);color:var(--muted)}
 </style>
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
@@ -539,23 +572,17 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
       <a class="brand" href="#top"><img src="img/logo-cireng.jpg" alt=""><span>Camila<b>Nika</b></span></a>
       <p class="tagline">Cinta rasa Nika untuk kita</p>
       <span class="promo-msg">Free delivery area Bukit Cimanggu City</span>
-    </div>
-    <div class="foot-col">
-      <span class="opt-label">Pesan sekarang</span>
-      <div class="foot-btns">
-        <a class="btn btn-wa" href="https://wa.me/628567412578?text=Halo%20CamilaNika%2C%20saya%20mau%20pesan" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.4-.3Z"/></svg>Chat WhatsApp</a>
-        <a class="btn btn-go" href="https://gofood.link/a/UCuoiHJ" target="_blank" rel="noopener">CamilaNika di GoFood</a>
-      </div>
       <div class="phone"><code id="phone">0856-7412-578</code><button class="copy" type="button" id="copy-phone">Salin nomor</button></div>
     </div>
     <div class="foot-col">
+      <span class="opt-label">Pesan sekarang</span>
+      <a class="tile t-wa" href="https://wa.me/628567412578?text=Halo%20CamilaNika%2C%20saya%20mau%20pesan" target="_blank" rel="noopener"><span class="tile-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.4-.3Z"/></svg></span><span class="tile-tx"><b>Chat WhatsApp</b><small>Pesan &amp; tanya langsung</small></span><span class="tile-go" aria-hidden="true">›</span></a>
+      <a class="tile t-go" href="https://gofood.link/a/UCuoiHJ" target="_blank" rel="noopener"><span class="tile-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11h14l-1.2 8.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8Z"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="tile-tx"><b>CamilaNika di GoFood</b><small>Pesan lewat aplikasi Gojek</small></span><span class="tile-go" aria-hidden="true">›</span></a>
+    </div>
+    <div class="foot-col">
       <span class="opt-label">Temukan kami</span>
-      <a class="foot-link" href="https://maps.app.goo.gl/sUkRN9J1LmxUsZ3TA" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
-        <span><b>Lokasi di Google Maps</b><small>Bukit Cimanggu City, Tanah Sareal, Bogor</small></span></a>
-      <a class="foot-link" href="https://www.instagram.com/camilanika.food" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
-        <span><b>@camilanika.food</b><small>Ikuti kami di Instagram</small></span></a>
+      <a class="tile t-map" href="https://maps.app.goo.gl/sUkRN9J1LmxUsZ3TA" target="_blank" rel="noopener"><span class="tile-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="tile-tx"><b>Lokasi di Google Maps</b><small>Bukit Cimanggu City, Bogor</small></span><span class="tile-go" aria-hidden="true">›</span></a>
+      <a class="tile t-ig" href="https://www.instagram.com/camilanika.food" target="_blank" rel="noopener"><span class="tile-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></span><span class="tile-tx"><b>@camilanika.food</b><small>Ikuti kami di Instagram</small></span><span class="tile-go" aria-hidden="true">›</span></a>
     </div>
   </div>
   <p class="wrap foot-copy">© <span id="foot-year">2026</span> CamilaNika Foods &amp; Drinks</p>

@@ -158,6 +158,13 @@ td.num,th.num{text-align:right}
   .modal{border-radius:0;min-height:100%;width:100%;padding:1rem .9rem 1.4rem;align-content:start;box-shadow:none}
   .modal-head h2{font-size:1.15rem;overflow-wrap:anywhere}
 }
+
+/* ===== uniform look (same sizes as the shop) ===== */
+:root{--r-xl:24px;--r-lg:20px;--r-md:16px;--r-sm:12px}
+input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav button{border-radius:var(--r-sm)}
+.card,.tbl-wrap{border-radius:var(--r-md)}
+@media (min-width:641px){.modal{border-radius:var(--r-lg)}}
+@media (max-width:700px){.tbl-wrap tr{border-radius:var(--r-md)}}
 </style>
 </head>
 <body>
