@@ -498,7 +498,6 @@
   function renderCartBar(count, total) {
     const bar = $("cart-bar"), was = renderCartBar.count || 0;
     bar.hidden = !count;
-    $("cb-count").textContent = count;
     $("cb-items").textContent = `${count} item`;
     $("cb-total").textContent = rp(total);
     bar.setAttribute("aria-label", `Lihat keranjang: ${count} item, total ${rp(total)}`);
@@ -519,7 +518,6 @@
     $("shipdisc-note").hidden = !(q?.shipping_cap && !ds.fee && !ds.blocking);
     $("shipdisc-note").textContent = ds.fee ? "" : (deliv.settings?.enabled && !deliv.loc ? "Pilih lokasi pengantaran dulu supaya potongan ongkir bisa dihitung." : ERRORS.VOUCHER_NO_SHIPPING);
     $("cart-count").textContent = count;
-    $("cart-count").hidden = !count;
     renderCartBar(count, total);
     $("cart-subtotal").textContent = rp(sub);
     $("disc-row").hidden = !disc;
