@@ -26,7 +26,13 @@
         from: (t) => new Query(t),
         rpc: (fn, args) => post("/__rpc", { fn, args: args || {} }),
         auth: {
-          onAuthStateChange(cb) { listeners.push(cb); setTimeout(() => cb(window.__TEST_UID ? "SIGNED_IN" : "SIGNED_OUT", window.__TEST_UID ? { user: user() } : null), 0); return { data: { subscription: { unsubscribe() {} } } }; },
+          onAuthStateChange(cb) {
+            listeners.push(cb);
+            setTimeout(() => cb(window.__TEST_UID ? "SIGNED_IN" : "SIGNED_OUT", window.__TEST_UID ? { user: user() } : null), 0);
+            // like supabase-js on some page loads: a second session event right after the first
+            if (window.__DOUBLE_AUTH && window.__TEST_UID) setTimeout(() => cb("INITIAL_SESSION", { user: user() }), 5);
+            return { data: { subscription: { unsubscribe() {} } } };
+          },
           getSession: async () => ({ data: { session: window.__TEST_UID ? { user: user() } : null } }),
           getUser: async () => ({ data: { user: user() } }),
           signOut: async () => { window.__TEST_UID = null; listeners.forEach((cb) => cb("SIGNED_OUT", null)); return {}; },
