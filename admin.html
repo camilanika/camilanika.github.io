@@ -204,6 +204,55 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 .cf-compact td.cf-main .muted{font-size:.82rem;overflow-wrap:anywhere}
 .cf-compact td.num{white-space:nowrap}
 .cf-compact td.cf-go{text-align:right;width:1%}
+/* ===== Cashflow on phones ===== */
+.cf-mb,.cf-show-m{display:none}
+.cf-ftoggle{display:none}
+.cf-fsel{display:contents}
+.cf-ftoggle.on{border-color:var(--rose);color:var(--rose)}
+@media (max-width:640px){
+  .cf-hide-m{display:none}
+  .cf-show-m{display:inline}
+  .cf-bar{gap:.5rem}
+  .cf-bar .btn{padding:.55rem .85rem}
+  .cf-bar .btn-rose{flex:1 1 0}
+  #cf-ref{width:40px;padding:.55rem 0;font-size:1.05rem}
+  .cf-dates{padding:.7rem .75rem;gap:.45rem;margin-bottom:.8rem}
+  .cf-chips,.cf-subs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-left:-.75rem;margin-right:-.75rem;padding:0 .75rem}
+  .cf-subs{margin:0 -10px .8rem;padding:0 10px 2px}
+  .cf-chips::-webkit-scrollbar,.cf-subs::-webkit-scrollbar{display:none}
+  .cf-chips button,.cf-subs button{flex:none}
+  .cf-range{font-size:.82rem}
+  .cf-custom label{flex:1 1 40%}
+  .cf-note{font-size:.84rem;padding:.5rem .7rem;margin-bottom:.5rem}
+  .cf-cards{gap:.5rem;margin-bottom:.9rem}
+  .cf-card{padding:.7rem .75rem}
+  .cf-card.cf-wide{grid-column:1/-1}
+  .cf-card.cf-wide .cf-val{font-size:1.55rem}
+  .cf-lbl{font-size:.68rem}
+  .cf-hint{font-size:.74rem;line-height:1.3}
+  .cf-intro{font-size:.85rem}
+  .cf-filters{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;align-items:end}
+  .cf-filters .cf-q{grid-column:1}
+  .cf-ftoggle{display:inline-flex;height:42px}
+  .cf-fsel{display:none}
+  .cf-fsel.open{display:grid;grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
+  .cf-fsel.open select{width:100%}
+  #cf-reset{grid-column:1/-1;justify-self:start}
+  .cf-pager{flex-wrap:nowrap}
+  .cf-pager .muted{font-size:.82rem}
+  .cf-mb{display:block;font-size:.8rem}
+  .tbl-wrap .cf-itbl thead{display:none}
+  .tbl-wrap .cf-itbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.6rem;padding:.5rem .75rem;margin-bottom:.4rem}
+  .tbl-wrap .cf-itbl td{padding:0;text-align:left}
+  .tbl-wrap .cf-itbl td::before{display:none}
+  .tbl-wrap .cf-itbl td.num{text-align:right}
+  .tbl-wrap .cf-itbl td.cf-hide-m{display:none}
+  .cf-filters.cf-mfilters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cf-filters.cf-mfilters .cf-q{grid-column:auto}
+  .cf-ins .cf-card:last-child{grid-column:1/-1}
+  .cf-kv{font-size:.9rem}
+  .cf-kv span:first-child{flex:none;max-width:45%}
+}
 /* phones: short lists stay two lines per row (name + amount, then date), no column labels */
 .cf-m{display:none}
 @media (max-width:700px){
@@ -299,7 +348,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 <script src="js/vendor/supabase.js"></script>
 <script src="js/nota.js?v=202610291300"></script>
 <script src="js/cashflow-core.js?v=202610291300"></script>
-<script src="js/cashflow.js?v=202610291300"></script>
+<script src="js/cashflow.js?v=202610291500"></script>
 <script>
 (() => {
   const CFG = window.CN_CONFIG;

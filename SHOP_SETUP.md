@@ -193,10 +193,9 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 **Install once:** run `supabase/migrations/014_cashflow.sql`, `015_cashflow_hide_mock.sql` and `016_offline_payment_status.sql` (in that order) in the SQL Editor, then paste the updated `create-payment` and `midtrans-webhook` Edge Functions again (they now report whether a payment went through Midtrans Sandbox or Production). The page works before the functions are redeployed; until then the Pengaturan setting decides.
 
 **What it shows** (for Hari ini, Kemarin, Minggu ini, Bulan ini, Tahun ini or any dates; WIB, weeks start Monday):
-- **Real Order Income**: online orders with status **Selesai**, on the day they were completed.
 - **Offline Order Income**: walk-in / WhatsApp / phone sales you record here, once they're paid (on the day they were paid).
-- **Total Income** = both. **Total Expenses**: costs you record here. **Net Cashflow** = Total Income − Total Expenses. This is recorded cash in minus cash out, not accounting profit.
-- **Completed Real Orders** and **Total Items Sold** (online + offline orders that have item details).
+- **Total Income**: online orders with status **Selesai** (on the day they were completed) plus paid offline sales. The small print under it shows the online amount and number of orders, and the offline amount. **Total Expenses**: costs you record here. **Net Cashflow** = Total Income − Total Expenses. This is recorded cash in minus cash out, not accounting profit.
+- **Total Items Sold** (online + offline sales that have item details).
 - Orders that are unpaid, paid but not yet Selesai, cancelled, expired or failed never count.
 
 **Test orders (Mock) are left out completely**
@@ -210,6 +209,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 
 **Lists and Detail**
 - Filters: Pelanggan (customers who bought in the selected period, with their number of orders; on Transaksi, Pesanan selesai and Penjualan offline), plus type, source, payment, status bayar, category and search depending on the list. **Reset filter** clears them.
+- On phones: one row of period chips and one row of section tabs (swipe sideways), Total Income across the top, and the filters folded behind a **Filter** button (it shows how many are active); search stays visible.
 - Every list shows only the date, who / what, and the amount. Tap a row (or **Detail**) for everything else: items, payment, source, notes, history, and the **Ubah / Hapus** and review buttons. Penjualan menu works the same way (category, average price and share are in Detail).
 
 **Cetak nota (bill)**
