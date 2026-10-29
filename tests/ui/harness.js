@@ -82,12 +82,12 @@ async function start({ seedSql } = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch();
 
-  async function open(hash = "", { uid = ADMIN, viewport = { width: 1280, height: 900 } } = {}) {
+  async function open(hash = "", { uid = ADMIN, viewport = { width: 1280, height: 900 }, doubleAuth = false } = {}) {
     const ctx = await browser.newContext({ viewport, locale: "id-ID", timezoneId: "Asia/Jakarta" });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
     const page = await ctx.newPage();
     page.on("pageerror", (e) => { (page.__errors ||= []).push(e.message); });
-    await page.addInitScript((u) => { window.__TEST_UID = u; }, uid);
+    await page.addInitScript(([u, d]) => { window.__TEST_UID = u; window.__DOUBLE_AUTH = d; }, [uid, doubleAuth]);
     await page.goto(`${base}/admin.html${hash}`);
     return page;
   }

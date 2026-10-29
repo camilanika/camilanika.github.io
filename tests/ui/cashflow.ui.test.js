@@ -259,6 +259,15 @@ test("non-admins can't use the page (#28)", async () => {
   await page.context().close();
 });
 
+test("two quick login events (as on the live site) don't break the page", async () => {
+  const page = await H.open("#cashflow/orders", { doubleAuth: true });
+  await page.locator("#cf-list .cf-table").waitFor();
+  await page.waitForTimeout(800);
+  assert.equal(await page.locator("#cf-filters").count(), 1);
+  assert.deepEqual(page.__errors || [], []);
+  await page.context().close();
+});
+
 test("phone layout: no sideways scrolling", async () => {
   const page = await H.open("#cashflow/transactions", { viewport: { width: 375, height: 800 } });
   await page.locator("#cf-list .cf-table").waitFor();
