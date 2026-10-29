@@ -91,7 +91,7 @@
   }
 
   // ---------------------------------------------------------------- 1. summary cards
-  function cardsSkeleton() { return Array.from({ length: 7 }, () => `<div class="card cf-card"><div class="muted">Memuat…</div></div>`).join(""); }
+  function cardsSkeleton() { return Array.from({ length: 5 }, () => `<div class="card cf-card"><div class="muted">Memuat…</div></div>`).join(""); }
   async function loadSummary(quiet) {
     const seq = ++loadSeq;
     if (!quiet) $("cf-cards").setAttribute("aria-busy", "true");
@@ -101,12 +101,10 @@
       summary = s;
       const card = (label, value, hint, cls = "") => `<div class="card cf-card ${cls}"><div class="cf-lbl">${label}</div><div class="cf-val">${value}</div>${hint ? `<div class="cf-hint">${hint}</div>` : ""}</div>`;
       $("cf-cards").innerHTML = [
-        card("Real Order Income", rp(s.real_order_income), `${s.completed_real_orders} pesanan online selesai`),
         card("Offline Order Income", rp(s.offline_order_income), `${s.offline_real_orders} penjualan offline${s.amount_only_orders ? ` · ${s.amount_only_orders} nominal saja` : ""}`),
-        card("Total Income", rp(s.total_income), "Pesanan online + penjualan offline", "cf-strong"),
+        card("Total Income", rp(s.total_income), `Online ${rp(s.real_order_income)} (${s.completed_real_orders} pesanan) · offline ${rp(s.offline_order_income)}`, "cf-strong"),
         card("Total Expenses", rp(s.total_expenses), `${s.expense_count} pengeluaran`),
         card("Net Cashflow", rp(s.net_cashflow), "Pemasukan − pengeluaran tercatat. Bukan laba akuntansi.", s.net_cashflow < 0 ? "cf-neg cf-strong" : "cf-pos cf-strong"),
-        card("Completed Real Orders", String(s.completed_real_orders), "Pesanan online berstatus Selesai"),
         card("Total Items Sold", Number(s.total_items_sold).toLocaleString("id-ID"), "Dari pesanan dengan rincian item"),
       ].join("");
       const banners = [];
@@ -679,9 +677,8 @@
         <button class="btn ${mode === "production" ? "btn-ghost" : "btn-rose"}" id="cf-mode">${mode === "production" ? "Kembali ke Sandbox" : "Ganti ke Production"}</button></div>
       <div class="card"><h3>Kategori pengeluaran</h3><p class="muted">Tambah, ganti nama atau sembunyikan kategori.</p><button class="btn btn-ghost" id="cf-cats2">Kelola kategori</button></div>
       <div class="card"><h3>Cara menghitung</h3><ul class="hist">
-        <li><b>Real Order Income</b>: total pesanan online berstatus Selesai, menurut tanggal selesai.</li>
-        <li><b>Offline Order Income</b>: penjualan offline, menurut tanggal pesanan.</li>
-        <li><b>Total Income</b> = Real Order Income + Offline Order Income.</li>
+        <li><b>Total Income</b> = pesanan online berstatus Selesai (menurut tanggal selesai) + penjualan offline yang sudah lunas (menurut tanggal bayar). Rinciannya ada di bawah angka Total Income.</li>
+        <li><b>Offline Order Income</b>: penjualan offline yang sudah lunas, menurut tanggal bayar.</li>
         <li><b>Total Expenses</b>: semua pengeluaran menurut tanggal pengeluaran.</li>
         <li><b>Net Cashflow</b> = Total Income − Total Expenses. Ini arus kas tercatat, bukan laba akuntansi.</li>
         <li>Pesanan tes (Mock) tidak ditampilkan dan tidak dihitung di mana pun di halaman ini.</li>
