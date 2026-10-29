@@ -78,7 +78,7 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
@@ -190,11 +190,11 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Each page has its own address (e.g. `admin.html#vouchers/loyalty`), so refresh and bookmarks keep you on the same page.
 
 ## Cashflow Summary (Admin → 💰 Cashflow Summary)
-**Install once:** run `supabase/migrations/014_cashflow.sql` and then `015_cashflow_hide_mock.sql` in the SQL Editor, then paste the updated `create-payment` and `midtrans-webhook` Edge Functions again (they now report whether a payment went through Midtrans Sandbox or Production). The page works before the functions are redeployed; until then the Pengaturan setting decides.
+**Install once:** run `supabase/migrations/014_cashflow.sql`, `015_cashflow_hide_mock.sql` and `016_offline_payment_status.sql` (in that order) in the SQL Editor, then paste the updated `create-payment` and `midtrans-webhook` Edge Functions again (they now report whether a payment went through Midtrans Sandbox or Production). The page works before the functions are redeployed; until then the Pengaturan setting decides.
 
 **What it shows** (for Hari ini, Kemarin, Minggu ini, Bulan ini, Tahun ini or any dates; WIB, weeks start Monday):
 - **Real Order Income**: online orders with status **Selesai**, on the day they were completed.
-- **Offline Order Income**: walk-in / WhatsApp / phone sales you record here.
+- **Offline Order Income**: walk-in / WhatsApp / phone sales you record here, once they're paid (on the day they were paid).
 - **Total Income** = both. **Total Expenses**: costs you record here. **Net Cashflow** = Total Income − Total Expenses. This is recorded cash in minus cash out, not accounting profit.
 - **Completed Real Orders** and **Total Items Sold** (online + offline orders that have item details).
 - Orders that are unpaid, paid but not yet Selesai, cancelled, expired or failed never count.
@@ -209,6 +209,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Online orders can't be edited or deleted here; use **Pesanan** (Detail → **Buka di Pesanan**).
 
 **Lists and Detail**
+- Filters: Pelanggan (customers who bought in the selected period, with their number of orders; on Transaksi, Pesanan selesai and Penjualan offline), plus type, source, payment, status bayar, category and search depending on the list. **Reset filter** clears them.
 - Every list shows only the date, who / what, and the amount. Tap a row (or **Detail**) for everything else: items, payment, source, notes, history, and the **Ubah / Hapus** and review buttons. Penjualan menu works the same way (category, average price and share are in Detail).
 
 **Cetak nota (bill)**
@@ -216,6 +217,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 
 **Penjualan offline**
 - **+ Penjualan offline**: date and time, receipt number (optional), customer (optional), source, payment method, then either **Per item menu** (pick menu and size; the menu price fills in and can be changed; quantity, discount per line, order discount, extra charge such as ongkir) or **Nominal saja** (just the amount received).
+- **Status pembayaran**: **Lunas** (default; optionally the time it was paid) or **Belum dibayar** for orders that came in but haven't been paid yet. Unpaid sales are listed with a red **Belum dibayar** badge (filter: Status bayar) and a banner shows how many and how much is still owed, but they are **not income** and not in items sold or menu sales until paid. Open one and press **Tandai lunas** to record the payment date and method; it then counts on that date. A bill printed while unpaid says "Belum dibayar".
 - The database recalculates the total; a different total is refused. Pressing save twice saves once. An online order number (CN-…) can't be recorded here, so nothing is counted twice, and a receipt number can only be used once.
 - Nominal-saja sales count as income but have no items, so they're left out of menu sales; the Penjualan menu tab says how many and how much.
 - Edit and delete (with confirmation) from the list. Deleted records are kept in the database (soft delete) for the audit trail.
