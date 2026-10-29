@@ -60,6 +60,12 @@ Deno.serve(async (req) => {
   const fraud = String(st.fraud_status ?? "accept");
   const paidAmount = Math.round(Number(st.gross_amount));
 
+  // Cashflow: the environment that sent this notification (Sandbox = Mock order). Idempotent.
+  const { error: tagErr } = await admin.rpc("tag_order_payment_env", {
+    p_order_number: orderId, p_env: IS_PROD ? "production" : "sandbox",
+  });
+  if (tagErr) console.error("tag_order_payment_env failed", tagErr.message);
+
   let result = "unchanged";
   if (status === "settlement" || (status === "capture" && fraud === "accept")) {
     if (paidAmount !== order.total) {
