@@ -209,6 +209,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 
 **Lists and Detail**
 - Filters: Pelanggan (customers who bought in the selected period, with their number of orders; on Transaksi, Pesanan selesai and Penjualan offline), plus type, source, payment, status bayar, category and search depending on the list. **Reset filter** clears them.
+- On phones: one row of period chips and one row of section tabs (swipe sideways), Total Income across the top, and the filters folded behind a **Filter** button (it shows how many are active); search stays visible.
 - Every list shows only the date, who / what, and the amount. Tap a row (or **Detail**) for everything else: items, payment, source, notes, history, and the **Ubah / Hapus** and review buttons. Penjualan menu works the same way (category, average price and share are in Detail).
 
 **Cetak nota (bill)**
