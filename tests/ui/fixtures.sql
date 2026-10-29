@@ -10,8 +10,8 @@ declare o jsonb; spec record;
 begin
   for spec in select * from (values
       ('[{"variant_id":1,"quantity":2}]', 'production', 'Budi',  false),   -- real   26.000 (2x Americano S)
-      ('[{"variant_id":34,"quantity":1}]', 'production', 'Sari', false),   -- real   18.500 (1x Matcha Latte S)
-      ('[{"variant_id":25,"quantity":3}]', 'sandbox', 'TES SISTEM', true)  -- mock   49.500, flagged for review
+      ('[{"variant_id":34,"quantity":1}]', 'production', 'Sari', true),    -- real   18.500 (1x Matcha Latte S), flagged for review
+      ('[{"variant_id":25,"quantity":3}]', 'sandbox', 'TES SISTEM', true)  -- mock   49.500 (test order: hidden from Cashflow)
     ) v(items, env, name, review) loop
     o := public.create_order(null, spec.items::jsonb, null, spec.name, '081234567890');
     perform public.tag_order_payment_env(o->>'order_number', spec.env);
@@ -21,7 +21,7 @@ begin
     perform set_config('request.jwt.claim.sub', '', false);
     if spec.review then
       update public.orders set classification_source = 'migration', classification_review = true,
-             classification_note = 'Dibuat saat pembayaran Midtrans masih Sandbox (tes).'
+             classification_note = 'Dibuat sebelum Cashflow Summary ada.'
        where order_number = o->>'order_number';
     end if;
   end loop;

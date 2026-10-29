@@ -99,7 +99,7 @@ declare s jsonb := public.cashflow_summary('2026-08-01', '2026-08-31');
 begin
   perform t.eq((s->>'real_order_income')::bigint, 57500::bigint, '#1/#25 real order income = 44.500 + 13.000');
   perform t.eq((s->>'completed_real_orders')::int, 2, '#1/#2 completed real orders counted, pending/paid/processing/cancelled/expired/failed excluded');
-  perform t.eq((s->>'mock_order_value')::bigint, 62500::bigint, '#3 mock value = 49.500 + untagged 13.000');
+  perform t.ok(not (s ? 'mock_order_value') and not (s ? 'mock_orders'), '#3 summary reports no mock totals (015)');
   perform t.eq((s->>'total_income')::bigint, 57500::bigint, '#3 mock orders not in total income');
   perform t.eq((s->>'total_items_sold')::bigint, 4::bigint, '#25 items sold counts only real lines (2+1+1)');
   perform t.eq((s->>'net_cashflow')::bigint, 57500::bigint, '#25 net cashflow with no expenses');
@@ -121,7 +121,7 @@ begin
   perform public.cashflow_set_order_classification(t.id('o_mock1')::uuid, 'mock');
   s := public.cashflow_summary('2026-08-01', '2026-08-31');
   perform t.eq((s->>'real_order_income')::bigint, 57500::bigint, '#5 real -> mock removes it from income');
-  perform t.eq((s->>'mock_order_value')::bigint, 62500::bigint, '#5 and it is back in mock value');
+  perform t.eq((s->>'total_income')::bigint, 57500::bigint, '#5 and total income drops back');
   perform t.eq((select classification_source from public.orders where id = t.id('o_mock1')::uuid), 'admin', 'admin choice is remembered');
   perform t.ok((select count(*) = 3 from public.cashflow_audit where entity = 'order' and entity_id = t.id('o_mock1')), 'classification changes are audited');
 end $$;
@@ -209,7 +209,7 @@ begin
   perform t.put('off_mock', r->>'id');
   s := public.cashflow_summary('2026-08-01', '2026-08-31');
   perform t.eq((s->>'total_income')::bigint, 252500::bigint, '#12 mock offline order not in total income');
-  perform t.eq((s->>'mock_offline_value')::bigint, 165000::bigint, '#12 mock offline order in mock value');
+  perform t.eq((public.cashflow_transactions('{"from":"2026-08-17","to":"2026-08-17"}')->>'total_count')::int, 0, '#12 mock offline order is not listed (015)');
   perform t.eq((s->>'total_items_sold')::bigint, 10::bigint, '#12 mock offline items not in items sold');
 end $$;
 
@@ -314,9 +314,8 @@ begin
   perform t.eq((m->'insights'->'top_by_quantity'->>'name'), 'Americano', 'insight: best seller by quantity');
   perform t.eq((m->'insights'->'top_category'->>'name'), 'Coffee Series', 'insight: best category');
   perform t.eq((select (x->>'revenue')::bigint from jsonb_array_elements(m->'categories') x where x->>'name' = 'Matcha Series'), 18500::bigint, 'category totals');
-  -- mock scope shows them separately
-  mk := public.cashflow_menu_sales('2026-08-01', '2026-08-31', 'mock');
-  perform t.eq((select (x->>'quantity')::bigint from jsonb_array_elements(mk->'rows') x where x->>'name' = 'Chocolate'), 13::bigint, '#21 mock analysis available separately (3 online + 10 offline)');
+  -- mock orders are not reported at all (015)
+  perform t.throws($q$select public.cashflow_menu_sales('2026-08-01', '2026-08-31', 'mock')$q$, 'INVALID_FILTER', '#21 there is no mock menu report');
   -- 19: date range
   d := public.cashflow_menu_sales('2026-08-12', '2026-08-12');
   perform t.eq((d->>'total_quantity')::bigint, 1::bigint, '#19 one day only includes that day''s orders');
@@ -347,14 +346,15 @@ do $$
 declare x jsonb;
 begin
   x := public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31"}');
-  -- real1, real2, mock1, untagged, off_amt, off_mock, off2, gas expense
-  perform t.eq((x->>'total_count')::int, 8, '#26 all eligible transactions in the period');
+  -- real1, real2, off_amt, off2, gas expense (mock1, untagged and off_mock are hidden)
+  perform t.eq((x->>'total_count')::int, 5, '#26 all eligible transactions in the period, no mock orders');
+  perform t.ok(not exists (select 1 from jsonb_array_elements(x->'rows') r where r->>'classification' = 'mock'), 'no mock row is ever listed (015)');
   perform t.ok((select bool_and(a >= b) from (select (r->>'at')::timestamptz a, lead((r->>'at')::timestamptz) over () b from jsonb_array_elements(x->'rows') r) z where b is not null), '#27 newest first');
   perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","type":"expense"}')->>'total_count')::int, 1, '#27 filter: expenses');
-  perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","classification":"mock"}')->>'total_count')::int, 3, '#27 filter: mock only');
+  perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","classification":"mock"}')->>'total_count')::int, 0, 'asking for mock rows returns nothing (015)');
   perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","source":"system_real"}')->>'total_count')::int, 2, '#27 filter: system real orders');
-  perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","source":"system"}')->>'total_count')::int, 4, '#27 filter: all completed online orders (real + mock)');
-  perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","source":"offline"}')->>'total_count')::int, 3, '#27 filter: offline orders');
+  perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","source":"system"}')->>'total_count')::int, 2, '#27 filter: completed online orders (real only)');
+  perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","source":"offline"}')->>'total_count')::int, 2, '#27 filter: offline orders (mock one hidden)');
   perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","payment":"bank_transfer"}')->>'total_count')::int, 1, '#27 filter: payment method');
   perform t.eq((public.cashflow_transactions(jsonb_build_object('from','2026-08-01','to','2026-08-31','category_id',(select id from public.expense_categories where name = 'Gas & Bahan Bakar')))->>'total_count')::int, 1, '#27 filter: expense category');
   perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","q":"matcha"}')->>'total_count')::int, 1, '#27 search: menu item');
@@ -364,10 +364,46 @@ begin
   perform t.eq((public.cashflow_transactions(jsonb_build_object('from','2026-08-01','to','2026-08-31','q',(select order_number from public.orders where id = t.id('o_real1')::uuid)))->>'total_count')::int, 1, '#27 search: order number');
   perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","review":true}')->>'total_count')::int, 0, 'filter: needs review (none in a fresh database)');
   perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","q":"100%"}')->>'total_count')::int, 0, 'search treats % literally');
-  x := public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","page":2,"page_size":3}');
-  perform t.eq(jsonb_array_length(x->'rows'), 3, 'pagination: page 2 of 3');
+  x := public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","page":2,"page_size":2}');
+  perform t.eq(jsonb_array_length(x->'rows'), 2, 'pagination: page 2 of 3');
   perform t.eq((public.cashflow_transactions('{"from":"2026-08-12","to":"2026-08-12"}')->>'total_count')::int, 1, '#26 same date range in the list as in the summary');
   perform t.throws($q$select public.cashflow_summary('2026-08-31', '2026-08-01')$q$, 'DATE_RANGE_INVALID', 'reversed date range rejected');
+end $$;
+
+-- offline payment status (016): unpaid sales are listed but are not income until paid
+do $$
+declare r jsonb; s0 jsonb; s jsonb; x jsonb; v int;
+begin
+  s0 := public.cashflow_summary('2026-08-01', '2026-08-31');
+  r := public.cashflow_save_offline_order('{"client_token":"abababab-0000-0000-0000-000000000001","order_date":"2026-08-20T10:00:00+07:00","order_ref":"BON-1","customer_name":"Bu Tini","source":"whatsapp","payment_method":"bank_transfer","payment_status":"unpaid","items":[{"variant_id":1,"quantity":2,"unit_price":13000}]}');
+  perform t.put('off_unpaid', r->>'id');
+  s := public.cashflow_summary('2026-08-01', '2026-08-31');
+  perform t.eq((s->>'total_income')::bigint, (s0->>'total_income')::bigint, 'unpaid offline sale is not income');
+  perform t.eq((s->>'total_items_sold')::bigint, (s0->>'total_items_sold')::bigint, 'unpaid offline sale adds no items sold');
+  perform t.eq((s->>'unpaid_offline_orders')::int, 1, 'unpaid offline sales are counted as owed');
+  perform t.eq((s->>'unpaid_offline_value')::bigint, 26000::bigint, 'amount still owed');
+  x := public.cashflow_transactions('{"from":"2026-08-20","to":"2026-08-20","payment_status":"unpaid"}');
+  perform t.eq((x->>'total_count')::int, 1, 'unpaid sale is listed on its order date (filter: belum dibayar)');
+  perform t.eq(x->'rows'->0->'detail'->>'payment_status', 'unpaid', 'list row carries the payment status');
+  perform t.ok((select payment_status = 'paid' and paid_at = order_date from public.offline_orders where order_ref = 'NOTA-001' and deleted_at is null), 'sales saved without a status are paid on their order date');
+  v := (select version from public.offline_orders where id = (r->>'id')::bigint);
+  perform t.throws(format('select public.cashflow_mark_offline_paid(%s, %s, %L, %L)', r->>'id', v, '2026-08-17T10:00:00+07:00', 'cash'), 'PAID_BEFORE_ORDER', 'cannot be paid before it was ordered');
+  perform t.throws(format('select public.cashflow_mark_offline_paid(%s, %s, %L, %L)', r->>'id', v, '2026-08-25T10:00:00+07:00', 'crypto'), 'INVALID_PAYMENT_METHOD', 'mark paid needs a valid method');
+  perform public.cashflow_mark_offline_paid((r->>'id')::bigint, v, '2026-08-25T15:00:00+07:00', 'qris');
+  s := public.cashflow_summary('2026-08-01', '2026-08-31');
+  perform t.eq((s->>'total_income')::bigint, (s0->>'total_income')::bigint + 26000, 'once paid it counts as income');
+  perform t.eq((s->>'unpaid_offline_orders')::int, 0, 'and is no longer owed');
+  perform t.eq((public.cashflow_summary('2026-08-25', '2026-08-25')->>'offline_order_income')::bigint, 26000::bigint, 'income is dated on the payment day');
+  perform t.eq((public.cashflow_summary('2026-08-20', '2026-08-20')->>'offline_order_income')::bigint, 0::bigint, 'not on the order day');
+  perform t.eq((public.cashflow_menu_sales('2026-08-25', '2026-08-25')->>'total_quantity')::bigint, 2::bigint, 'menu sales follow the payment day too');
+  perform t.eq((select payment_method from public.offline_orders where id = (r->>'id')::bigint), 'qris', 'payment method taken from the mark-paid step');
+  perform t.throws(format('select public.cashflow_mark_offline_paid(%s, %s, %L, %L)', r->>'id', v + 1, '2026-08-25T15:00:00+07:00', 'qris'), 'ALREADY_PAID', 'cannot be marked paid twice');
+  perform t.ok(exists (select 1 from public.cashflow_audit where entity = 'offline_order' and entity_id = r->>'id' and action = 'paid'), 'payment is audited');
+  -- Pelanggan filter
+  perform t.eq((public.cashflow_transactions('{"from":"2026-08-01","to":"2026-08-31","customer":"bu tini"}')->>'total_count')::int, 1, 'customer filter (any case)');
+  perform t.ok(exists (select 1 from jsonb_array_elements(public.cashflow_customers('2026-08-01', '2026-08-31')) c where c->>'name' = 'Bu Tini' and (c->>'orders')::int = 1), 'customer list for the period');
+  perform t.eq((select (c->>'orders')::int from jsonb_array_elements(public.cashflow_customers('2026-08-01', '2026-08-31')) c where c->>'name' = 'Tes Pelanggan'), 2, 'customer list counts only real orders (2 real, 2 test orders hidden)');
+  perform t.throws($q$select public.cashflow_save_offline_order('{"client_token":"abababab-0000-0000-0000-000000000002","order_date":"2026-08-20T10:00:00+07:00","source":"walk_in","payment_method":"cash","payment_status":"maybe","items":[{"variant_id":1,"quantity":1}]}')$q$, 'INVALID_PAYMENT_STATUS', 'payment status must be paid or unpaid');
 end $$;
 
 -- payments mode switch: new orders become real, and the change is audited
@@ -389,6 +425,8 @@ select t.throws($q$select public.cashflow_transactions('{"from":"2026-08-01","to
 select t.throws($q$select public.cashflow_save_expense('{"client_token":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","expense_date":"2026-08-20T10:00:00+07:00","description":"x","category_id":1,"amount":100,"payment_method":"cash"}')$q$, 'NOT_ADMIN', '#28 customer cannot add expenses');
 select t.throws(format('select public.cashflow_delete_offline_order(%s, 1)', t.id('off2')), 'NOT_ADMIN', '#28 customer cannot delete offline orders');
 select t.throws(format('select public.cashflow_set_order_classification(%L, ''real'')', t.id('o_mock1')), 'NOT_ADMIN', '#28 customer cannot reclassify orders');
+select t.throws(format('select public.cashflow_mark_offline_paid(%s, 1, now(), ''cash'')', t.id('off2')), 'NOT_ADMIN', '#28 customer cannot mark sales paid');
+select t.throws($q$select public.cashflow_customers('2026-08-01', '2026-08-31')$q$, 'NOT_ADMIN', '#28 customer cannot list customers');
 select t.throws($q$select public.cashflow_set_payments_mode('sandbox')$q$, 'NOT_ADMIN', '#28 customer cannot change payments mode');
 select t.ok((select count(*) = 0 from public.expenses), '#28 customer cannot read expense rows directly (RLS)');
 select t.ok((select count(*) = 0 from public.offline_orders), '#28 customer cannot read offline orders directly (RLS)');

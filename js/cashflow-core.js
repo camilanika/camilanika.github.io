@@ -73,7 +73,7 @@
   // ------------------------------------------------------------ labels
   const SOURCE = { walk_in: "Walk-in", whatsapp: "WhatsApp", phone: "Telepon", social_media: "Media sosial", other: "Lainnya" };
   const PAYMENT = { cash: "Tunai", bank_transfer: "Transfer bank", qris: "QRIS / e-wallet", card: "Kartu", other: "Lainnya" };
-  const TX_SOURCE = { system_real: "Pesanan online · Real", system_mock: "Pesanan online · Mock", offline: "Penjualan offline", expense: "Pengeluaran" };
+  const TX_SOURCE = { system_real: "Pesanan online", offline: "Penjualan offline", expense: "Pengeluaran" };
   const CLASS = { real: "Real", mock: "Mock (tes)" };
   const paymentLabel = (group, raw) => {
     if (raw && !(raw in PAYMENT)) return `${PAYMENT[group] || "Lainnya"} (${raw.replace(/_/g, " ")})`;
@@ -164,6 +164,9 @@
     CATEGORY_INACTIVE: "Kategori ini disembunyikan. Pilih kategori lain.",
     DESCRIPTION_REQUIRED: "Keterangan wajib diisi.",
     INVALID_PAYMENT_METHOD: "Pilih metode pembayaran.",
+    PAID_BEFORE_ORDER: "Tanggal bayar tidak boleh sebelum tanggal pesanan.",
+    ALREADY_PAID: "Penjualan ini sudah lunas.",
+    INVALID_PAYMENT_STATUS: "Pilih status pembayaran.",
   };
   function errorText(e) {
     const msg = (e && (e.message || e.details)) || String(e || "");
