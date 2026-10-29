@@ -84,6 +84,13 @@ Deno.serve(async (req) => {
     return reply({ error: code, detail: error.message }, 400);
   }
 
+  // Cashflow: record which Midtrans environment this order uses (Sandbox orders are counted as Mock, never as income).
+  // Best effort: if it fails, the database falls back to shop_settings.payments_mode.
+  const { error: tagErr } = await admin.rpc("tag_order_payment_env", {
+    p_order_number: order.order_number, p_env: IS_PROD ? "production" : "sandbox",
+  });
+  if (tagErr) console.error("tag_order_payment_env failed", tagErr.message);
+
   // Free order (100% discount): nothing to pay
   if (order.total <= 0) {
     await admin.rpc("mark_order_paid", { p_order_number: order.order_number, p_payment_ref: null, p_payment_method: "free" });
