@@ -1,0 +1,14 @@
+{
+  "name": "camilanika-tests",
+  "private": true,
+  "description": "Automated tests for the CamilaNika shop (not part of the website).",
+  "scripts": {
+    "test:unit": "node --test unit/*.test.js",
+    "test:db": "bash db/run.sh && bash db/backfill_test.sh",
+    "test:ui": "node --test --test-concurrency=1 ui/*.ui.test.js",
+    "test": "npm run test:unit && npm run test:db && npm run test:ui"
+  },
+  "devDependencies": {
+    "pg": "^8.13.0"
+  }
+}

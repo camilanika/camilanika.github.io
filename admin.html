@@ -166,6 +166,70 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 .card,.tbl-wrap{border-radius:var(--r-md)}
 @media (min-width:641px){.modal{border-radius:var(--r-lg)}}
 @media (max-width:700px){.tbl-wrap tr{border-radius:var(--r-md)}}
+/* ===== Cashflow Summary ===== */
+.cf-dates{display:grid;gap:.6rem;margin-bottom:1rem}
+.cf-chips{display:flex;flex-wrap:wrap;gap:.4rem}
+.cf-chips button{font:800 .85rem var(--f-body);padding:.45rem .9rem;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);color:var(--fg);cursor:pointer}
+.cf-chips button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.cf-custom{display:flex;flex-wrap:wrap;gap:.6rem;align-items:end}
+.cf-range{font-weight:700;font-size:.9rem}
+.cf-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.7rem;margin-bottom:1.1rem}
+.cf-card{display:grid;gap:.15rem;align-content:start}
+.cf-lbl{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.cf-val{font-family:var(--f-display);font-weight:800;font-size:1.45rem;line-height:1.2;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.cf-val.sm{font-size:1.1rem}
+.cf-hint{font-size:.8rem;color:var(--muted)}
+.cf-strong{border-color:var(--fg)}
+.cf-pos .cf-val{color:var(--ok)}
+.cf-neg .cf-val,td.cf-neg{color:var(--rose)}
+.cf-mockcard{border-style:dashed}
+.cf-mockcard .cf-val,td.cf-muted{color:var(--muted)}
+.cf-note{background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--caramel);border-radius:12px;padding:.6rem .85rem;margin-bottom:.7rem;font-size:.9rem}
+.cf-note.warn{background:var(--warn-soft)}
+.badge.cf-real,.badge.cf-mock,.badge.cf-review{white-space:nowrap}
+.badge.cf-real{background:var(--ok-soft);color:var(--ok)}
+.badge.cf-mock{background:var(--line);color:var(--muted);border:1px dashed var(--muted)}
+.badge.cf-review{background:var(--warn-soft);color:var(--caramel)}
+.badge.cf-in{background:var(--ok-soft);color:var(--ok)}
+.badge.cf-out{background:var(--rose-soft);color:var(--rose)}
+.cf-intro{margin:-.3rem 0 .8rem}
+.cf-filters{display:flex;flex-wrap:wrap;gap:.6rem;align-items:end;margin-bottom:.8rem}
+.cf-filters .cf-q{flex:1 1 220px}
+.cf-desc{max-width:320px}
+.cf-when,.cf-ref{white-space:nowrap}
+@media (max-width:700px){.cf-when,.cf-ref{white-space:normal}}
+.cf-pager{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:flex-end;margin-top:.7rem}
+.cf-pager .muted{margin-right:auto}
+.cf-empty{text-align:center;padding:1.6rem 1rem}
+.cf-empty p{margin:.2rem 0}
+.btn.cf-danger{color:var(--rose);border-color:var(--rose-soft)}
+.cf-detail{display:grid;gap:.45rem}
+.cf-kv{display:flex;justify-content:space-between;gap:1rem;border-bottom:1px dashed var(--line);padding:.2rem 0}
+.cf-kv span:first-child{color:var(--muted);font-weight:700}
+.cf-kv span:last-child{text-align:right}
+.cf-total{font-weight:800;font-size:1.1rem;border-bottom:0}
+.modal.cf-small{width:min(520px,100%)}
+.cf-radio{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.3rem .9rem;align-items:center}
+.cf-radio legend{font-size:.78rem;font-weight:800;color:var(--muted);padding:0;margin-bottom:.2rem;width:100%}
+.cf-radio label{display:flex;gap:.35rem;align-items:center;font-weight:700}
+.cf-mode{margin:.9rem 0 .5rem}
+.cf-items select{min-width:220px}
+.cf-totalbar{display:flex;justify-content:space-between;align-items:center;margin-top:.8rem;padding:.7rem .9rem;background:var(--paper);border:1px solid var(--line);border-radius:12px;font-size:1.1rem}
+.cf-ferr{color:var(--rose);font-size:.78rem}
+.cf-ferr:empty{display:none}
+.cf-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.8rem;margin-bottom:1rem}
+.cf-charts h3{font-size:1.05rem;margin-bottom:.6rem}
+.cf-bars{list-style:none;margin:0;padding:0;display:grid;gap:.45rem}
+.cf-bars li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.15rem .6rem;font-size:.85rem}
+.cf-bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.cf-bv{text-align:right;font-variant-numeric:tabular-nums;font-weight:800}
+.cf-bt{grid-column:1/-1;height:8px;background:var(--bg);border-radius:999px;overflow:hidden}
+.cf-bf{display:block;height:100%;background:var(--rose);border-radius:999px}
+.cf-bf.rev{background:var(--caramel)}
+.cf-bf.cat{background:var(--ok)}
+.cf-bf.mock{background:var(--muted)}
+.cf-foot{font-size:.82rem;margin-top:.6rem}
+@media (max-width:640px){.cf-val{font-size:1.2rem}.cf-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}.cf-filters > label{flex:1 1 140px}.cf-items select{min-width:0;width:100%}}
 </style>
 </head>
 <body>
@@ -186,6 +250,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     <div class="sidenav-head"><b>Menu</b><button type="button" class="x" id="nav-close" aria-label="Tutup menu">×</button></div>
     <nav class="tabs" id="tabs">
       <button type="button" data-tab="orders" aria-pressed="true"><span aria-hidden="true">📦</span>Pesanan</button>
+      <button type="button" data-tab="cashflow" aria-pressed="false"><span aria-hidden="true">💰</span>Cashflow Summary</button>
       <button type="button" data-tab="shop" aria-pressed="false"><span aria-hidden="true">🏪</span>Toko</button>
       <button type="button" data-tab="stock" aria-pressed="false"><span aria-hidden="true">📊</span>Stok</button>
       <button type="button" data-tab="menu" aria-pressed="false"><span aria-hidden="true">🗂️</span>Menu</button>
@@ -213,6 +278,8 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 
 <script src="js/config.js?v=202610271844"></script>
 <script src="js/vendor/supabase.js"></script>
+<script src="js/cashflow-core.js?v=202610291200"></script>
+<script src="js/cashflow.js?v=202610291200"></script>
 <script>
 (() => {
   const CFG = window.CN_CONFIG;
@@ -287,7 +354,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   $("logout").onclick = $("logout2").onclick = () => sb.auth.signOut();
 
   // ---------------------------------------------------------------- layout: sidebar / drawer
-  const TAB_NAME = { orders: "Pesanan", shop: "Toko", stock: "Stok", menu: "Menu", products: "Produk", promos: "Promo", customers: "Pelanggan", vouchers: "Voucher & Loyalty" };
+  const TAB_NAME = { orders: "Pesanan", cashflow: "Cashflow Summary", shop: "Toko", stock: "Stok", menu: "Menu", products: "Produk", promos: "Promo", customers: "Pelanggan", vouchers: "Voucher & Loyalty" };
   const SUB_NAME = { campaigns: "Kampanye referral", vouchers: "Voucher", loyalty: "Loyalty", settings: "Batas pendaftaran" };
   const setChrome = (on) => { $("topbar").hidden = !on; $("sidenav").hidden = !on; if (!on) closeNav(); };
   const isDrawer = () => matchMedia("(max-width:1023px)").matches;
@@ -326,8 +393,9 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   const queueLabels = () => { if (labelQueued) return; labelQueued = true; requestAnimationFrame(() => { labelQueued = false; labelTables(document); }); };
   new MutationObserver(queueLabels).observe(document.body, { childList: true, subtree: true });
   // the current page goes in the address (#orders, #vouchers/loyalty) so refresh and back work
+  let cfSub = "", orderFocus = "";
   function syncPlace() {
-    const h = "#" + tab + (tab === "vouchers" ? "/" + vSub : "");
+    const h = "#" + tab + (tab === "vouchers" ? "/" + vSub : tab === "cashflow" && cfSub ? "/" + cfSub : tab === "orders" && orderFocus ? "/" + encodeURIComponent(orderFocus) : "");
     if (location.hash !== h) history.replaceState(null, "", h);
     $("crumb").textContent = tab === "vouchers" ? SUB_NAME[vSub] : TAB_NAME[tab];
     document.title = `${tab === "vouchers" ? SUB_NAME[vSub] : TAB_NAME[tab]} · CamilaNika Admin`;
@@ -336,8 +404,10 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     const [t, sub] = location.hash.replace(/^#/, "").split("/");
     if (TAB_NAME[t]) tab = t;
     if (t === "vouchers" && SUB_NAME[sub]) vSub = sub;
+    if (t === "cashflow") cfSub = sub || "";
+    if (t === "orders") orderFocus = sub ? decodeURIComponent(sub) : "";
   }
-  window.addEventListener("hashchange", () => { const prev = tab + vSub; placeFromHash(); if (prev !== tab + vSub && !$("topbar").hidden) show(tab); });
+  window.addEventListener("hashchange", () => { const prev = tab + vSub + orderFocus; placeFromHash(); if (prev !== tab + vSub + orderFocus && !$("topbar").hidden) show(tab); });
   let lastUser;
   sb.auth.onAuthStateChange((ev, s) => {
     const uid = s?.user?.id || null;
@@ -352,6 +422,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     const b = e.target.closest("[data-tab]");
     if (!b) return;
     if (isDrawer()) closeNav();
+    cfSub = ""; orderFocus = "";   // a menu click opens the page normally (Cashflow keeps its last section itself)
     show(b.dataset.tab);
   });
   function show(t) {
@@ -360,12 +431,15 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     document.querySelectorAll("#subnav-vouchers [data-vs]").forEach((b) => b.setAttribute("aria-pressed", String(t === "vouchers" && b.dataset.vs === vSub)));
     syncPlace();
     app.scrollTop = 0; window.scrollTo(0, 0);
-    ({ orders: renderOrders, shop: renderShopTab, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers, vouchers: renderVouchersTab })[t]();
+    ({ orders: renderOrders, cashflow: () => window.CN_CASHFLOW.render(adminApi, cfSub), shop: renderShopTab, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers, vouchers: renderVouchersTab })[t]();
   }
 
   // modal
   const openModal = (html) => { $("modal-box").innerHTML = html; $("modal").hidden = false; };
   const closeModal = () => { $("modal").hidden = true; $("modal-box").innerHTML = ""; };
+  // shared with js/cashflow.js (Cashflow Summary page)
+  const adminApi = { sb, app, esc, toast, openModal, closeModal,
+    setRefresh: (fn, ms) => { clearInterval(refreshTimer); refreshTimer = setInterval(fn, ms); } };
   $("modal").addEventListener("click", (e) => { if (e.target.id === "modal" || e.target.closest("[data-close]")) closeModal(); });
 
   // ---------------------------------------------------------------- ORDERS
@@ -383,12 +457,14 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   async function loadOrders() {
     const groups = { todo: ["paid", "processing", "ready", "shipping"], pending: ["pending"], completed: ["completed"], closed: ["cancelled", "expired", "failed"] };
     let q = sb.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(100);
-    if (groups[orderFilter]) q = q.in("status", groups[orderFilter]);
+    if (orderFocus) q = q.eq("order_number", orderFocus);   // opened from Cashflow Summary (#orders/CN-...)
+    else if (groups[orderFilter]) q = q.in("status", groups[orderFilter]);
     const { data, error } = await q;
     const el = $("olist"); if (!el) return;
     if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
     if (!data.length) { el.innerHTML = `<p class="muted">Tidak ada pesanan.</p>`; return; }
-    el.innerHTML = data.map((o) => {
+    const focusBar = orderFocus ? `<div class="cf-note">Menampilkan pesanan ${esc(orderFocus)}. <a href="#orders" id="ofall">Tampilkan semua pesanan</a></div>` : "";
+    el.innerHTML = focusBar + data.map((o) => {
       const wa = (o.phone || "").replace(/\D/g, "").replace(/^0/, "62");
       const acts = [];
       const next = { paid: ["processing", "Proses"], processing: ["ready", "Siap diantar"], ready: ["shipping", "Sedang diantar"] }[o.status];
@@ -397,7 +473,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       if (["pending", "paid", "processing", "ready", "shipping"].includes(o.status)) acts.push(`<button class="btn btn-ghost btn-sm" data-st="cancelled" data-id="${o.id}" data-paid="${o.status !== "pending"}">Batalkan</button>`);
       acts.push(`<button class="btn btn-ghost btn-sm" data-chat="${o.id}">💬 Chat Customer</button>`);
       return `<div class="card order">
-        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span></div>
+        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span>${o.classification ? `<span class="badge cf-${o.classification}" title="Klasifikasi untuk Cashflow Summary">${o.classification === "mock" ? "Mock (tes)" : "Real"}</span>` : ""}</div>
           <div class="muted" style="font-size:.85rem">${fmtDate(o.created_at)}${o.payment_method ? " · " + esc(o.payment_method) : ""}${o.user_id ? "" : " · tamu"}</div>
           <div style="margin-top:.4rem"><b>${esc(o.customer_name)}</b> · ${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(o.phone)}</a>` : ""}${o.email ? `<br><span class="muted">${esc(o.email)}</span>` : ""}</div>
           ${o.address ? `<div class="muted" style="white-space:pre-line">${esc(o.address)}</div>` : ""}${o.notes ? `<div class="muted">${esc(o.notes)}</div>` : ""}
@@ -408,6 +484,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
         <div class="acts">${acts.join("")}</div></div>`;
     }).join("");
     el.querySelectorAll("[data-chat]").forEach((b) => b.onclick = () => chatCustomer(b.dataset.chat));
+    $("ofall")?.addEventListener("click", (e) => { e.preventDefault(); orderFocus = ""; syncPlace(); loadOrders(); });
     el.querySelectorAll("[data-st]").forEach((b) => b.onclick = async () => {
       if (b.dataset.st === "cancelled" && !confirm(b.dataset.paid === "true"
         ? "Batalkan pesanan yang SUDAH DIBAYAR? Refund dilakukan manual di dashboard Midtrans, dan stok tidak dikembalikan otomatis."

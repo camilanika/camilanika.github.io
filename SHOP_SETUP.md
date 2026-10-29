@@ -13,6 +13,8 @@ The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, ord
 | `supabase/functions/midtrans-webhook` | Edge Function: Midtrans calls this when a payment succeeds, fails or expires |
 | `supabase/functions/phone-signup` | Edge Function: creates an account from a WhatsApp number + password |
 | `supabase/functions/admin-users` | Edge Function: lets an admin set a new password for a customer |
+| `js/cashflow.js`, `js/cashflow-core.js` | Admin **Cashflow Summary** page: income, expenses, real vs mock orders, menu sales |
+| `tests/` | Automated tests (database, page helpers, browser). Not part of the website; see `tests/README.md` |
 
 ## 1. Database (Supabase → SQL Editor)
 1. Run `supabase/schema.sql`.
@@ -52,7 +54,7 @@ where id = (select id from auth.users where email = 'YOUR_EMAIL');
 Open `https://camilanika.github.io/admin.html`.
 
 ## Going live
-1. Once Midtrans has approved your account, switch the dashboard to Production.
+1. Once Midtrans has approved your account, switch the dashboard to Production. In the admin page, **Cashflow Summary → Pengaturan → Ganti ke Production** at the same time.
 2. Put the **production** Server Key in the secrets and set `MIDTRANS_IS_PRODUCTION=true`.
 3. Put the production Client Key in `js/config.js` and set `MIDTRANS_IS_PRODUCTION: true`.
 4. Set the Production Notification URL in Midtrans to the same webhook address.
@@ -75,7 +77,7 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
@@ -185,3 +187,37 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - **Phones and tablets**: the sidebar is hidden; the **☰** button opens it as a drawer (close with ×, Escape, or by tapping outside; it also closes after choosing a page). The top bar shows the current page name.
 - On phones, tables turn into cards (each value labelled with its column name) and popups use the whole screen, so nothing needs sideways scrolling.
 - Each page has its own address (e.g. `admin.html#vouchers/loyalty`), so refresh and bookmarks keep you on the same page.
+
+## Cashflow Summary (Admin → 💰 Cashflow Summary)
+**Install once:** run `supabase/migrations/014_cashflow.sql` in the SQL Editor, then paste the updated `create-payment` and `midtrans-webhook` Edge Functions again (they now report whether a payment went through Midtrans Sandbox or Production). The page works before the functions are redeployed; until then the Pengaturan setting decides.
+
+**What it shows** (for Hari ini, Kemarin, Minggu ini, Bulan ini, Tahun ini or any dates; WIB, weeks start Monday):
+- **Real Order Income**: online orders with status **Selesai** and label **Real**, on the day they were completed.
+- **Offline Order Income**: walk-in / WhatsApp / phone sales you record here, labelled Real.
+- **Total Income** = both. **Total Expenses**: costs you record here. **Net Cashflow** = Total Income − Total Expenses. This is recorded cash in minus cash out, not accounting profit.
+- **Mock Order Value**: test orders, shown separately. They never count as income or in menu sales.
+- **Completed Real Orders** and **Total Items Sold** (online + offline orders that have item details).
+- Orders that are unpaid, paid but not yet Selesai, cancelled, expired or failed never count.
+
+**Real or Mock**
+- Online orders are labelled automatically: paid through Midtrans **Sandbox → Mock**, **Production → Real**. If the environment wasn't reported, **Pengaturan → mode pembayaran** decides (starts as Sandbox).
+- Every order placed before this update was made while payments were in Sandbox, so the update marked them **Mock** and **Perlu ditinjau**. In **Pesanan selesai**, press **Benar Mock** to confirm, or **Jadikan Real** if one was a genuine purchase. (If you install this after going live, set `v_live_since` at the top of the backfill block in 014 first.)
+- Changing the label never changes the order's status, items or payment, and every total updates straight away. Each change is recorded with who made it (Detail → Riwayat perubahan).
+- Online orders can't be edited or deleted here; use **Pesanan** (Detail → **Buka di Pesanan**).
+
+**Penjualan offline**
+- **+ Penjualan offline**: date and time, receipt number (optional), customer (optional), source, payment method, Real/Mock (Real by default), then either **Per item menu** (pick menu and size; the menu price fills in and can be changed; quantity, discount per line, order discount, extra charge such as ongkir) or **Nominal saja** (just the amount received).
+- The database recalculates the total; a different total is refused. Pressing save twice saves once. An online order number (CN-…) can't be recorded here, so nothing is counted twice, and a receipt number can only be used once.
+- Nominal-saja sales count as income but have no items, so they're left out of menu sales; the Penjualan menu tab says how many and how much.
+- Edit and delete (with confirmation) from the list. Deleted records are kept in the database (soft delete) for the audit trail.
+
+**Pengeluaran**
+- **+ Pengeluaran**: date and time, description, category, amount (whole Rupiah, more than 0), payment method, vendor, optional photo/PDF of the receipt (private storage, admins only), notes.
+- 11 categories to start with. **Kelola kategori** adds, renames or hides them. Categories are never deleted, and renaming one doesn't change past expenses.
+
+**Penjualan menu**: best sellers by quantity and revenue, sales per category (the submenus, e.g. Coffee Series), per menu or per size/variant, sort, filter and search, plus a full table with average price and share of menu revenue. Menu revenue = item lines (price × quantity − item discount); order discounts, vouchers and ongkir aren't split over items, so it can differ from income. No profit is calculated (costs per item aren't connected yet). Switch **Data** to **Mock saja** to look at test orders on their own (clearly labelled).
+
+**Known limits**
+- Refunds: a paid order cancelled in **Pesanan** (refund done in Midtrans) is not counted. Partial refunds aren't recorded anywhere in the shop, so they can't be shown.
+- Orders completed before this update get their completion date from the order's last change (marked "perkiraan").
+- Menu sales use each product's current submenu for online orders; offline lines keep the submenu they had when saved.
