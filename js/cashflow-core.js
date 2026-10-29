@@ -164,6 +164,9 @@
     CATEGORY_INACTIVE: "Kategori ini disembunyikan. Pilih kategori lain.",
     DESCRIPTION_REQUIRED: "Keterangan wajib diisi.",
     INVALID_PAYMENT_METHOD: "Pilih metode pembayaran.",
+    PAID_BEFORE_ORDER: "Tanggal bayar tidak boleh sebelum tanggal pesanan.",
+    ALREADY_PAID: "Penjualan ini sudah lunas.",
+    INVALID_PAYMENT_STATUS: "Pilih status pembayaran.",
   };
   function errorText(e) {
     const msg = (e && (e.message || e.details)) || String(e || "");

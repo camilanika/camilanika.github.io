@@ -112,11 +112,13 @@
       const banners = [];
       if (s.payments_mode === "sandbox") banners.push(`<div class="cf-note warn">Pembayaran online masih <b>Sandbox (tes)</b>: pesanan online baru dianggap <b>tes</b> dan tidak ditampilkan di sini. Ganti ke Production di <a href="#cashflow/settings" data-go="settings">Pengaturan</a> saat Midtrans sudah live.</div>`);
       if (s.orders_to_review > 0) banners.push(`<div class="cf-note">${s.orders_to_review} pesanan selesai di periode ini <b>perlu ditinjau</b>: pastikan itu pembelian asli. <a href="#cashflow/orders" data-go="orders" data-review="1">Tinjau sekarang</a></div>`);
+      if (s.unpaid_offline_orders > 0) banners.push(`<div class="cf-note warn">${s.unpaid_offline_orders} penjualan offline <b>belum dibayar</b> (${rp(s.unpaid_offline_value)}), belum dihitung sebagai pemasukan. <a href="#cashflow/offline" data-go="offline" data-unpaid="1">Lihat</a></div>`);
       if (s.estimated_completion_dates > 0) banners.push(`<div class="cf-note">${s.estimated_completion_dates} pesanan selesai sebelum fitur ini ada; tanggal selesainya diperkirakan dari waktu perubahan terakhir.</div>`);
       $("cf-banners").innerHTML = banners.join("");
       $("cf-banners").querySelectorAll("[data-go]").forEach((a) => a.onclick = (e) => {
         e.preventDefault(); sub = a.dataset.go;
         if (a.dataset.review) { filters.orders = { review: true }; pages.orders = 1; }
+        if (a.dataset.unpaid) { filters.offline = { payment_status: "unpaid" }; pages.offline = 1; }
         $("cf-subs").querySelectorAll("[data-s]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.s === sub)));
         syncHash(); drawSub();
       });
@@ -141,15 +143,23 @@
     const f = filters[sub];
     if (!quiet || !$("cf-list")) {
       if (!categories) categories = await rpc("cashflow_categories").catch(() => []);
+      // customers who bought in this period, for the Pelanggan filter (not for expenses)
+      const customers = sub === "expenses" ? [] : await rpc("cashflow_customers", { p_from: range.from, p_to: range.to }).catch(() => []);
       // the page may have been redrawn (second login event, another section) while waiting
       if (!body || !body.isConnected || sub !== mySub) return;
-      const sel = (id, label, opts, val) => `<label class="f">${label}<select id="${id}"><option value="">Semua</option>${opts.map(([k, v]) => `<option value="${k}" ${String(val ?? "") === String(k) ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>`;
+      const sel = (id, label, opts, val) => `<label class="f">${label}<select id="${id}"><option value="">Semua</option>${opts.map(([k, v]) => `<option value="${esc(k)}" ${String(val ?? "") === String(k) ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>`;
       const ctl = [];
       if (sub === "transactions") {
         ctl.push(sel("cf-f-type", "Jenis", [["income", "Pemasukan"], ["expense", "Pengeluaran"]], f.type));
         ctl.push(sel("cf-f-source", "Sumber", Object.entries(C.TX_SOURCE), f.source));
       }
       if (sub === "orders") ctl.push(`<label class="f">Tampilkan<select id="cf-f-oclass"><option value="">Semua pesanan</option><option value="review" ${f.review ? "selected" : ""}>Perlu ditinjau</option></select></label>`);
+      if (sub !== "expenses") {
+        const opts = customers.map((c) => [c.name, `${c.name} (${c.orders})`]);
+        if (f.customer && !customers.some((c) => c.name.toLowerCase() === f.customer.toLowerCase())) opts.unshift([f.customer, f.customer]);
+        ctl.push(sel("cf-f-cust", "Pelanggan", opts, f.customer));
+      }
+      if (sub === "offline") ctl.push(sel("cf-f-pst", "Status bayar", [["paid", "Lunas"], ["unpaid", "Belum dibayar"]], f.payment_status));
       ctl.push(sel("cf-f-pay", "Pembayaran", Object.entries(C.PAYMENT), f.payment));
       if (sub === "transactions" || sub === "expenses") ctl.push(sel("cf-f-cat", "Kategori pengeluaran", (categories || []).map((c) => [c.id, c.name + (c.is_active ? "" : " (disembunyikan)")]), f.category_id));
       const ph = { transactions: "No. pesanan, nota, menu, pelanggan, pengeluaran, vendor…", orders: "No. pesanan, menu, pelanggan…", offline: "No. nota, menu, pelanggan…", expenses: "Keterangan, vendor, kategori…" }[sub];
@@ -167,14 +177,18 @@
         <div id="cf-list" aria-live="polite"><p class="muted">Memuat…</p></div>`;
       const read = () => {
         const g = (id) => ($(id) ? $(id).value || undefined : undefined);
-        const nf = { type: g("cf-f-type"), source: g("cf-f-source"), payment: g("cf-f-pay"), category_id: g("cf-f-cat"), q: $("cf-q").value.trim() || undefined };
+        const nf = { type: g("cf-f-type"), source: g("cf-f-source"), payment: g("cf-f-pay"), payment_status: g("cf-f-pst"), customer: g("cf-f-cust"), category_id: g("cf-f-cat"), q: $("cf-q").value.trim() || undefined };
         if (sub === "orders") nf.review = g("cf-f-oclass") === "review" || undefined;
         filters[sub] = nf; pages[sub] = 1; loadList();
       };
       $("cf-filters").onchange = (e) => { if (e.target.id !== "cf-q") read(); };
       $("cf-filters").onsubmit = (e) => { e.preventDefault(); read(); };
       let t; $("cf-q").oninput = () => { clearTimeout(t); t = setTimeout(read, 350); };
-      $("cf-reset").onclick = () => { filters[sub] = {}; pages[sub] = 1; drawList(); };
+      // clear the fields in place (redrawing would wipe anything typed straight after)
+      $("cf-reset").onclick = () => {
+        $("cf-filters").querySelectorAll("select").forEach((x) => (x.value = ""));
+        $("cf-q").value = ""; filters[sub] = {}; pages[sub] = 1; loadList();
+      };
       $("cf-add2")?.addEventListener("click", () => (sub === "offline" ? offlineForm() : expenseForm()));
       $("cf-cats")?.addEventListener("click", manageCategories);
     }
@@ -220,8 +234,8 @@
       const kind = sub === "transactions" ? (r.ttype === "expense" ? "Pengeluaran · " : r.source === "offline" ? "Offline · " : "Online · ") : "";
       return `<tr class="cf-row" data-uid="${esc(r.uid)}">
         <td class="cf-when">${shortWib(r.at)}</td>
-        <td class="cf-main"><b>${esc(t.title)}</b>${d.review ? ` <span class="badge cf-review">Perlu ditinjau</span>` : ""}<div class="muted">${kind}${esc(t.sub)}</div></td>
-        <td class="num ${r.ttype === "expense" ? "cf-neg" : ""}"><b>${r.ttype === "expense" ? "−" : ""}${rp(r.amount)}</b></td>
+        <td class="cf-main"><b>${esc(t.title)}</b>${d.review ? ` <span class="badge cf-review">Perlu ditinjau</span>` : ""}${d.payment_status === "unpaid" ? ` <span class="badge cf-unpaid">Belum dibayar</span>` : ""}<div class="muted">${kind}${esc(t.sub)}</div></td>
+        <td class="num ${r.ttype === "expense" ? "cf-neg" : d.payment_status === "unpaid" ? "cf-muted" : ""}"><b>${r.ttype === "expense" ? "−" : ""}${rp(r.amount)}</b></td>
         <td class="cf-go"><button class="btn btn-ghost btn-sm" data-act="detail" data-uid="${esc(r.uid)}">Detail</button></td></tr>`;
     }).join("");
     const pagesN = Math.max(1, Math.ceil(data.total_count / PAGE_SIZE));
@@ -253,6 +267,28 @@
     } catch (e) { X.toast(C.errorText(e)); if (btn) btn.disabled = false; }
   }
 
+  // an unpaid offline sale is paid: it counts as income from the payment date
+  function markPaid(r) {
+    const d = r.detail || {};
+    X.openModal(`<div class="modal-head"><h2>Tandai lunas · ${esc(r.ref)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <form id="cf-pf" class="grid2" novalidate>
+        <label class="f">Dibayar pada (WIB) *<input type="datetime-local" id="pf-date" required value="${esc(C.nowWibInput())}"></label>
+        <label class="f">Pembayaran *<select id="pf-pay">${["cash", "bank_transfer", "qris", "other"].map((k) => `<option value="${k}" ${r.payment === k ? "selected" : ""}>${C.PAYMENT[k]}</option>`).join("")}</select></label>
+      </form>
+      <p class="muted" style="margin:0">${rp(r.amount)} dihitung sebagai pemasukan pada tanggal bayar.</p>
+      <div class="msg err" id="pf-err" role="alert"></div>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-ok" id="pf-save">Simpan: lunas</button></div>`);
+    $("pf-save").onclick = async () => {
+      const at = C.wibInputToIso($("pf-date").value);
+      if (!at) { $("pf-err").textContent = "Isi tanggal & jam pembayaran."; return; }
+      const btn = $("pf-save"); btn.disabled = true;
+      try {
+        await rpc("cashflow_mark_offline_paid", { p_id: d.id, p_version: d.version, p_paid_at: at, p_payment_method: $("pf-pay").value });
+        X.closeModal(); X.toast("Ditandai lunas"); menuData = null; reloadAll(true);
+      } catch (e) { $("pf-err").textContent = C.errorText(e); btn.disabled = false; }
+    };
+  }
+
   async function deleteRecord(r) {
     const d = r.detail || {};
     const isExp = r.source === "expense";
@@ -277,7 +313,7 @@
         + (d.receipt_path ? `<div class="cf-kv"><span>Bukti</span><span><button class="btn btn-ghost btn-sm" id="cf-receipt">Lihat bukti</button></span></div>` : "");
     } else if (r.source === "offline") {
       entity = "offline_order"; id = d.id;
-      extra = line("Sumber", C.SOURCE[d.source]) + line("Pelanggan", esc(r.customer_name)) + line("Cara input", d.entry_mode === "amount" ? "Nominal saja (tidak masuk statistik menu)" : "Per item menu")
+      extra = line("Status pembayaran", d.payment_status === "unpaid" ? `<span class="badge cf-unpaid">Belum dibayar</span>` : `Lunas · ${fmtWib(d.paid_at)}`) + line("Tanggal pesanan", fmtWib(d.order_date)) + line("Sumber", C.SOURCE[d.source]) + line("Pelanggan", esc(r.customer_name)) + line("Cara input", d.entry_mode === "amount" ? "Nominal saja (tidak masuk statistik menu)" : "Per item menu")
         + line("Catatan", esc(d.notes));
     } else {
       entity = "order"; id = d.id;
@@ -304,11 +340,13 @@
         ${r.source === "system_real" && d.review ? `<button class="btn btn-ok" id="cf-d-keep">Benar, pembelian asli</button><button class="btn btn-ghost" id="cf-d-test">Ini pesanan tes</button>` : ""}
         ${r.ttype === "income" ? `<button class="btn btn-ghost" id="cf-d-nota">🖨️ Cetak nota</button>` : ""}
         ${r.source.startsWith("system") ? `<a class="btn btn-ghost" href="#orders/${encodeURIComponent(r.ref)}" data-close>Buka di Pesanan</a>` : ""}
+        ${r.source === "offline" && d.payment_status === "unpaid" ? `<button class="btn btn-ok" id="cf-d-paid">Tandai lunas</button>` : ""}
         ${r.source === "offline" || r.source === "expense" ? `<button class="btn btn-ghost" id="cf-d-edit">Ubah</button><button class="btn btn-ghost cf-danger" id="cf-d-del">Hapus</button>` : ""}
         <button class="btn btn-ghost" data-close>Tutup</button></div>`);
     $("cf-d-nota")?.addEventListener("click", () => window.CNNota.print(window.CNNota.fromCashflowRow(r)));
     $("cf-d-keep")?.addEventListener("click", () => classify(r, r.classification));
     $("cf-d-test")?.addEventListener("click", () => classify(r, "mock"));
+    $("cf-d-paid")?.addEventListener("click", () => markPaid(r));
     $("cf-d-edit")?.addEventListener("click", () => (r.source === "expense" ? expenseForm(r) : offlineForm(r)));
     $("cf-d-del")?.addEventListener("click", () => deleteRecord(r));
     $("cf-receipt")?.addEventListener("click", async () => {
@@ -357,11 +395,15 @@
     X.openModal(`<div class="modal-head"><h2>${editing ? "Ubah penjualan offline " + esc(r.ref) : "Catat penjualan offline"}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
       <form id="cf-of" novalidate>
         <div class="grid3">
-          <label class="f">Tanggal & jam (WIB) *<input type="datetime-local" id="of-date" required value="${esc(editing ? C.isoToWibInput(r.at) : C.nowWibInput())}"></label>
+          <label class="f">Tanggal & jam (WIB) *<input type="datetime-local" id="of-date" required value="${esc(editing ? C.isoToWibInput(d.order_date || r.at) : C.nowWibInput())}"></label>
           <label class="f">No. nota / referensi<input id="of-ref" maxlength="60" value="${esc(d.order_ref || "")}" placeholder="opsional"></label>
           <label class="f">Nama pelanggan<input id="of-cust" maxlength="120" value="${esc(r?.customer_name || "")}" placeholder="opsional"></label>
           <label class="f">Sumber pesanan *<select id="of-src">${Object.entries(C.SOURCE).map(([k, v]) => `<option value="${k}" ${(d.source || "walk_in") === k ? "selected" : ""}>${v}</option>`).join("")}</select></label>
           <label class="f">Pembayaran *<select id="of-pay">${["cash", "bank_transfer", "qris", "other"].map((k) => `<option value="${k}" ${(r?.payment || "cash") === k ? "selected" : ""}>${C.PAYMENT[k]}</option>`).join("")}</select></label>
+          <fieldset class="f cf-radio"><legend>Status pembayaran *</legend>
+            <label><input type="radio" name="of-pst" value="paid" ${(d.payment_status || "paid") === "paid" ? "checked" : ""}> Lunas</label>
+            <label><input type="radio" name="of-pst" value="unpaid" ${d.payment_status === "unpaid" ? "checked" : ""}> Belum dibayar</label></fieldset>
+          <label class="f" id="of-paidat-wrap">Dibayar pada (kosong = saat pesanan)<input type="datetime-local" id="of-paidat" value="${esc(d.paid_at && d.order_date && d.paid_at !== d.order_date ? C.isoToWibInput(d.paid_at) : "")}"></label>
         </div>
         <fieldset class="cf-radio cf-mode"><legend class="muted">Cara mencatat</legend>
           <label><input type="radio" name="of-mode" value="items" ${mode0 === "items" ? "checked" : ""}> Per item menu</label>
@@ -395,6 +437,8 @@
       recalc();
     };
     const mode = () => document.querySelector('input[name="of-mode"]:checked').value;
+    const pst = () => document.querySelector('input[name="of-pst"]:checked').value;
+    const syncPst = () => { $("of-paidat-wrap").hidden = pst() !== "paid"; };
     const toPayloadItems = () => items.map((it) => ({
       ...(it.key && it.key !== "custom" ? { variant_id: Number(it.key.slice(1)) } : { product_name: it.product_name }),
       quantity: Number(it.quantity), unit_price: C.parseRupiah(it.unit_price), discount: it.discount === "" ? 0 : C.parseRupiah(it.discount),
@@ -421,7 +465,8 @@
     tbody.addEventListener("click", (e) => { const b = e.target.closest("[data-del]"); if (b) { items.splice(Number(b.dataset.del), 1); draw(); } });
     $("of-addrow").onclick = () => { items.push({ key: "", product_name: "", quantity: 1, unit_price: "", discount: "" }); draw(); tbody.querySelector("tr:last-child select")?.focus(); };
     $("cf-of").addEventListener("input", (e) => { if (!e.target.closest("#of-items")) recalc(); });
-    $("cf-of").addEventListener("change", (e) => { if (e.target.name === "of-mode") recalc(); });
+    $("cf-of").addEventListener("change", (e) => { if (e.target.name === "of-mode") recalc(); if (e.target.name === "of-pst") syncPst(); });
+    syncPst();
     draw();
     $("cf-of").onsubmit = async (e) => {
       e.preventDefault();
@@ -439,6 +484,7 @@
         client_token: token, order_date: C.wibInputToIso(head.order_date), order_ref: $("of-ref").value.trim() || null,
         customer_name: $("of-cust").value.trim() || null, source: head.source, payment_method: head.payment_method,
         classification: head.classification, entry_mode: head.entry_mode, notes: $("of-notes").value.trim() || null,
+        payment_status: pst(), paid_at: pst() === "paid" && $("of-paidat").value ? C.wibInputToIso($("of-paidat").value) : null,
       };
       if (editing) { payload.id = d.id; payload.version = d.version; }
       if (head.entry_mode === "amount") payload.amount = C.parseRupiah(head.amount);
@@ -447,7 +493,7 @@
       try {
         const res = await rpc("cashflow_save_offline_order", { p: payload });
         X.closeModal();
-        X.toast(res.duplicate ? "Sudah tersimpan sebelumnya" : editing ? "Penjualan offline diperbarui" : `Penjualan offline tersimpan · ${rp(res.total)}`);
+        X.toast(res.duplicate ? "Sudah tersimpan sebelumnya" : editing ? "Penjualan offline diperbarui" : `Penjualan offline tersimpan · ${rp(res.total)}${payload.payment_status === "unpaid" ? " · belum dibayar" : ""}`);
         menuData = null; reloadAll(true);
       } catch (err) {
         errBox.textContent = C.errorText(err);

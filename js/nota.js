@@ -48,7 +48,7 @@
       if (d.entry_mode === "items" && (d.order_discount || d.extra_charge)) lines.push({ label: "Subtotal", amount: d.subtotal - d.item_discount });
       if (d.order_discount) lines.push({ label: "Diskon", amount: -d.order_discount });
       if (d.extra_charge) lines.push({ label: "Biaya tambahan", amount: d.extra_charge });
-      return { number: r.ref, time: r.at, buyer: r.customer_name || "-", items, gifts: [], lines, total: r.amount, note: "" };
+      return { number: r.ref, time: d.order_date || r.at, buyer: r.customer_name || "-", items, gifts: [], lines, total: r.amount, note: d.payment_status === "unpaid" ? "Belum dibayar" : "" };
     }
     return fromOnlineOrder({
       order_number: r.ref, paid_at: d.paid_at, created_at: d.created_at, customer_name: r.customer_name, status: d.status,
