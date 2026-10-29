@@ -197,6 +197,24 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 .cf-filters .cf-q{flex:1 1 220px}
 .cf-desc{max-width:320px}
 .cf-when,.cf-ref{white-space:nowrap}
+.cf-row{cursor:pointer}
+.cf-row:hover td{background:var(--bg)}
+.cf-compact td.cf-main{width:100%;min-width:0}
+.cf-compact td.cf-main .muted{font-size:.82rem;overflow-wrap:anywhere}
+.cf-compact td.num{white-space:nowrap}
+.cf-compact td.cf-go{text-align:right;width:1%}
+/* phones: short lists stay two lines per row (name + amount, then date), no column labels */
+.cf-m{display:none}
+@media (max-width:700px){
+  .tbl-wrap .cf-compact tr{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:.7rem;row-gap:.1rem;align-items:center;padding:.6rem .85rem;margin-bottom:.45rem}
+  .tbl-wrap .cf-compact td{padding:0;text-align:left;width:auto}
+  .tbl-wrap .cf-compact td::before{display:none}
+  .tbl-wrap .cf-compact td.cf-main{grid-row:1;grid-column:1;font-size:.95rem}
+  .tbl-wrap .cf-compact td.num:not(.cf-qty){grid-row:1;grid-column:2;text-align:right}
+  .tbl-wrap .cf-compact td.cf-when,.tbl-wrap .cf-compact td.cf-qty{grid-row:2;grid-column:1/-1;font-size:.8rem;color:var(--muted);text-align:left}
+  .tbl-wrap .cf-compact td.cf-go{display:none}
+  .cf-m{display:inline}
+}
 @media (max-width:700px){.cf-when,.cf-ref{white-space:normal}}
 .cf-pager{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:flex-end;margin-top:.7rem}
 .cf-pager .muted{margin-right:auto}
@@ -278,8 +296,9 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 
 <script src="js/config.js?v=202610271844"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/cashflow-core.js?v=202610291030"></script>
-<script src="js/cashflow.js?v=202610291030"></script>
+<script src="js/nota.js?v=202610291230"></script>
+<script src="js/cashflow-core.js?v=202610291130"></script>
+<script src="js/cashflow.js?v=202610291230"></script>
 <script>
 (() => {
   const CFG = window.CN_CONFIG;
@@ -472,8 +491,10 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       if (["paid", "processing", "ready", "shipping"].includes(o.status)) acts.push(`<button class="btn btn-ok btn-sm" data-st="completed" data-id="${o.id}">Selesai</button>`);
       if (["pending", "paid", "processing", "ready", "shipping"].includes(o.status)) acts.push(`<button class="btn btn-ghost btn-sm" data-st="cancelled" data-id="${o.id}" data-paid="${o.status !== "pending"}">Batalkan</button>`);
       acts.push(`<button class="btn btn-ghost btn-sm" data-chat="${o.id}">💬 Chat Customer</button>`);
+      acts.push(`<button class="btn btn-ghost btn-sm" data-nota="${o.id}">🖨️ Cetak nota</button>`);
+      if (o.classification) acts.push(`<button class="btn btn-ghost btn-sm" data-cls="${o.classification === "mock" ? "real" : "mock"}" data-id="${o.id}" data-no="${esc(o.order_number)}">${o.classification === "mock" ? "Tandai pembelian asli" : "Tandai pesanan tes"}</button>`);
       return `<div class="card order">
-        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span>${o.classification ? `<span class="badge cf-${o.classification}" title="Klasifikasi untuk Cashflow Summary">${o.classification === "mock" ? "Mock (tes)" : "Real"}</span>` : ""}</div>
+        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span>${o.classification === "mock" ? `<span class="badge cf-mock" title="Tidak ditampilkan atau dihitung di Cashflow Summary">Pesanan tes</span>` : ""}</div>
           <div class="muted" style="font-size:.85rem">${fmtDate(o.created_at)}${o.payment_method ? " · " + esc(o.payment_method) : ""}${o.user_id ? "" : " · tamu"}</div>
           <div style="margin-top:.4rem"><b>${esc(o.customer_name)}</b> · ${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(o.phone)}</a>` : ""}${o.email ? `<br><span class="muted">${esc(o.email)}</span>` : ""}</div>
           ${o.address ? `<div class="muted" style="white-space:pre-line">${esc(o.address)}</div>` : ""}${o.notes ? `<div class="muted">${esc(o.notes)}</div>` : ""}
@@ -484,6 +505,17 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
         <div class="acts">${acts.join("")}</div></div>`;
     }).join("");
     el.querySelectorAll("[data-chat]").forEach((b) => b.onclick = () => chatCustomer(b.dataset.chat));
+    el.querySelectorAll("[data-nota]").forEach((b) => b.onclick = () => window.CNNota.print(window.CNNota.fromOnlineOrder(data.find((x) => x.id === b.dataset.nota))));
+    // Real / Mock label (Mock = test order: hidden from Cashflow Summary, never counted as income)
+    el.querySelectorAll("[data-cls]").forEach((b) => b.onclick = async () => {
+      const toMock = b.dataset.cls === "mock";
+      if (!confirm(toMock
+        ? `Tandai ${b.dataset.no} sebagai pesanan tes? Pesanan ini tidak akan ditampilkan atau dihitung di Cashflow Summary. Status pesanan tidak berubah.`
+        : `Tandai ${b.dataset.no} sebagai pembelian asli? Jika statusnya Selesai, pesanan ini dihitung sebagai pemasukan di Cashflow Summary. Status pesanan tidak berubah.`)) return;
+      b.disabled = true;
+      const { error } = await sb.rpc("cashflow_set_order_classification", { p_order_id: b.dataset.id, p_classification: b.dataset.cls, p_note: null });
+      if (error) { toast(err(error)); b.disabled = false; } else { toast(toMock ? "Ditandai sebagai pesanan tes" : "Ditandai sebagai pembelian asli"); loadOrders(); }
+    });
     $("ofall")?.addEventListener("click", (e) => { e.preventDefault(); orderFocus = ""; syncPlace(); loadOrders(); });
     el.querySelectorAll("[data-st]").forEach((b) => b.onclick = async () => {
       if (b.dataset.st === "cancelled" && !confirm(b.dataset.paid === "true"
