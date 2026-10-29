@@ -28,12 +28,12 @@ async function waitCard(page, label, value) {
 
 test("dashboard shows the right totals for this month, with no trace of test orders (#1, #3, #25)", async () => {
   const page = await openCashflow();
-  assert.equal(await card(page, "Real Order Income"), rp(44500));
-  assert.equal(await card(page, "Completed Real Orders"), "2");
+  assert.match(await text(page, ".cf-card:has-text('Total Income') .cf-hint"), /Online Rp44\.500 \(2 pesanan\) · offline Rp0/);
   assert.equal(await card(page, "Total Income"), rp(44500));
   assert.equal(await card(page, "Total Items Sold"), "3");
   assert.equal(await card(page, "Net Cashflow"), rp(44500));
-  assert.equal(await page.locator(".cf-card").count(), 7, "no Mock Order Value card");
+  assert.equal(await page.locator(".cf-card").count(), 5, "no Real Order Income, Completed Real Orders or Mock cards");
+  assert.doesNotMatch(await text(page, "#cf-cards"), /Real Order Income|Completed Real Orders/);
   assert.doesNotMatch(await text(page, "#app"), /Mock Order Value/);
   assert.match(await text(page, "#cf-banners"), /Sandbox/);
   assert.match(await text(page, "#cf-banners"), /1 pesanan selesai.*perlu ditinjau/);
@@ -51,7 +51,7 @@ test("dashboard shows the right totals for this month, with no trace of test ord
 test("date presets apply to every section (#26)", async () => {
   const page = await openCashflow();
   await page.click('[data-p="yesterday"]');
-  await waitCard(page, "Real Order Income", "Rp0");
+  await waitCard(page, "Total Income", "Rp0");
   await page.locator(".cf-empty").waitFor();
   assert.match(await text(page, "#cf-list"), /Belum ada transaksi/);
   await page.click('[data-s="menu"]');
@@ -61,7 +61,7 @@ test("date presets apply to every section (#26)", async () => {
   await page.click("#cf-apply");
   await page.locator(".toast:not([hidden])", { hasText: "Tanggal akhir" }).waitFor();
   await page.click('[data-p="today"]');
-  await waitCard(page, "Real Order Income", rp(44500));
+  await waitCard(page, "Total Income", rp(44500));
   await page.locator("#cf-menu .cf-table").waitFor();
   await page.context().close();
 });
@@ -74,7 +74,7 @@ test("test orders: hide from Cashflow, restore and label from Pesanan (#4, #5)",
   await inDetail(page, "Sari", "Ini pesanan tes");
   assert.match(await text(page, "#cf-confirm-body"), /hilang dari Cashflow Summary/);
   await page.click("#cf-yes");
-  await waitCard(page, "Real Order Income", rp(26000));
+  await waitCard(page, "Total Income", rp(26000));
   await page.locator("#cf-list .cf-empty").waitFor();
   let [o] = await H.sql("select status, classification, classification_review from orders where customer_name = 'Sari'");
   assert.deepEqual(o, { status: "completed", classification: "mock", classification_review: false }, "status untouched");
@@ -91,7 +91,7 @@ test("test orders: hide from Cashflow, restore and label from Pesanan (#4, #5)",
   await tes.getByRole("button", { name: "Tandai pembelian asli" }).click();
   await tes.getByRole("button", { name: "Tandai pesanan tes" }).waitFor();
   await page.goto(page.url().replace(/#.*$/, "#cashflow/orders"));
-  await waitCard(page, "Real Order Income", rp(94000));
+  await waitCard(page, "Total Income", rp(94000));
   await page.click("#cf-reset");                      // the "Perlu ditinjau" filter is still on from before
   await page.locator("#cf-list tbody tr", { hasText: "TES SISTEM" }).waitFor();
   // put it back: hidden again
@@ -100,7 +100,7 @@ test("test orders: hide from Cashflow, restore and label from Pesanan (#4, #5)",
   await page.locator("#olist .order", { hasText: "TES SISTEM" }).getByRole("button", { name: "Tandai pesanan tes" }).click();
   await page.locator("#olist .order", { hasText: "TES SISTEM" }).locator(".badge.cf-mock").waitFor();
   await page.goto(page.url().replace(/#.*$/, "#cashflow/orders"));
-  await waitCard(page, "Real Order Income", rp(44500));
+  await waitCard(page, "Total Income", rp(44500));
   assert.doesNotMatch(await text(page, "#cf-list"), /TES SISTEM/);
   assert.doesNotMatch(await text(page, "#cf-banners"), /perlu ditinjau/, "nothing left to review");
   [o] = await H.sql("select classification, classification_review from orders where customer_name = 'Sari'");
