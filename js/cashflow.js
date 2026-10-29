@@ -140,9 +140,12 @@
   const LIST_FIXED = { transactions: {}, orders: {}, offline: { source: "offline" }, expenses: { source: "expense" } };
   async function drawList(quiet) {
     const body = $("cf-body");
+    const mySub = sub;
     const f = filters[sub];
     if (!quiet || !$("cf-list")) {
       if (!categories) categories = await rpc("cashflow_categories").catch(() => []);
+      // the page may have been redrawn (second login event, another section) while waiting
+      if (!body || !body.isConnected || sub !== mySub) return;
       const sel = (id, label, opts, val) => `<label class="f">${label}<select id="${id}"><option value="">Semua</option>${opts.map(([k, v]) => `<option value="${k}" ${String(val ?? "") === String(k) ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>`;
       const ctl = [];
       if (sub === "transactions") {
