@@ -35,10 +35,10 @@
     X = admin;
     if (wantedSub && SUBS[wantedSub]) sub = wantedSub;
     X.app.innerHTML = `
-      <div class="bar"><h2>Cashflow Summary</h2>
-        <button class="btn btn-rose" id="cf-add-off">+ Penjualan offline</button>
+      <div class="bar cf-bar"><h2>Cashflow Summary</h2>
+        <button class="btn btn-rose" id="cf-add-off">+ <span class="cf-hide-m">Penjualan offline</span><span class="cf-show-m">Offline</span></button>
         <button class="btn btn-rose" id="cf-add-exp">+ Pengeluaran</button>
-        <button class="btn btn-ghost" id="cf-ref">Muat ulang</button></div>
+        <button class="btn btn-ghost" id="cf-ref" aria-label="Muat ulang" title="Muat ulang">↻<span class="cf-hide-m"> Muat ulang</span></button></div>
       <div class="card cf-dates" role="group" aria-label="Periode">
         <div class="cf-chips" id="cf-presets">${Object.entries(C.PRESETS).map(([k, v]) => `<button type="button" data-p="${k}" aria-pressed="${k === preset}">${v}</button>`).join("")}</div>
         <div class="cf-custom" id="cf-custom" ${preset === "custom" ? "" : "hidden"}>
@@ -48,7 +48,7 @@
       </div>
       <div id="cf-banners"></div>
       <section aria-label="Ringkasan" class="cf-cards" id="cf-cards">${cardsSkeleton()}</section>
-      <nav class="subtabs" id="cf-subs" aria-label="Bagian Cashflow">${Object.entries(SUBS).map(([k, v]) => `<button type="button" data-s="${k}" aria-pressed="${k === sub}">${v}</button>`).join("")}</nav>
+      <nav class="subtabs cf-subs" id="cf-subs" aria-label="Bagian Cashflow">${Object.entries(SUBS).map(([k, v]) => `<button type="button" data-s="${k}" aria-pressed="${k === sub}">${v}</button>`).join("")}</nav>
       <div id="cf-body"></div>`;
     $("cf-add-off").onclick = () => offlineForm();
     $("cf-add-exp").onclick = () => expenseForm();
@@ -74,9 +74,17 @@
       drawSub();
     };
     syncHash();
+    revealPressed();
     await reloadAll();
     // completed orders show up without a manual refresh
     X.setRefresh(() => { if (!document.hidden && $("modal").hidden) reloadAll(true); }, 60000);
+  }
+  // phones: the chip / tab rows scroll sideways; keep the selected one in view
+  function revealPressed() {
+    ["cf-presets", "cf-subs"].forEach((id) => {
+      const row = $(id), b = row?.querySelector('[aria-pressed="true"]');
+      if (row && b && row.scrollWidth > row.clientWidth) row.scrollLeft = b.offsetLeft - row.offsetLeft - 12;
+    });
   }
   function syncHash() {
     const h = "#cashflow/" + sub;
@@ -101,10 +109,10 @@
       summary = s;
       const card = (label, value, hint, cls = "") => `<div class="card cf-card ${cls}"><div class="cf-lbl">${label}</div><div class="cf-val">${value}</div>${hint ? `<div class="cf-hint">${hint}</div>` : ""}</div>`;
       $("cf-cards").innerHTML = [
-        card("Offline Order Income", rp(s.offline_order_income), `${s.offline_real_orders} penjualan offline${s.amount_only_orders ? ` · ${s.amount_only_orders} nominal saja` : ""}`),
-        card("Total Income", rp(s.total_income), `Online ${rp(s.real_order_income)} (${s.completed_real_orders} pesanan) · offline ${rp(s.offline_order_income)}`, "cf-strong"),
+        card("Total Income", rp(s.total_income), `Online ${rp(s.real_order_income)} (${s.completed_real_orders} pesanan) · offline ${rp(s.offline_order_income)}`, "cf-strong cf-wide"),
         card("Total Expenses", rp(s.total_expenses), `${s.expense_count} pengeluaran`),
         card("Net Cashflow", rp(s.net_cashflow), "Pemasukan − pengeluaran tercatat. Bukan laba akuntansi.", s.net_cashflow < 0 ? "cf-neg cf-strong" : "cf-pos cf-strong"),
+        card("Offline Order Income", rp(s.offline_order_income), `${s.offline_real_orders} penjualan offline${s.amount_only_orders ? ` · ${s.amount_only_orders} nominal saja` : ""}`),
         card("Total Items Sold", Number(s.total_items_sold).toLocaleString("id-ID"), "Dari pesanan dengan rincian item"),
       ].join("");
       const banners = [];
@@ -169,8 +177,10 @@
         expenses: "Biaya usaha. Dicatat terpisah dari pemasukan.",
       }[sub];
       body.innerHTML = `<p class="muted cf-intro">${intro}</p>${addBtn ? `<div class="row-actions" style="justify-content:flex-start;margin-bottom:.7rem">${addBtn}</div>` : ""}
-        <form class="cf-filters" id="cf-filters" role="search">${ctl.join("")}
+        <form class="cf-filters" id="cf-filters" role="search">
           <label class="f cf-q">Cari<input type="search" id="cf-q" placeholder="${ph}" value="${esc(f.q || "")}"></label>
+          <button class="btn btn-ghost btn-sm cf-ftoggle" type="button" id="cf-ftoggle" aria-expanded="false" aria-controls="cf-fsel">Filter</button>
+          <div class="cf-fsel" id="cf-fsel">${ctl.join("")}</div>
           <button class="btn btn-ghost btn-sm" type="button" id="cf-reset">Reset filter</button></form>
         <div id="cf-list" aria-live="polite"><p class="muted">Memuat…</p></div>`;
       const read = () => {
@@ -179,13 +189,20 @@
         if (sub === "orders") nf.review = g("cf-f-oclass") === "review" || undefined;
         filters[sub] = nf; pages[sub] = 1; loadList();
       };
-      $("cf-filters").onchange = (e) => { if (e.target.id !== "cf-q") read(); };
+      const markActive = () => {
+        const n = [...$("cf-fsel").querySelectorAll("select")].filter((x) => x.value).length;
+        $("cf-ftoggle").textContent = n ? `Filter (${n})` : "Filter";
+        $("cf-ftoggle").classList.toggle("on", n > 0);
+      };
+      markActive();
+      $("cf-ftoggle").onclick = () => { const open = $("cf-fsel").classList.toggle("open"); $("cf-ftoggle").setAttribute("aria-expanded", String(open)); };
+      $("cf-filters").onchange = (e) => { if (e.target.id !== "cf-q") { markActive(); read(); } };
       $("cf-filters").onsubmit = (e) => { e.preventDefault(); read(); };
       let t; $("cf-q").oninput = () => { clearTimeout(t); t = setTimeout(read, 350); };
       // clear the fields in place (redrawing would wipe anything typed straight after)
       $("cf-reset").onclick = () => {
         $("cf-filters").querySelectorAll("select").forEach((x) => (x.value = ""));
-        $("cf-q").value = ""; filters[sub] = {}; pages[sub] = 1; loadList();
+        $("cf-q").value = ""; filters[sub] = {}; pages[sub] = 1; markActive(); loadList();
       };
       $("cf-add2")?.addEventListener("click", () => (sub === "offline" ? offlineForm() : expenseForm()));
       $("cf-cats")?.addEventListener("click", manageCategories);
@@ -239,8 +256,8 @@
     const pagesN = Math.max(1, Math.ceil(data.total_count / PAGE_SIZE));
     return `<div class="tbl-wrap"><table class="cf-table cf-compact"><thead><tr><th>Tanggal</th><th>${what}</th><th class="num">Jumlah</th><th></th></tr></thead><tbody>${body}</tbody></table></div>
       <div class="cf-pager"><span class="muted">${data.total_count} data · halaman ${pages[sub]} dari ${pagesN}</span>
-        <button class="btn btn-ghost btn-sm" data-pg="-1" ${pages[sub] <= 1 ? "disabled" : ""}>‹ Sebelumnya</button>
-        <button class="btn btn-ghost btn-sm" data-pg="1" ${pages[sub] >= pagesN ? "disabled" : ""}>Berikutnya ›</button></div>`;
+        <button class="btn btn-ghost btn-sm" data-pg="-1" ${pages[sub] <= 1 ? "disabled" : ""} aria-label="Halaman sebelumnya">‹<span class="cf-hide-m"> Sebelumnya</span></button>
+        <button class="btn btn-ghost btn-sm" data-pg="1" ${pages[sub] >= pagesN ? "disabled" : ""} aria-label="Halaman berikutnya"><span class="cf-hide-m">Berikutnya </span>›</button></div>`;
   }
 
   function wireList(el, data) {
@@ -311,7 +328,7 @@
         + (d.receipt_path ? `<div class="cf-kv"><span>Bukti</span><span><button class="btn btn-ghost btn-sm" id="cf-receipt">Lihat bukti</button></span></div>` : "");
     } else if (r.source === "offline") {
       entity = "offline_order"; id = d.id;
-      extra = line("Status pembayaran", d.payment_status === "unpaid" ? `<span class="badge cf-unpaid">Belum dibayar</span>` : `Lunas · ${fmtWib(d.paid_at)}`) + line("Tanggal pesanan", fmtWib(d.order_date)) + line("Sumber", C.SOURCE[d.source]) + line("Pelanggan", esc(r.customer_name)) + line("Cara input", d.entry_mode === "amount" ? "Nominal saja (tidak masuk statistik menu)" : "Per item menu")
+      extra = line("Status pembayaran", d.payment_status === "unpaid" ? `<span class="badge cf-unpaid">Belum dibayar</span>` : `Lunas · ${fmtWib(d.paid_at)}`) + line("Tanggal pesanan", fmtWib(d.order_date)) + line("Pelanggan", esc(r.customer_name)) + line("Cara input", d.entry_mode === "amount" ? "Nominal saja (tidak masuk statistik menu)" : "Per item menu")
         + line("Catatan", esc(d.notes));
     } else {
       entity = "order"; id = d.id;
@@ -320,16 +337,16 @@
         + line("Lingkungan Midtrans", d.payment_env === "production" ? "Production" : d.payment_env === "sandbox" ? "Sandbox (tes)" : "Tidak tercatat")
         + (d.review && d.classification_note ? line("Catatan", esc(d.classification_note)) : "");
     }
-    const itemRows = items.map((i) => `<tr><td>${esc(i.product_name)}${i.variant_name ? ` · <span class="muted">${esc(i.variant_name)}</span>` : ""}${i.addon ? ` · <b>${esc(i.addon)}</b>` : ""}</td><td class="num">${i.quantity}</td><td class="num">${rp(i.unit_price)}</td><td class="num">${i.discount ? "−" + rp(i.discount) : "–"}</td><td class="num">${rp(i.line_total)}</td></tr>`).join("");
+    const itemRows = items.map((i) => `<tr><td class="cf-main">${esc(i.product_name)}${i.variant_name ? ` · <span class="muted">${esc(i.variant_name)}</span>` : ""}${i.addon ? ` · <b>${esc(i.addon)}</b>` : ""}<span class="cf-mb muted">${i.quantity} × ${rp(i.unit_price)}${i.discount ? " · diskon " + rp(i.discount) : ""}</span></td><td class="num cf-hide-m">${i.quantity}</td><td class="num cf-hide-m">${rp(i.unit_price)}</td><td class="num cf-hide-m">${i.discount ? "−" + rp(i.discount) : "–"}</td><td class="num"><b>${rp(i.line_total)}</b></td></tr>`).join("");
     const totals = r.source === "offline" && d.entry_mode === "items"
       ? line("Subtotal", rp(d.subtotal)) + (d.item_discount ? line("Diskon item", "−" + rp(d.item_discount)) : "") + (d.order_discount ? line("Diskon pesanan", "−" + rp(d.order_discount)) : "") + (d.extra_charge ? line("Biaya tambahan", rp(d.extra_charge)) : "")
       : r.source.startsWith("system") ? line("Subtotal", rp(d.subtotal)) + (d.discount ? line("Diskon", "−" + rp(d.discount) + (d.promo_code ? ` (${esc(d.promo_code)})` : "")) : "") + (d.delivery_fee ? line("Ongkir", rp(d.delivery_fee)) : "") : "";
     X.openModal(`<div class="modal-head"><h2>${esc(r.ref)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
       <div class="cf-detail">
         <div>${typeBadge(r.ttype)} ${d.review ? '<span class="badge cf-review">Perlu ditinjau</span>' : ""}</div>
-        ${line("Tanggal transaksi", fmtWib(r.at))}${line("Sumber", r.source === "expense" ? "Pengeluaran" : r.source === "offline" ? "Penjualan offline" : "Pesanan online")}${line("Pembayaran", esc(C.paymentLabel(r.payment, r.payment_raw)))}
+        ${line("Tanggal transaksi", fmtWib(r.at))}${line("Sumber", r.source === "expense" ? "Pengeluaran" : r.source === "offline" ? "Penjualan offline · " + (C.SOURCE[d.source] || "") : "Pesanan online" + (d.guest ? " · tamu" : ""))}${line("Pembayaran", esc(C.paymentLabel(r.payment, r.payment_raw)))}
         ${r.source === "expense" ? line("Keterangan", esc(r.description)) : ""}${extra}
-        ${items.length ? `<div class="tbl-wrap"><table><thead><tr><th>Item</th><th class="num">Jumlah</th><th class="num">Harga</th><th class="num">Diskon</th><th class="num">Total</th></tr></thead><tbody>${itemRows}</tbody></table></div>` : ""}
+        ${items.length ? `<div class="tbl-wrap"><table class="cf-itbl"><thead><tr><th>Item</th><th class="num">Jumlah</th><th class="num">Harga</th><th class="num">Diskon</th><th class="num">Total</th></tr></thead><tbody>${itemRows}</tbody></table></div>` : ""}
         ${totals}<div class="cf-kv cf-total"><span>${r.ttype === "expense" ? "Jumlah" : "Total"}</span><span>${rp(r.amount)}</span></div>
         ${r.source.startsWith("system") ? `<p class="muted" style="margin:0">Pesanan online diubah lewat menu Pesanan.</p>` : ""}
         <details id="cf-hist"><summary>Riwayat perubahan</summary><div class="muted">Memuat…</div></details>
@@ -586,7 +603,7 @@
     const body = $("cf-body");
     if (!quiet || !$("cf-menu")) {
       body.innerHTML = `<p class="muted cf-intro">Menu yang terjual pada periode ini, dari rincian item pesanan online yang <b>Selesai</b> dan penjualan offline per item.</p>
-        <form class="cf-filters" id="cf-mf">
+        <form class="cf-filters cf-mfilters" id="cf-mf">
           <label class="f">Kelompokkan<select id="m-group"><option value="product">Per menu</option><option value="variant">Per varian / ukuran</option></select></label>
           <label class="f">Urutkan<select id="m-sort"><option value="quantity">Jumlah terjual</option><option value="revenue">Pendapatan</option></select></label>
           <label class="f">Kategori<select id="m-sec"><option value="">Semua</option></select></label>
