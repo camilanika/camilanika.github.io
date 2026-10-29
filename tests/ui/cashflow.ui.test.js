@@ -414,6 +414,15 @@ test("phone layout: no sideways scrolling", async () => {
     const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(over <= 1, `${s}: page is ${over}px wider than the screen`);
   }
+  // filters fold away behind a Filter button; search stays visible
+  await page.click('[data-s="transactions"]');
+  await page.locator("#cf-q").waitFor();
+  assert.equal(await page.locator("#cf-f-type").isVisible(), false);
+  await page.click("#cf-ftoggle");
+  assert.equal(await page.locator("#cf-f-type").isVisible(), true);
+  await page.selectOption("#cf-f-type", "expense");
+  await page.locator("#cf-ftoggle", { hasText: "Filter (1)" }).waitFor();
+  assert.equal(await page.locator(".cf-card.cf-wide").count(), 1, "Total Income spans the full width");
   await page.click("#cf-add-off");
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(over <= 1, `offline form: ${over}px too wide`);
