@@ -424,6 +424,11 @@ test("phone layout: no sideways scrolling", async () => {
   await page.locator("#cf-ftoggle", { hasText: "Filter (1)" }).waitFor();
   assert.equal(await page.locator(".cf-card.cf-wide").count(), 1, "Total Income spans the full width");
   await page.click("#cf-add-off");
+  // the popup background must cover the whole form, also after scrolling to the bottom
+  await page.locator("#of-save").waitFor();
+  await page.evaluate(() => { document.getElementById("modal").scrollTop = 1e5; });
+  const box = await page.evaluate(() => ({ box: document.getElementById("modal-box").getBoundingClientRect().bottom, save: document.getElementById("of-save").getBoundingClientRect().bottom }));
+  assert.ok(box.box >= box.save, `popup ends at ${box.box}px but the Save button is at ${box.save}px`);
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(over <= 1, `offline form: ${over}px too wide`);
   await page.context().close();
