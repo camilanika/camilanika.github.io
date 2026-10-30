@@ -155,8 +155,10 @@ td.num,th.num{text-align:right}
 .toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);text-align:center;background:var(--fg);color:var(--bg);padding:.7rem 1.1rem;border-radius:999px;font-weight:800;z-index:99}
 /* phones: popups use the whole screen (kept last so it wins over the base modal rules) */
 @media (max-width:640px){
-  .modal-bg{padding:0;place-items:stretch}
-  .modal{border-radius:0;min-height:100%;width:100%;padding:1rem .9rem 1.4rem;align-content:start;box-shadow:none}
+  /* block layout so a long popup grows with its content (a grid row would cap it at one screen) */
+  .modal-bg{padding:0;display:block;background:var(--bg);overscroll-behavior:contain}
+  .modal{border-radius:0;min-height:100%;height:auto;width:100%;padding:1rem .9rem calc(1.4rem + env(safe-area-inset-bottom,0px));align-content:start;box-shadow:none}
+  .modal-head{position:sticky;top:0;z-index:2;background:var(--bg);margin:-1rem -.9rem 0;padding:.8rem .9rem .6rem;border-bottom:1px solid var(--line)}
   .modal-head h2{font-size:1.15rem;overflow-wrap:anywhere}
 }
 
