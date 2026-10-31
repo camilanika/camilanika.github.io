@@ -656,6 +656,8 @@ body.sheet-open{overflow:hidden}
   .sheet-grab{display:none}
   .os-foot{border-radius:0 0 var(--r-lg) var(--r-lg)}
 }
+/* Leaflet maps: keep their layers and zoom buttons (z-index up to 1000) inside the map, below headers, menus and popups */
+.leaflet-container{position:relative;z-index:0;isolation:isolate}
 </style>
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>

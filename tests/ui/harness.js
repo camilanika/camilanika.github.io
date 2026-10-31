@@ -85,6 +85,12 @@ async function start({ seedSql } = {}) {
   async function open(hash = "", { uid = ADMIN, viewport = { width: 1280, height: 900 }, doubleAuth = false } = {}) {
     const ctx = await browser.newContext({ viewport, locale: "id-ID", timezoneId: "Asia/Jakarta" });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    // the admin page loads Leaflet 1.9.4 from unpkg; serve the same version from npm, no map tiles
+    await ctx.route(/unpkg\.com\/leaflet@1\.9\.4\/dist\//, (r) => {
+      const f = path.join(__dirname, "../node_modules/leaflet/dist", new URL(r.request().url()).pathname.split("/dist/")[1]);
+      fs.existsSync(f) ? r.fulfill({ path: f }) : r.abort();
+    });
+    await ctx.route(/tile\.openstreetmap\.org/, (r) => r.abort());
     const page = await ctx.newPage();
     page.on("pageerror", (e) => { (page.__errors ||= []).push(e.message); });
     await page.addInitScript(([u, d]) => { window.__TEST_UID = u; window.__DOUBLE_AUTH = d; }, [uid, doubleAuth]);

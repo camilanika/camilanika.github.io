@@ -9,6 +9,7 @@
     "test": "npm run test:unit && npm run test:db && npm run test:ui"
   },
   "devDependencies": {
+    "leaflet": "^1.9.4",
     "pg": "^8.13.0"
   }
 }
