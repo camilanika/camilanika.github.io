@@ -168,6 +168,8 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 .card,.tbl-wrap{border-radius:var(--r-md)}
 @media (min-width:641px){.modal{border-radius:var(--r-lg)}}
 @media (max-width:700px){.tbl-wrap tr{border-radius:var(--r-md)}}
+/* Leaflet maps: keep their layers and zoom buttons (z-index up to 1000) inside the map, below headers, menus and popups */
+.leaflet-container{position:relative;z-index:0;isolation:isolate}
 /* ===== Cashflow Summary ===== */
 .cf-dates{display:grid;gap:.6rem;margin-bottom:1rem}
 .cf-chips{display:flex;flex-wrap:wrap;gap:.4rem}
