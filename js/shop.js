@@ -628,24 +628,29 @@
         : !q.enabled ? `${fmtKm(q.km)} dari toko.` : `${fmtKm(q.km)} dari toko · ${q.fee ? "ongkir " + rp(q.fee) : "gratis ongkir"}`;
     }, 300);
   }
+  let addrLookup = 0;
   async function saveMapLocation() {
     const { lat, lng } = pin.getLatLng();
+    const prev = deliv.loc;
     deliv.loc = { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+    const moved = !prev || prev.lat !== deliv.loc.lat || prev.lng !== deliv.loc.lng;
     store.set("cn-loc", deliv.loc);
     $("map-modal").hidden = true;
     await quoteDelivery();
     renderCart();
-    // fill the address box from the map if it's still empty (free OpenStreetMap lookup, once per save)
-    if (!$("cust-addr").value.trim()) {
-      try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=id&lat=${deliv.loc.lat}&lon=${deliv.loc.lng}`);
-        const j = await r.json();
-        if (j?.display_name && !$("cust-addr").value.trim()) {
-          $("cust-addr").value = j.display_name.split(", ").slice(0, 5).join(", ") + "\n(tambahkan blok/no. rumah & patokan)";
-          renderCart();
-        }
-      } catch (e) {}
-    }
+    // fill the address box with the address of the new pin (free OpenStreetMap lookup, once per save).
+    // A new location replaces the old address; the same spot keeps what the customer typed.
+    if (!moved && $("cust-addr").value.trim()) return;
+    const seq = ++addrLookup, at = deliv.loc;
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=id&lat=${at.lat}&lon=${at.lng}`);
+      const j = await r.json();
+      if (seq !== addrLookup) return;          // a newer pin was saved meanwhile
+      if (j?.display_name) {
+        $("cust-addr").value = j.display_name.split(", ").slice(0, 5).join(", ") + "\n(tambahkan blok/no. rumah & patokan)";
+        renderCart();
+      }
+    } catch (e) {}
   }
   function useMyLocation() {
     if (!navigator.geolocation) { $("map-info").textContent = "Perangkat ini tidak bisa membagikan lokasi."; return; }
@@ -776,15 +781,24 @@
   };
   const findOrder = (num) => store.get("cn-orders", []).find((x) => x.order_number === num);
 
+  // Only the payment window opened last may move the page. A late callback from an earlier, cancelled
+  // window (Snap can fire one after a new payment starts) used to send the customer back to that old order.
+  let activePay = null;
+  const justPaid = new Set();     // Midtrans said "paid"; our server may not have heard yet
+  const setPaying = (num) => { try { num ? sessionStorage.setItem("cn-paying", num) : sessionStorage.removeItem("cn-paying"); } catch (e) {} };
+  const getPaying = () => { try { return sessionStorage.getItem("cn-paying"); } catch (e) { return null; } };
   function openSnap(token, orderNumber) {
-    window.snap.pay(token, {
-      onSuccess: () => { clearCart(); showStatus(orderNumber, true); },
-      onPending: () => { clearCart(); showStatus(orderNumber, true); },
-      onError: () => showStatus(orderNumber, true),
-      onClose: () => showStatus(orderNumber, true),
-    });
+    activePay = orderNumber;
+    setPaying(orderNumber);
+    const done = (kind) => () => {
+      if (activePay !== orderNumber) return;          // stale callback from an older payment window
+      activePay = null; setPaying(null);
+      if (kind === "success") justPaid.add(orderNumber);   // (the cart was already emptied when the order was created)
+      showStatus(orderNumber);
+    };
+    window.snap.pay(token, { onSuccess: done("success"), onPending: done("pending"), onError: done("error"), onClose: done("close") });
   }
-  function clearCart() { cart = []; promoCode = ""; quote = null; $("promo-code").value = ""; save(); renderCart(); refreshCards(); }
+  function clearCart() { cart = []; promoCode = ""; quote = null; $("promo-code").value = ""; $("checkout").hidden = true; save(); renderCart(); refreshCards(); }
 
   $("pay-btn").addEventListener("click", async () => {
     showErr("");
@@ -817,9 +831,13 @@
         showErr(errMsg(out.detail || out.error)); return;
       }
       rememberOrder(out);
-      if (out.free) { clearCart(); closeAll(); showStatus(out.order_number, true); return; }
-      await snapReady;
+      // the order exists now: empty the cart, so cancelling the payment and ordering again can't double it.
+      // An unpaid order is paid from its page in "Pesanan saya" (Lanjutkan pembayaran).
+      clearCart();
       closeAll();
+      if (out.free) { showStatus(out.order_number); return; }
+      try { await snapReady; }
+      catch (e) { showStatus(out.order_number); toast("Halaman pembayaran gagal dibuka. Tekan Lanjutkan pembayaran untuk mencoba lagi."); return; }
       openSnap(out.token, out.order_number);
     } catch (e) {
       showErr(ERRORS.PAYMENT_GATEWAY_ERROR);
@@ -963,8 +981,16 @@
       $("apply-code").click();
     }, 60);
   }
-  // after paying (or closing the payment popup) show that order's page
-  const showStatus = (num) => navOrders(num);
+  // after paying (or closing the payment popup) show that order's page. If an order page is already open
+  // (e.g. the cancelled one), replace it, so Back doesn't lead to the old order either.
+  const showStatus = (num) => {
+    const h = "#pesanan/" + encodeURIComponent(num);
+    if (/^#pesanan\//.test(location.hash) && location.hash !== h) {
+      history.replaceState({ cnOrders: Math.max(opDepth(), 1) }, "", location.pathname + location.search + h);
+      return route();
+    }
+    navOrders(num);
+  };
 
   async function renderOrderList() {
     $("op-title").textContent = "Pesanan saya";
@@ -1007,9 +1033,12 @@
           <a class="btn btn-wa" style="justify-content:center" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya mau tanya pesanan " + num)}">Tanya lewat WhatsApp</a>`;
         return;
       }
-      const st = effStatus(o), tok = payToken(o), it = itemsOf(o);
+      if (o.status !== "pending") justPaid.delete(num);
+      const confirming = o.status === "pending" && justPaid.has(num);   // paid at Midtrans, webhook not in yet
+      const st = effStatus(o), tok = confirming ? null : payToken(o), it = itemsOf(o);
       const ask = `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya mau tanya pesanan " + num)}">Tanya lewat WhatsApp</a>`;
-      const actions = st === "pending"
+      const actions = confirming ? `<p class="form-msg">Pembayaran kamu sudah diterima Midtrans. Kami sedang mengonfirmasi, halaman ini diperbarui otomatis…</p>${ask}`
+        : st === "pending"
         ? (tok ? `<button class="btn btn-rose" type="button" id="od-pay">Lanjutkan pembayaran · ${rp(o.total)}</button>${ask}`
                : `<p class="form-msg">Link pembayaran untuk pesanan ini tidak tersedia di perangkat ini. Kalau sudah bayar, statusnya berubah otomatis; kalau belum, chat kami.</p>${ask}`)
         : ["paid", "processing", "ready", "shipping"].includes(st) ? `<a class="btn btn-wa" target="_blank" rel="noopener" href="${deliveryChatLink(o)}">Chat admin untuk pengiriman</a>`
@@ -1017,9 +1046,9 @@
       const line = (l, r, cls = "") => `<div class="od-line ${cls}"><span>${l}</span><span>${r}</span></div>`;
       body.innerHTML = `
         <div class="od-sec">
-          <div class="oc-head"><b>${esc(o.order_number)}</b><span class="badge-st ${esc(st)}">${esc(STATUS[st] || st)}</span></div>
+          <div class="oc-head"><b>${esc(o.order_number)}</b><span class="badge-st ${confirming ? "paid" : esc(st)}">${confirming ? "Mengonfirmasi pembayaran…" : esc(STATUS[st] || st)}</span></div>
           <small class="od-muted">Dipesan ${fmtDate(o.created_at)}${o.paid_at ? ` · dibayar ${fmtDate(o.paid_at)}` : ""}</small>
-          <p class="od-msg">${esc(STATUS_MSG[st] || "")}</p>
+          ${confirming ? "" : `<p class="od-msg">${esc(STATUS_MSG[st] || "")}</p>`}
           ${tok && o.expires_at ? `<p class="due">Bayar sebelum pukul ${fmtTime(o.expires_at)}, setelah itu pesanan batal otomatis.</p>` : ""}
           <div class="od-actions">${actions}</div>
         </div>
@@ -1049,7 +1078,7 @@
         finally { b.disabled = false; }
       });
       refreshBadgesSoon();
-      if (st === "pending" && ++tries < 60) pollTimer = setTimeout(load, 5000);
+      if (st === "pending" && ++tries < 60) pollTimer = setTimeout(load, confirming ? 2000 : 5000);
     };
     await load();
   }
@@ -1593,6 +1622,27 @@
     $("to-checkout").textContent = "Lanjut isi data & pesan";
   }
 
+  // back from Midtrans in this tab (GoPay app, bank page, 3DS…): ?order=CN-... (+ Midtrans' own order_id / transaction_status)
+  function resumeAfterPayment(restored) {
+    const params = new URLSearchParams(location.search);
+    const num = params.get("order") || params.get("order_id");
+    if (num) {
+      history.replaceState(null, "", location.pathname + location.hash.replace(/^#pesanan.*$/, ""));
+      const st = params.get("transaction_status");
+      if (st === "settlement" || st === "capture") justPaid.add(num);
+      activePay = null; setPaying(null);
+      showStatus(num);
+      return true;
+    }
+    // the browser brought back this page from its cache (Back after paying elsewhere): show the order being paid
+    const paying = restored && getPaying();
+    if (paying) { activePay = null; setPaying(null); showStatus(paying); return true; }
+    return false;
+  }
+  window.addEventListener("pageshow", (e) => { if (e.persisted) resumeAfterPayment(true); });
+  // the order page doesn't need the menu, so open it straight away
+  if (!resumeAfterPayment(false) && /^#(pesanan|voucher|loyalty)/.test(location.hash)) route();
+
   (async () => {
     setOffsets();
     renderCart();
@@ -1602,14 +1652,6 @@
       $("menu-root").innerHTML = `<section class="block"><div class="wrap"><p class="menu-status">Menu belum bisa dimuat. Coba muat ulang halaman, atau pesan langsung lewat <a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a>.</p></div></section>`;
     }
     if (cart.length) scheduleQuote();
-    // back from a Midtrans redirect (e.g. GoPay app): ?order=CN-...
-    const params = new URLSearchParams(location.search);
-    const num = params.get("order") || params.get("order_id");
-    if (num) {
-      history.replaceState(null, "", location.pathname + location.hash);
-      const st = params.get("transaction_status");
-      if (st === "settlement" || st === "capture" || st === "pending") clearCart();
-      showStatus(num, true);
-    } else if (/^#(pesanan|voucher|loyalty)/.test(location.hash)) route();
   })();
+
 })();
