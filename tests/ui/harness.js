@@ -82,7 +82,7 @@ async function start({ seedSql } = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch();
 
-  async function open(hash = "", { uid = ADMIN, viewport = { width: 1280, height: 900 }, doubleAuth = false } = {}) {
+  async function open(hash = "", { uid = ADMIN, viewport = { width: 1280, height: 900 }, doubleAuth = false, file = "admin.html" } = {}) {
     const ctx = await browser.newContext({ viewport, locale: "id-ID", timezoneId: "Asia/Jakarta" });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
     // the admin page loads Leaflet 1.9.4 from unpkg; serve the same version from npm, no map tiles
@@ -91,10 +91,26 @@ async function start({ seedSql } = {}) {
       fs.existsSync(f) ? r.fulfill({ path: f }) : r.abort();
     });
     await ctx.route(/tile\.openstreetmap\.org/, (r) => r.abort());
+    // Midtrans Snap stand-in: the test decides what the payment window does (window.__snap.calls[i].opts.onSuccess() …)
+    await ctx.route(/app\.(sandbox\.)?midtrans\.com\/snap\/snap\.js/, (r) => r.fulfill({ contentType: "text/javascript",
+      body: "window.snap={calls:[],pay(token,opts){this.calls.push({token,opts});},hide(){}};window.__snap=window.snap;" }));
+    // create-payment Edge Function stand-in: creates the order in the test database like the real one (guest checkout)
+    await ctx.route(/\/functions\/v1\/create-payment$/, async (r) => {
+      const b = JSON.parse(r.request().postData() || "{}"), c = b.customer || {};
+      try {
+        const { rows: [{ o }] } = await pool.query(
+          "select public.create_order(null, $1::jsonb, $2, $3, $4, $5, $6, $7, 30, $8, $9) as o",
+          [JSON.stringify(b.items || []), b.promo_code || null, c.name, c.phone, c.email || null, c.address || null, c.notes || null, c.lat ?? null, c.lng ?? null]);
+        await pool.query("select public.tag_order_payment_env($1, 'sandbox')", [o.order_number]);
+        r.fulfill({ contentType: "application/json", body: JSON.stringify({ order_number: o.order_number, access_token: o.access_token, total: o.total, token: "snap-" + o.order_number }) });
+      } catch (e) {
+        r.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: e.message.split(":")[0], detail: e.message }) });
+      }
+    });
     const page = await ctx.newPage();
     page.on("pageerror", (e) => { (page.__errors ||= []).push(e.message); });
     await page.addInitScript(([u, d]) => { window.__TEST_UID = u; window.__DOUBLE_AUTH = d; }, [uid, doubleAuth]);
-    await page.goto(`${base}/admin.html${hash}`);
+    await page.goto(`${base}/${file}${hash}`);
     return page;
   }
   const sql = async (q, v) => (await pool.query(q, v)).rows;
