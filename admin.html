@@ -352,7 +352,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 <script src="js/vendor/supabase.js"></script>
 <script src="js/nota.js?v=202610291300"></script>
 <script src="js/cashflow-core.js?v=202610291300"></script>
-<script src="js/cashflow.js?v=202610291500"></script>
+<script src="js/cashflow.js?v=202611051022"></script>
 <script>
 (() => {
   const CFG = window.CN_CONFIG;
@@ -573,7 +573,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     $("ofall")?.addEventListener("click", (e) => { e.preventDefault(); orderFocus = ""; syncPlace(); loadOrders(); });
     el.querySelectorAll("[data-st]").forEach((b) => b.onclick = async () => {
       if (b.dataset.st === "cancelled" && !confirm(b.dataset.paid === "true"
-        ? "Batalkan pesanan yang SUDAH DIBAYAR? Refund dilakukan manual di dashboard Midtrans, dan stok tidak dikembalikan otomatis."
+        ? "Batalkan pesanan yang SUDAH DIBAYAR? Refund dilakukan manual di dashboard iPaymu, dan stok tidak dikembalikan otomatis."
         : "Batalkan pesanan ini? Stok yang dipesan akan dikembalikan.")) return;
       b.disabled = true;
       const { error } = await sb.rpc("admin_set_order_status", { p_order_id: b.dataset.id, p_status: b.dataset.st });
