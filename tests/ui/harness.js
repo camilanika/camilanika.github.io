@@ -91,18 +91,17 @@ async function start({ seedSql } = {}) {
       fs.existsSync(f) ? r.fulfill({ path: f }) : r.abort();
     });
     await ctx.route(/tile\.openstreetmap\.org/, (r) => r.abort());
-    // Midtrans Snap stand-in: the test decides what the payment window does (window.__snap.calls[i].opts.onSuccess() …)
-    await ctx.route(/app\.(sandbox\.)?midtrans\.com\/snap\/snap\.js/, (r) => r.fulfill({ contentType: "text/javascript",
-      body: "window.snap={calls:[],pay(token,opts){this.calls.push({token,opts});},hide(){}};window.__snap=window.snap;" }));
+    // iPaymu payment page stand-in: a blank page; the test then follows returnUrl / cancelUrl itself
+    await ctx.route(/sandbox\.ipaymu\.com\/payment\//, (r) => r.fulfill({ contentType: "text/html", body: "<!doctype html><title>iPaymu</title><p>iPaymu payment page</p>" }));
     // create-payment Edge Function stand-in: creates the order in the test database like the real one (guest checkout)
     await ctx.route(/\/functions\/v1\/create-payment$/, async (r) => {
       const b = JSON.parse(r.request().postData() || "{}"), c = b.customer || {};
       try {
         const { rows: [{ o }] } = await pool.query(
-          "select public.create_order(null, $1::jsonb, $2, $3, $4, $5, $6, $7, 30, $8, $9) as o",
+          "select public.create_order(null, $1::jsonb, $2, $3, $4, $5, $6, $7, 60, $8, $9) as o",
           [JSON.stringify(b.items || []), b.promo_code || null, c.name, c.phone, c.email || null, c.address || null, c.notes || null, c.lat ?? null, c.lng ?? null]);
         await pool.query("select public.tag_order_payment_env($1, 'sandbox')", [o.order_number]);
-        r.fulfill({ contentType: "application/json", body: JSON.stringify({ order_number: o.order_number, access_token: o.access_token, total: o.total, token: "snap-" + o.order_number }) });
+        r.fulfill({ contentType: "application/json", body: JSON.stringify({ order_number: o.order_number, access_token: o.access_token, total: o.total, url: "https://sandbox.ipaymu.com/payment/sess-" + o.order_number }) });
       } catch (e) {
         r.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: e.message.split(":")[0], detail: e.message }) });
       }

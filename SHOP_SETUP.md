@@ -1,16 +1,17 @@
 # CamilaNika online shop: setup guide
 
-The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, orders and promos. Midtrans takes the payments.
+The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, orders and promos. iPaymu takes the payments.
 
 | File | What it is |
 |---|---|
 | `index.html`, `js/shop.js` | Shop page: menu from the database, cart, promo codes, login, online payment, order history |
 | `admin.html` | Admin dashboard: orders, stock, main menus and submenus, products and variants, promos |
-| `js/config.js` | Public settings: Supabase URL and key, Midtrans client key |
+| `js/config.js` | Public settings: Supabase URL and key |
 | `supabase/schema.sql` | Database tables, security rules and functions |
 | `supabase/seed.sql` | The current menu, loaded as products and variants |
-| `supabase/functions/create-payment` | Edge Function: creates the order and gets a Midtrans payment token |
-| `supabase/functions/midtrans-webhook` | Edge Function: Midtrans calls this when a payment succeeds, fails or expires |
+| `supabase/functions/create-payment` | Edge Function: creates the order and gets an iPaymu payment page |
+| `supabase/functions/ipaymu-webhook` | Edge Function: iPaymu calls this when a payment succeeds or expires |
+| `supabase/functions/midtrans-webhook` | Old Midtrans webhook, no longer used |
 | `supabase/functions/phone-signup` | Edge Function: creates an account from a WhatsApp number + password |
 | `supabase/functions/admin-users` | Edge Function: lets an admin set a new password for a customer |
 | `js/nota.js` | Printable bill (Cetak nota) for orders |
@@ -30,21 +31,24 @@ The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, ord
 - Redirect URLs: add `https://camilanika.github.io/**`
 
 ## 3. Edge Functions (Supabase → Edge Functions)
-1. Create a function named **create-payment** and paste in `supabase/functions/create-payment/index.ts`. Do the same for **midtrans-webhook**.
+1. Create a function named **create-payment** and paste in `supabase/functions/create-payment/index.ts`. Do the same for **ipaymu-webhook**.
 2. **create-payment**: leave "Verify JWT" **ON** (the site sends the public key).
-   **midtrans-webhook**: turn "Verify JWT" **OFF**, because Midtrans can't send a Supabase key. It's still protected: every call must carry Midtrans' signature made with your Server Key, and the function re-checks the payment status with Midtrans before changing anything.
+   **ipaymu-webhook**: turn "Verify JWT" **OFF**, because iPaymu can't send a Supabase key. It's still protected: it never trusts the notification body. It asks iPaymu's Check Transaction API (signed with your API Key) for the transaction, and takes the order number and amount from that answer.
 3. Under Edge Functions → Secrets, add:
-   - `MIDTRANS_SERVER_KEY`: the Midtrans **Server Key** (the Sandbox one while testing)
-   - `MIDTRANS_IS_PRODUCTION`: `false` (change to `true` when you go live)
+   - `IPAYMU_VA`: your iPaymu **VA** number (the Sandbox one while testing)
+   - `IPAYMU_API_KEY`: your iPaymu **API Key** (the Sandbox one while testing)
+   - `IPAYMU_IS_PRODUCTION`: `false` (change to `true` when you go live)
    - `ALLOWED_ORIGINS`: `https://camilanika.github.io`
    - `SITE_URL`: `https://camilanika.github.io/`
+   The old `MIDTRANS_*` secrets and the **midtrans-webhook** function are no longer used and can be deleted once no Midtrans orders are pending.
 
-## 4. Midtrans dashboard
-- Settings → Payment → **Notification URL**: `https://qynznqapyfxvjjeaoman.supabase.co/functions/v1/midtrans-webhook`
-- Copy the **Client Key** into `js/config.js`. Never put the Server Key in the website.
+## 4. iPaymu dashboard
+- Sandbox: sign up at sandbox.ipaymu.com. Live: my.ipaymu.com. The VA and API Key are under **Integrasi** (Sandbox and Live keys are different).
+- Set the callback / notify URL to `https://qynznqapyfxvjjeaoman.supabase.co/functions/v1/ipaymu-webhook` (create-payment also sends it with every payment).
+- Nothing from iPaymu goes in the website: the VA and API Key stay in the Edge Function secrets.
 
 ## 5. Website config
-Put the Supabase **anon / publishable key** (Project Settings → API Keys) and the Midtrans **Client Key** into `js/config.js`.
+Put the Supabase **anon / publishable key** (Project Settings → API Keys) into `js/config.js`.
 
 ## 6. First admin
 Sign up on the website with your email, then run this in the SQL Editor:
@@ -55,20 +59,20 @@ where id = (select id from auth.users where email = 'YOUR_EMAIL');
 Open `https://camilanika.github.io/admin.html`.
 
 ## Going live
-1. Once Midtrans has approved your account, switch the dashboard to Production. In the admin page, **Cashflow Summary → Pengaturan → Ganti ke Production** at the same time.
-2. Put the **production** Server Key in the secrets and set `MIDTRANS_IS_PRODUCTION=true`.
-3. Put the production Client Key in `js/config.js` and set `MIDTRANS_IS_PRODUCTION: true`.
-4. Set the Production Notification URL in Midtrans to the same webhook address.
+1. Once iPaymu has approved your account, switch to the Live VA and API Key. In the admin page, **Cashflow Summary → Pengaturan → Ganti ke Production** at the same time.
+2. Put the **Live** VA and API Key in the secrets and set `IPAYMU_IS_PRODUCTION=true`.
+3. Set the Live callback URL in the iPaymu dashboard to the same webhook address.
+4. iPaymu Production may ask for a registered domain and a **static server IP**. Supabase Edge Functions don't have a fixed IP, so ask iPaymu support whether registering the domain is enough, before going live.
 5. Upgrade Supabase to Pro, which gives you backups and stops the project from being paused.
 
 ## How things work
 - **Prices, promos and stock are always checked on the server**, so a customer can't change a price in their browser.
-- Stock is **reserved** while a customer pays, for 30 minutes. It is deducted when Midtrans confirms payment and released if the payment expires, fails or is cancelled.
+- Stock is **reserved** while a customer pays, for 60 minutes (iPaymu counts payment time in hours). It is deducted when iPaymu confirms payment and released if the payment expires, fails or is cancelled.
 - **Promos:**
   - A promo without a code applies automatically. When several automatic discounts qualify, the biggest one is used.
   - Every free gift the order qualifies for is added.
   - A typed code replaces any automatic discount.
-- **Cancelling a paid order** in the admin page doesn't refund it. Do the refund in the Midtrans dashboard, and adjust stock in the Stok tab if the items go back on sale.
+- **Cancelling a paid order** in the admin page doesn't refund it. Do the refund in the iPaymu dashboard, and adjust stock in the Stok tab if the items go back on sale.
 - **Guests** can check out without an account. Their order status is saved on that device. Logged-in customers see their full history under Akun.
 - WhatsApp and GoFood ordering still work as before.
 
@@ -123,7 +127,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 ## Order history ("Pesanan saya")
 - Customers open it from **Akun → Riwayat pesanan → Lihat semua pesanan** (or `camilanika.github.io/#pesanan`). It lists every order from their account plus orders made on that device without logging in, with filters: Belum dibayar, Diproses, Selesai, Batal.
 - Tapping an order opens its page: status, items, discount, ongkir, total, delivery address and map pin, payment method.
-- **Unpaid orders** show "Bayar sebelum HH:MM" and a **Lanjutkan pembayaran** button that reopens the same Midtrans payment, even on another phone when logged in. After 30 minutes the order shows as Kedaluwarsa and can't be paid any more.
+- **Unpaid orders** show "Bayar sebelum HH:MM" and a **Lanjutkan pembayaran** button that reopens the same iPaymu payment page, even on another phone when logged in. After 60 minutes the order shows as Kedaluwarsa and can't be paid any more.
 - Paid orders show **Chat admin untuk pengiriman**; other orders show **Tanya lewat WhatsApp**.
 - The page updates by itself while a payment is pending, and the phone's back button works.
 
@@ -132,7 +136,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Sent automatically by the database, to everyone registered at that moment:
   - **New product**: once it's visible in the shop (active, in an active submenu). Hiding and showing it again doesn't resend.
   - **New promo**: once it's active and its start time has passed. Each promo has **"Umumkan ke semua pelanggan"** (on by default); untick it for private codes. A promo with a code includes the code in the message.
-- Sent only to the customer who owns the order (guest orders have no account, so no notification): order created, paid, Diproses, **Siap diantar**, **Sedang diantar**, Selesai, Dibatalkan, payment failed or expired. A repeated Midtrans notification never sends the same update twice.
+- Sent only to the customer who owns the order (guest orders have no account, so no notification): order created, paid, Diproses, **Siap diantar**, **Sedang diantar**, Selesai, Dibatalkan, payment failed or expired. A repeated iPaymu notification never sends the same update twice.
 - Products and promos that existed before this update are not announced.
 - If a product is deleted or a promo has ended, the notification stays but is labelled, and tapping it explains that it's no longer available.
 
@@ -161,15 +165,15 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - **Assign voucher**: search a customer by name, email, WhatsApp number or user ID, then pick an unassigned voucher or create one on the spot. The customer gets a notification. An assigned voucher only works for that customer.
 - **Cabut** revokes a voucher (not possible once used or while an unpaid order holds it). **Riwayat** shows every step: created, assigned, reserved, released, used, revoked.
 - Statuses: Menunggu bayar pertama (pending), Tersedia, Dipesan (an unpaid order holds it), Terpakai, Kedaluwarsa, Dicabut.
-- Customers type vouchers in the same box as promo codes. The server checks owner, status, expiry, minimum and products, and calculates the discount. A voucher replaces automatic discounts (free gifts still apply). It's held while the order is unpaid, marked **used only when Midtrans confirms payment**, and released if the payment expires, fails or is cancelled. Two orders can't use the same voucher at once.
+- Customers type vouchers in the same box as promo codes. The server checks owner, status, expiry, minimum and products, and calculates the discount. A voucher replaces automatic discounts (free gifts still apply). It's held while the order is unpaid, marked **used only when iPaymu confirms payment**, and released if the payment expires, fails or is cancelled. Two orders can't use the same voucher at once.
 - Codes are unique across promos, vouchers and referral campaigns.
 - Vouchers need online payment; a WhatsApp order that mentions a voucher code isn't checked automatically.
 
 ## Loyalty program (Admin → Voucher & Loyalty → Loyalty)
 - **Milestones**: total spending (e.g. Rp100.000) → voucher (Rupiah or %, max discount, minimum purchase to use it, valid N days and/or until a date), description for customers, active/inactive. Tick **Berulang** to reward again at every multiple (Rp500.000, Rp1.000.000, …).
-- **What counts**: orders from an account once paid (Dibayar, Diproses, Siap diantar, Sedang diantar, Selesai), the amount actually paid after discounts. Ongkir isn't counted unless you tick **Ongkir ikut dihitung**. Pending, unpaid, expired and failed orders never count. Each order counts once, even if Midtrans sends its notification several times.
+- **What counts**: orders from an account once paid (Dibayar, Diproses, Siap diantar, Sedang diantar, Selesai), the amount actually paid after discounts. Ongkir isn't counted unless you tick **Ongkir ikut dihitung**. Pending, unpaid, expired and failed orders never count. Each order counts once, even if iPaymu sends its notification several times.
 - **Rewards**: when a payment takes a customer's total past a milestone, a one-time voucher (`LOY-XXXX-XXXX`) is created for them automatically with a notification. One payment can unlock several milestones. Each milestone is given once per customer (once per multiple for recurring ones), never twice.
-- **Refunds**: cancelling a paid order (refund in Midtrans) removes its amount from the total. Vouchers already given stay; revoke one in **Voucher** if needed. Reaching the milestone again doesn't give a second voucher.
+- **Refunds**: cancelling a paid order (refund in iPaymu) removes its amount from the total. Vouchers already given stay; revoke one in **Voucher** if needed. Reaching the milestone again doesn't give a second voucher.
 - **No surprise rewards**: customers already above a milestone you add or lower don't get it automatically. The milestone row shows **Berikan ke N pelanggan** if you want to give it to them on purpose (marked "diberikan admin" in their history).
 - Orders paid before this update count toward totals, but don't give rewards.
 - **Pelanggan** table: total spending, paid orders, highest milestone, next milestone, vouchers available / used, and **Riwayat** (each counted payment, refunds, and every reward with its voucher status).
@@ -180,7 +184,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Available as a voucher type everywhere vouchers are made: **+ Voucher baru / Assign voucher**, referral campaign rewards, and loyalty milestones.
 - The amount is the **most it takes off the ongkir** (e.g. Rp10.000). It never takes more than the order's ongkir, and never touches item prices, so automatic item promos still apply next to it. Minimum purchase and eligible products are checked on the items.
 - If an order has no ongkir (inside the free radius, or delivery fees off), the voucher can't be used, so it isn't wasted; the cart explains why.
-- Orders show it as **Potongan ongkir** (cart, order page, admin order card, Chat Customer message). On the Midtrans bill it is included in the discount line, so the bill still adds up.
+- Orders show it as **Potongan ongkir** (cart, order page, admin order card, Chat Customer message). On the iPaymu bill a discounted order is shown as one line with the final total.
 - Loyalty counts the items paid, not the ongkir.
 
 ## Admin page on phones and tablets
@@ -199,7 +203,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Orders that are unpaid, paid but not yet Selesai, cancelled, expired or failed never count.
 
 **Test orders (Mock) are left out completely**
-- Online orders paid through Midtrans **Sandbox** are test orders (Mock); **Production** orders are real. If the environment wasn't reported, **Pengaturan → mode pembayaran** decides (starts as Sandbox).
+- Online orders paid through **Sandbox** are test orders (Mock); **Production** orders are real. If the environment wasn't reported, **Pengaturan → mode pembayaran** decides (starts as Sandbox).
 - Test orders are **not listed and not counted anywhere** in Cashflow Summary: not in the cards, the lists, or Penjualan menu. There is no test option for offline sales; everything recorded here is a real sale.
 - Every order placed before this update was made while payments were in Sandbox, so the update marked them as test orders. (If you install this after going live, set `v_live_since` at the top of the backfill block in 014 first.)
 - To change an order's label, use **Pesanan**: test orders show a **Pesanan tes** badge, and each order has **Tandai pembelian asli** / **Tandai pesanan tes**. A completed order marked as a real purchase appears in Cashflow Summary straight away.
@@ -229,6 +233,6 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 **Penjualan menu**: best sellers by quantity and revenue, sales per category (the submenus, e.g. Coffee Series), per menu or per size/variant, sort, filter and search, plus a full table with average price and share of menu revenue. Menu revenue = item lines (price × quantity − item discount); order discounts, vouchers and ongkir aren't split over items, so it can differ from income. No profit is calculated (costs per item aren't connected yet).
 
 **Known limits**
-- Refunds: a paid order cancelled in **Pesanan** (refund done in Midtrans) is not counted. Partial refunds aren't recorded anywhere in the shop, so they can't be shown.
+- Refunds: a paid order cancelled in **Pesanan** (refund done in iPaymu) is not counted. Partial refunds aren't recorded anywhere in the shop, so they can't be shown.
 - Orders completed before this update get their completion date from the order's last change (marked "perkiraan").
 - Menu sales use each product's current submenu for online orders; offline lines keep the submenu they had when saved.

@@ -334,7 +334,7 @@
       entity = "order"; id = d.id;
       extra = line("Status", "Selesai") + line("Dipesan", fmtWib(d.created_at)) + line("Dibayar", fmtWib(d.paid_at))
         + line("Selesai", fmtWib(d.completed_at) + (d.completed_at_estimated ? " (perkiraan)" : "")) + line("Pelanggan", esc(r.customer_name) + (d.guest ? " · tamu" : ""))
-        + line("Lingkungan Midtrans", d.payment_env === "production" ? "Production" : d.payment_env === "sandbox" ? "Sandbox (tes)" : "Tidak tercatat")
+        + line("Lingkungan pembayaran", d.payment_env === "production" ? "Production" : d.payment_env === "sandbox" ? "Sandbox (tes)" : "Tidak tercatat")
         + (d.review && d.classification_note ? line("Catatan", esc(d.classification_note)) : "");
     }
     const itemRows = items.map((i) => `<tr><td class="cf-main">${esc(i.product_name)}${i.variant_name ? ` · <span class="muted">${esc(i.variant_name)}</span>` : ""}${i.addon ? ` · <b>${esc(i.addon)}</b>` : ""}<span class="cf-mb muted">${i.quantity} × ${rp(i.unit_price)}${i.discount ? " · diskon " + rp(i.discount) : ""}</span></td><td class="num cf-hide-m">${i.quantity}</td><td class="num cf-hide-m">${rp(i.unit_price)}</td><td class="num cf-hide-m">${i.discount ? "−" + rp(i.discount) : "–"}</td><td class="num"><b>${rp(i.line_total)}</b></td></tr>`).join("");
@@ -690,7 +690,7 @@
     body.innerHTML = `<div class="list">
       <div class="card"><h3>Pesanan tes</h3>
         <p>Mode pembayaran sekarang: <b>${mode === "production" ? "Production (live)" : "Sandbox (tes)"}</b>.</p>
-        <p class="muted">Pesanan yang dibayar lewat Midtrans <b>Sandbox</b> adalah pesanan tes (Mock) dan tidak ditampilkan atau dihitung di Cashflow Summary. Pesanan lewat <b>Production</b> dihitung sebagai penjualan asli. Pilihan di bawah dipakai kalau lingkungannya tidak tercatat; ganti ke Production bersamaan dengan langkah "Going live" di SHOP_SETUP.md. Label tiap pesanan (Real / Mock) bisa diubah di menu <a href="#orders">Pesanan</a>.</p>
+        <p class="muted">Pesanan yang dibayar lewat iPaymu <b>Sandbox</b> adalah pesanan tes (Mock) dan tidak ditampilkan atau dihitung di Cashflow Summary. Pesanan lewat <b>Production</b> dihitung sebagai penjualan asli. Pilihan di bawah dipakai kalau lingkungannya tidak tercatat; ganti ke Production bersamaan dengan langkah "Going live" di SHOP_SETUP.md. Label tiap pesanan (Real / Mock) bisa diubah di menu <a href="#orders">Pesanan</a>.</p>
         <button class="btn ${mode === "production" ? "btn-ghost" : "btn-rose"}" id="cf-mode">${mode === "production" ? "Kembali ke Sandbox" : "Ganti ke Production"}</button></div>
       <div class="card"><h3>Kategori pengeluaran</h3><p class="muted">Tambah, ganti nama atau sembunyikan kategori.</p><button class="btn btn-ghost" id="cf-cats2">Kelola kategori</button></div>
       <div class="card"><h3>Cara menghitung</h3><ul class="hist">
@@ -705,7 +705,7 @@
     $("cf-mode").onclick = async () => {
       const to = mode === "production" ? "sandbox" : "production";
       const ok = await confirmDialog({ title: "Ganti mode pembayaran", ok: "Ganti",
-        body: to === "production" ? "Pesanan online BARU yang lingkungannya tidak tercatat akan dihitung sebagai penjualan asli. Lakukan ini hanya setelah Midtrans Production aktif." : "Pesanan online BARU yang lingkungannya tidak tercatat akan dianggap tes dan disembunyikan dari Cashflow Summary." });
+        body: to === "production" ? "Pesanan online BARU yang lingkungannya tidak tercatat akan dihitung sebagai penjualan asli. Lakukan ini hanya setelah iPaymu Production aktif." : "Pesanan online BARU yang lingkungannya tidak tercatat akan dianggap tes dan disembunyikan dari Cashflow Summary." });
       if (!ok) return;
       try { await rpc("cashflow_set_payments_mode", { p_mode: to }); X.toast("Mode pembayaran diganti"); await loadSummary(true); drawSettings(); }
       catch (e) { X.toast(C.errorText(e)); }
