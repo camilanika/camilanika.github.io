@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
   if (tagErr) console.error("tag_order_payment_env failed", tagErr.message);
 
   let result = "unchanged";
-  // 1 = berhasil, 6 = berhasil (settlement processed later)
-  if (status === 1 || status === 6) {
+  // 1 = berhasil, 6 = berhasil (settlement processed later), 7 = berhasil, held in escrow by iPaymu
+  if (status === 1 || status === 6 || status === 7) {
     if (!Number.isFinite(paidAmount) || paidAmount < order.total) {
       console.error(`Amount mismatch for ${orderId}: paid ${paidAmount}, expected ${order.total}`);
       return json({ ok: true, ignored: "amount mismatch" });
