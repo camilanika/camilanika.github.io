@@ -1,6 +1,5 @@
-// Shop checkout → Midtrans → back to the order page. Snap is a stand-in the test controls.
-// Bug: cancel payment A, go home, pay B → the page went back to order A (fixed: late callbacks from
-// an older payment window are ignored; the order page is replaced, not stacked).
+// Shop checkout → iPaymu payment page → back to the order page. iPaymu's page is a stand-in;
+// the test follows returnUrl / cancelUrl itself, like the customer's browser would.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { start } = require("./harness");
@@ -10,12 +9,13 @@ test.before(async () => { H = await start(); });
 test.after(async () => { await H?.close(); });
 
 const PHONE = { width: 390, height: 844 };
+const PAY = /^https:\/\/sandbox\.ipaymu\.com\/payment\/sess-/;
 async function openShop(q = "?test=1") {
   const page = await H.open(q, { uid: null, viewport: PHONE, file: "" });
   await page.locator("[data-pick]").first().waitFor();
   return page;
 }
-// add the first menu item and pay; returns the order number Snap was opened for
+// add the first menu item and pay; returns the order number of the iPaymu page the browser went to
 async function checkoutAndPay(page, name) {
   await page.locator("[data-pick]").first().click();
   await page.locator("[data-add]:visible").first().click();
@@ -23,87 +23,60 @@ async function checkoutAndPay(page, name) {
   if (await page.locator("#to-checkout").isVisible()) await page.locator("#to-checkout").click();
   await page.fill("#cust-name", name);
   await page.fill("#cust-phone", "081234567890");
-  const before = await page.evaluate(() => window.__snap?.calls.length || 0);
-  await page.locator("#pay-btn").click();
-  await page.waitForFunction((n) => (window.__snap?.calls.length || 0) > n, before);
-  // the order exists: the cart is already empty and saved that way (before the payment window is used)
+  await Promise.all([page.waitForURL(PAY), page.locator("#pay-btn").click()]);
+  // the order exists: the cart is already empty and saved that way (before the payment page is used)
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("cn-cart-v2") || "[]").length), 0, "cart cleared when the order is created");
-  return page.evaluate(() => window.__snap.calls.at(-1).token.replace(/^snap-/, ""));
+  return page.url().replace(PAY, "");
 }
 const shownOrder = (page) => page.locator("#orders-page:not([hidden]) .oc-head b").innerText();
+const backToShop = (page, q) => page.goto(`${H.base}/${q}`);
 
-test("cancel payment A, go home, pay B: lands on B even if A's window calls back late", async () => {
+test("paid at iPaymu: returnUrl opens that order, then 'confirming' until the webhook, without a refresh", async () => {
   const page = await openShop();
-  const A = await checkoutAndPay(page, "Pembeli A");
-  await page.evaluate(() => window.__snap.calls[0].opts.onClose());          // customer closes the payment window
-  await page.waitForFunction((a) => location.hash === "#pesanan/" + a, A);
-  assert.equal(await shownOrder(page), A);
-  await page.click("#op-close");                                            // back to the shop
-  await page.waitForFunction(() => document.getElementById("orders-page").hidden);
-
-  const B = await checkoutAndPay(page, "Pembeli B");
-  assert.notEqual(A, B);
-  await H.sql("select public.mark_order_paid($1, 'ref', 'qris')", [B]);    // Midtrans webhook
-  await page.evaluate(() => {
-    window.__snap.calls[1].opts.onSuccess();                                 // B paid
-    window.__snap.calls[0].opts.onClose();                                   // late callback from A's window
-    window.__snap.calls[0].opts.onPending();
-  });
-  await page.waitForTimeout(500);
-  assert.equal(await page.evaluate(() => location.hash), "#pesanan/" + B);
-  await page.locator("#orders-page .badge-st", { hasText: "Sudah dibayar" }).waitFor();
-  assert.equal(await shownOrder(page), B);
-  // Back from B's page closes the orders page; it doesn't lead to A
-  await page.click("#op-back");
-  await page.waitForFunction(() => /^#pesanan$/.test(location.hash) || document.getElementById("orders-page").hidden);
-  assert.doesNotMatch(await page.evaluate(() => location.hash), new RegExp(A));
+  const C = await checkoutAndPay(page, "Pembeli C");
+  await backToShop(page, `?order=${C}&trx_id=123&status=berhasil`);         // iPaymu returnUrl (+ its own parameters)
+  await page.waitForFunction((c) => location.hash === "#pesanan/" + c, C);
+  await page.locator("#orders-page .badge-st", { hasText: "Mengonfirmasi pembayaran" }).waitFor();
+  assert.equal(await page.locator("#od-pay").count(), 0, "no 'Lanjutkan pembayaran' for an order that was just paid");
+  assert.equal(await page.evaluate(() => location.search), "", "iPaymu parameters removed from the address");
+  await H.sql("select public.mark_order_paid($1, '123', 'qris')", [C]);   // webhook arrives
+  await page.locator("#orders-page .badge-st", { hasText: "Sudah dibayar" }).waitFor({ timeout: 6000 });
+  assert.equal(await shownOrder(page), C);
   assert.deepEqual(page.__errors || [], []);
   await page.context().close();
 });
 
-test("paid but the webhook is late: shows 'confirming' and updates without a refresh", async () => {
+test("returning for order B opens B, not an older unpaid order A", async () => {
   const page = await openShop();
-  const C = await checkoutAndPay(page, "Pembeli C");
-  await page.evaluate(() => window.__snap.calls.at(-1).opts.onSuccess());   // Midtrans: paid; our server: still pending
-  await page.locator("#orders-page .badge-st", { hasText: "Mengonfirmasi pembayaran" }).waitFor();
-  assert.equal(await page.locator("#od-pay").count(), 0, "no 'Lanjutkan pembayaran' for an order that was just paid");
-  await H.sql("select public.mark_order_paid($1, 'ref', 'qris')", [C]);    // webhook arrives
-  await page.locator("#orders-page .badge-st", { hasText: "Sudah dibayar" }).waitFor({ timeout: 6000 });
-  await page.context().close();
-});
-
-test("redirected back from Midtrans (?order=…) opens that order, not an older one", async () => {
-  const page = await openShop();
-  const A = await checkoutAndPay(page, "Pembeli D");
-  await page.evaluate(() => window.__snap.calls.at(-1).opts.onClose());
+  const A = await checkoutAndPay(page, "Pembeli A");
+  await backToShop(page, `?order=${A}&cancel=1`);                            // A cancelled at iPaymu
   await page.waitForFunction((a) => location.hash === "#pesanan/" + a, A);
   await page.click("#op-close");
-  const B = await checkoutAndPay(page, "Pembeli E");
-  await H.sql("select public.mark_order_paid($1, 'ref', 'gopay')", [B]);
-  // Midtrans sends the browser to the finish URL (full page load)
-  await page.goto(`${H.base}/?order=${B}&order_id=${B}&status_code=200&transaction_status=settlement`);
+  const B = await checkoutAndPay(page, "Pembeli B");
+  assert.notEqual(A, B);
+  await H.sql("select public.mark_order_paid($1, 'ref', 'va')", [B]);
+  await backToShop(page, `?order=${B}&status=berhasil`);
   await page.waitForFunction((b) => location.hash === "#pesanan/" + b, B);
   await page.locator("#orders-page .badge-st", { hasText: "Sudah dibayar" }).waitFor();
   assert.equal(await shownOrder(page), B);
-  assert.equal(await page.evaluate(() => location.search), "", "Midtrans parameters removed from the address");
   await page.context().close();
 });
 
-test("cancelled payment: the cart stays empty and the order can be paid from its page", async () => {
+test("cancelled payment: the cart stays empty and the order can be paid again from its page", async () => {
   const page = await openShop();
   const A = await checkoutAndPay(page, "Pembeli F");
-  await page.evaluate(() => window.__snap.calls.at(-1).opts.onClose());
+  await backToShop(page, `?order=${A}&cancel=1&status=berhasil`);           // cancelUrl never counts as paid
   await page.waitForFunction((a) => location.hash === "#pesanan/" + a, A);
   await page.locator("#od-pay").waitFor();                                  // Lanjutkan pembayaran
-  // a new cart built meanwhile is not wiped when the old order is paid later
+  // a new cart built meanwhile is not wiped when the old order is paid
   await page.click("#op-close");
   await page.locator("[data-pick]").first().click();
   await page.locator("[data-add]:visible").first().click();
   await page.evaluate((a) => { location.hash = "#pesanan/" + a; }, A);
-  await page.locator("#od-pay").click();
-  await page.waitForFunction(() => window.__snap.calls.length >= 2);
+  await Promise.all([page.waitForURL(PAY), page.locator("#od-pay").click()]);
+  assert.equal(page.url().replace(PAY, ""), A, "reopens the same iPaymu page");
   await H.sql("select public.mark_order_paid($1, 'ref', 'qris')", [A]);
-  await page.evaluate(() => window.__snap.calls.at(-1).opts.onSuccess());
+  await backToShop(page, `?order=${A}`);
   await page.locator("#orders-page .badge-st", { hasText: "Sudah dibayar" }).waitFor();
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("cn-cart-v2") || "[]").length), 1, "the new cart is kept");
   await page.context().close();
