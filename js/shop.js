@@ -1,4 +1,4 @@
-// CamilaNika storefront: menu from Supabase, cart, promos, accounts, Midtrans payment, order status.
+// CamilaNika storefront: menu from Supabase, cart, promos, accounts, iPaymu payment, order status.
 (() => {
   const CFG = window.CN_CONFIG;
   // ONLINE_PAYMENT: true = on for everyone, false = off, "test" = only after opening the site with ?test=1
@@ -760,43 +760,27 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (document.querySelector(".drawer.open")) closeAll(); else if (!$("orders-page").hidden) closeOrders(); } });
 
   // ------------------------------------------------------------------ payment
-  let snapLoading = null;
-  function loadSnap() {
-    if (window.snap) return Promise.resolve();
-    if (snapLoading) return snapLoading;
-    snapLoading = new Promise((res, rej) => {
-      const s = document.createElement("script");
-      s.src = CFG.MIDTRANS_IS_PRODUCTION ? "https://app.midtrans.com/snap/snap.js" : "https://app.sandbox.midtrans.com/snap/snap.js";
-      s.dataset.clientKey = CFG.MIDTRANS_CLIENT_KEY;
-      s.onload = res; s.onerror = () => { snapLoading = null; rej(new Error("snap")); };
-      document.head.appendChild(s);
-    });
-    return snapLoading;
-  }
-
+  // iPaymu Redirect Payment: the customer is sent to iPaymu's page in this tab and comes back to
+  // SITE_URL?order=CN-... (returnUrl, or cancelUrl with &cancel=1). The webhook marks the order paid.
   const rememberOrder = (o) => {
     const list = store.get("cn-orders", []).filter((x) => x.order_number !== o.order_number);
-    list.unshift({ order_number: o.order_number, access_token: o.access_token, token: o.token || null, at: Date.now() });
+    list.unshift({ order_number: o.order_number, access_token: o.access_token, url: o.url || null, at: Date.now() });
     store.set("cn-orders", list.slice(0, 30));
   };
   const findOrder = (num) => store.get("cn-orders", []).find((x) => x.order_number === num);
 
-  // Only the payment window opened last may move the page. A late callback from an earlier, cancelled
-  // window (Snap can fire one after a new payment starts) used to send the customer back to that old order.
   let activePay = null;
-  const justPaid = new Set();     // Midtrans said "paid"; our server may not have heard yet
+  const justPaid = new Set();     // iPaymu said "paid"; our server may not have heard yet
   const setPaying = (num) => { try { num ? sessionStorage.setItem("cn-paying", num) : sessionStorage.removeItem("cn-paying"); } catch (e) {} };
   const getPaying = () => { try { return sessionStorage.getItem("cn-paying"); } catch (e) { return null; } };
-  function openSnap(token, orderNumber) {
+  // only iPaymu's own pages are opened (the link comes from our server or the database)
+  const isPayUrl = (u) => { try { return /(^|\.)ipaymu\.com$/.test(new URL(u).hostname) && new URL(u).protocol === "https:"; } catch (e) { return false; } };
+  function goPay(url, orderNumber) {
+    if (!isPayUrl(url)) return false;
     activePay = orderNumber;
     setPaying(orderNumber);
-    const done = (kind) => () => {
-      if (activePay !== orderNumber) return;          // stale callback from an older payment window
-      activePay = null; setPaying(null);
-      if (kind === "success") justPaid.add(orderNumber);   // (the cart was already emptied when the order was created)
-      showStatus(orderNumber);
-    };
-    window.snap.pay(token, { onSuccess: done("success"), onPending: done("pending"), onError: done("error"), onClose: done("close") });
+    location.assign(url);
+    return true;
   }
   function clearCart() { cart = []; promoCode = ""; quote = null; $("promo-code").value = ""; $("checkout").hidden = true; save(); renderCart(); refreshCards(); }
 
@@ -810,7 +794,6 @@
     const btn = $("pay-btn"), label = btn.querySelector("span");
     btn.disabled = true; label.textContent = "Menyiapkan pembayaran…";
     try {
-      const snapReady = loadSnap();
       const { data: s } = await sb.auth.getSession();
       const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/create-payment`, {
         method: "POST",
@@ -836,9 +819,7 @@
       clearCart();
       closeAll();
       if (out.free) { showStatus(out.order_number); return; }
-      try { await snapReady; }
-      catch (e) { showStatus(out.order_number); toast("Halaman pembayaran gagal dibuka. Tekan Lanjutkan pembayaran untuk mencoba lagi."); return; }
-      openSnap(out.token, out.order_number);
+      if (!goPay(out.url, out.order_number)) { showStatus(out.order_number); toast("Halaman pembayaran gagal dibuka. Tekan Lanjutkan pembayaran untuk mencoba lagi."); }
     } catch (e) {
       showErr(ERRORS.PAYMENT_GATEWAY_ERROR);
     } finally {
@@ -849,15 +830,15 @@
   // ------------------------------------------------------------------ orders page  (#pesanan  and  #pesanan/CN-...)
   const OP = $("orders-page");
   let pollTimer = null, opFilter = "all", opCache = [];
-  const ORDER_COLS = "order_number,status,total,subtotal,discount,shipping_discount,promo_code,gifts,created_at,paid_at,expires_at,payment_method,customer_name,phone,address,notes,delivery_fee,delivery_km,delivery_lat,delivery_lng,snap_token,order_items(product_name,variant_name,choices,addon,quantity,unit_price,line_total)";
-  // an unpaid order whose 30 minutes are up counts as expired, even before the server tidies it up
+  const ORDER_COLS = "order_number,status,total,subtotal,discount,shipping_discount,promo_code,gifts,created_at,paid_at,expires_at,payment_method,customer_name,phone,address,notes,delivery_fee,delivery_km,delivery_lat,delivery_lng,snap_redirect_url,order_items(product_name,variant_name,choices,addon,quantity,unit_price,line_total)";
+  // an unpaid order whose payment time is up counts as expired, even before the server tidies it up
   const effStatus = (o) => (o.status === "pending" && o.expires_at && new Date(o.expires_at) <= new Date() ? "expired" : o.status);
-  const payToken = (o) => (effStatus(o) === "pending" ? o.snap_token || findOrder(o.order_number)?.token || null : null);
+  const payToken = (o) => (effStatus(o) === "pending" ? o.snap_redirect_url || findOrder(o.order_number)?.url || null : null);
   const fmtDate = (d) => new Date(d).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
   const fmtTime = (d) => new Date(d).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
   const itemsOf = (o) => o.items || o.order_items || [];
   const PAY_METHOD = { credit_card: "Kartu kredit/debit", gopay: "GoPay", qris: "QRIS", shopeepay: "ShopeePay", bank_transfer: "Transfer bank (VA)",
-    echannel: "Mandiri Bill", permata: "Permata VA", cstore: "Indomaret/Alfamart", akulaku: "Akulaku", kredivo: "Kredivo", free: "Gratis (promo)" };
+    echannel: "Mandiri Bill", permata: "Permata VA", cstore: "Indomaret/Alfamart", akulaku: "Akulaku", kredivo: "Kredivo", cod: "Bayar di tempat (COD)", free: "Gratis (promo)" };
   const STATUS_MSG = {
     pending: "Pembayaran belum kami terima. Kalau sudah bayar, status berubah otomatis dalam beberapa saat.",
     paid: "Terima kasih! Pembayaran diterima, pesanan segera kami siapkan.",
@@ -1034,10 +1015,10 @@
         return;
       }
       if (o.status !== "pending") justPaid.delete(num);
-      const confirming = o.status === "pending" && justPaid.has(num);   // paid at Midtrans, webhook not in yet
+      const confirming = o.status === "pending" && justPaid.has(num);   // paid at iPaymu, webhook not in yet
       const st = effStatus(o), tok = confirming ? null : payToken(o), it = itemsOf(o);
       const ask = `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent("Halo CamilaNika, saya mau tanya pesanan " + num)}">Tanya lewat WhatsApp</a>`;
-      const actions = confirming ? `<p class="form-msg">Pembayaran kamu sudah diterima Midtrans. Kami sedang mengonfirmasi, halaman ini diperbarui otomatis…</p>${ask}`
+      const actions = confirming ? `<p class="form-msg">Pembayaran kamu sudah diterima iPaymu. Kami sedang mengonfirmasi, halaman ini diperbarui otomatis…</p>${ask}`
         : st === "pending"
         ? (tok ? `<button class="btn btn-rose" type="button" id="od-pay">Lanjutkan pembayaran · ${rp(o.total)}</button>${ask}`
                : `<p class="form-msg">Link pembayaran untuk pesanan ini tidak tersedia di perangkat ini. Kalau sudah bayar, statusnya berubah otomatis; kalau belum, chat kami.</p>${ask}`)
@@ -1073,9 +1054,7 @@
         <button type="button" class="linkish" data-open-orders style="justify-self:start">← Semua pesanan</button>`;
       $("od-pay")?.addEventListener("click", async (e) => {
         const b = e.currentTarget; b.disabled = true;
-        try { await loadSnap(); openSnap(tok, num); }
-        catch (err) { b.insertAdjacentHTML("afterend", `<p class="form-msg err">Halaman pembayaran gagal dibuka. Coba lagi.</p>`); }
-        finally { b.disabled = false; }
+        if (!goPay(tok, num)) { b.disabled = false; b.insertAdjacentHTML("afterend", `<p class="form-msg err">Halaman pembayaran gagal dibuka. Coba lagi.</p>`); }
       });
       refreshBadgesSoon();
       if (st === "pending" && ++tries < 60) pollTimer = setTimeout(load, confirming ? 2000 : 5000);
@@ -1622,14 +1601,14 @@
     $("to-checkout").textContent = "Lanjut isi data & pesan";
   }
 
-  // back from Midtrans in this tab (GoPay app, bank page, 3DS…): ?order=CN-... (+ Midtrans' own order_id / transaction_status)
+  // back from iPaymu in this tab: ?order=CN-... (returnUrl) or ?order=CN-...&cancel=1 (cancelUrl), plus any of iPaymu's own parameters
   function resumeAfterPayment(restored) {
     const params = new URLSearchParams(location.search);
-    const num = params.get("order") || params.get("order_id");
+    const num = params.get("order") || params.get("reference_id");
     if (num) {
       history.replaceState(null, "", location.pathname + location.hash.replace(/^#pesanan.*$/, ""));
-      const st = params.get("transaction_status");
-      if (st === "settlement" || st === "capture") justPaid.add(num);
+      const st = (params.get("status") || "").toLowerCase();
+      if (params.get("cancel") !== "1" && (st === "berhasil" || params.get("status_code") === "1")) justPaid.add(num);
       activePay = null; setPaying(null);
       showStatus(num);
       return true;
