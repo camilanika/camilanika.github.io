@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>CamilaNika API Reference</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky left index of groups + one long reference column; endpoints rendered as compact rows with param tables. */
+:root{
+  --bg:#ffffff; --panel:#f7f4f1; --line:#e7e0d9; --fg:#2a211c; --muted:#76675d;
+  --accent:#a8652c; --accent-soft:#f6e9dc; --code-bg:#f3efeb;
+  --get:#2f7fa8; --post:#6e9a3e; --patch:#b9763a; --del:#c2455d;
+  --pub:#2f7fa8; --cust:#8e4ea8; --admin:#c2455d;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#181412; --panel:#211c19; --line:#3a312b; --fg:#f0e8e2; --muted:#a8998e;
+  --accent:#e0a36a; --accent-soft:#3a2a1d; --code-bg:#251f1b;
+  --get:#6cb6dc; --post:#9ccc6c; --patch:#e0a36a; --del:#ec7f93;
+  --pub:#6cb6dc; --cust:#c191d6; --admin:#ec7f93; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#181412; --panel:#211c19; --line:#3a312b; --fg:#f0e8e2; --muted:#a8998e;
+  --accent:#e0a36a; --accent-soft:#3a2a1d; --code-bg:#251f1b;
+  --get:#6cb6dc; --post:#9ccc6c; --patch:#e0a36a; --del:#ec7f93;
+  --pub:#6cb6dc; --cust:#c191d6; --admin:#ec7f93; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--f-body)}
+a{color:var(--accent)}
+code,pre,.mono{font-family:var(--f-mono);font-size:.86em}
+code{background:var(--code-bg);padding:.1em .35em;border-radius:4px}
+.wrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:40px;max-width:1180px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 80px}
+nav{position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px);align-self:start;max-height:calc(100vh - 40px);overflow:auto;display:flex;flex-direction:column;gap:14px}
+nav .brand{font:700 1.15rem/1.2 var(--f-display)}
+nav .brand span{color:var(--accent)}
+nav input{width:100%;box-sizing:border-box;padding:.55rem .7rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;font-size:.9rem}
+nav input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+nav ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+nav li a{display:flex;justify-content:space-between;gap:8px;padding:.3rem .5rem;border-radius:6px;color:var(--fg);text-decoration:none;font-size:.9rem}
+nav li a:hover,nav li a:focus-visible{background:var(--panel);outline:none}
+nav li a small{color:var(--muted);font-variant-numeric:tabular-nums}
+nav .navlbl{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+main{min-width:0;display:flex;flex-direction:column;gap:48px}
+h1{font:700 clamp(2rem,4vw,2.8rem)/1.1 var(--f-display);margin:0;text-wrap:balance}
+h2{font:700 1.55rem/1.2 var(--f-display);margin:0 0 6px;text-wrap:balance}
+h3{font:600 1rem/1.3 var(--f-body);margin:0}
+.lede{color:var(--muted);max-width:66ch;margin:10px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;padding:.2rem .6rem;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.note{background:var(--accent-soft);border-radius:10px;padding:14px 16px;max-width:76ch;font-size:.92rem}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.box{border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.box p{margin:6px 0 0;color:var(--muted);font-size:.9rem}
+pre{background:var(--code-bg);border-radius:10px;padding:14px 16px;overflow-x:auto;margin:0;line-height:1.55;position:relative}
+.codewrap{position:relative}
+.copy{position:absolute;top:8px;right:8px;font:500 .72rem var(--f-body);padding:.25rem .55rem;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--muted);cursor:pointer}
+.copy:hover{color:var(--fg)}
+.tblw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td code{white-space:nowrap}
+.group-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:2px solid var(--fg);padding-bottom:8px;margin-bottom:4px}
+.group-head p{margin:0;color:var(--muted);font-size:.9rem}
+.ep{border-bottom:1px solid var(--line);padding:16px 0;display:flex;flex-direction:column;gap:8px;scroll-margin-top:20px}
+.ep-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.verb{font:600 .7rem/1 var(--f-mono);letter-spacing:.04em;padding:.32rem .45rem;border-radius:5px;color:var(--bg);min-width:3.6em;text-align:center}
+.v-GET{background:var(--get)}.v-POST{background:var(--post)}.v-PATCH{background:var(--patch)}.v-DELETE{background:var(--del)}.v-STORAGE{background:var(--muted)}
+.path{font:500 .92rem var(--f-mono);word-break:break-all}
+.auth{font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:.15rem .5rem;border-radius:999px;border:1px solid currentColor}
+.a-public{color:var(--pub)}.a-customer{color:var(--cust)}.a-admin{color:var(--admin)}
+.ep .desc{margin:0;color:var(--muted);font-size:.92rem;max-width:80ch}
+.ep pre{font-size:.82rem}
+.ep table{font-size:.84rem}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.85rem;color:var(--muted)}
+.empty{color:var(--muted);padding:20px 0}
+code.sig{display:inline-block;white-space:nowrap;font-size:.8rem;color:var(--fg)}
+mark{background:var(--accent-soft);color:inherit}
+@media (max-width:820px){.wrap{grid-template-columns:1fr;gap:24px}nav{position:static;max-height:none}nav ul{flex-direction:row;flex-wrap:wrap}nav .navlbl{width:100%}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+
+.gate{min-height:70vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.gate-card{max-width:380px;text-align:center;display:flex;flex-direction:column;gap:12px}
+.gate-card h1{font-size:1.6rem}
+.gate-card p{color:var(--muted);margin:0}
+.gate-card a.btn{display:inline-block;padding:.6rem 1rem;border-radius:8px;background:var(--accent);color:var(--bg);text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<div class="gate" id="gate"><div class="gate-card">
+  <h1>CamilaNika API</h1>
+  <p id="gate-msg">Checking your admin login…</p>
+  <p id="gate-act" hidden><a class="btn" href="admin.html">Log in to Admin</a></p>
+</div></div>
+<template id="docs-tpl">
+
+<div class="wrap">
+  <nav aria-label="Sections">
+    <div class="brand">CamilaNika <span>API</span></div>
+    <label for="q" class="navlbl">Filter endpoints</label>
+    <input id="q" type="search" placeholder="e.g. voucher, stock, orders" autocomplete="off">
+    <div class="navlbl">Basics</div>
+    <ul>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#auth">Authentication</a></li>
+      <li><a href="#enums">Enums &amp; values</a></li>
+    </ul>
+    <div class="navlbl">Endpoints</div>
+    <ul id="toc"></ul>
+  </nav>
+
+  <main>
+    <header id="overview">
+      <h1>CamilaNika API Reference</h1>
+      <p class="lede">Every backend call made by the storefront (<code>index.html</code> → <code>js/shop.js</code>) and the admin panel (<code>admin.html</code>, <code>js/cashflow.js</code>). The backend is a Supabase project: PostgREST tables, Postgres RPC functions, three Edge Functions and two Storage buckets.</p>
+      <div class="meta" id="stats"></div>
+    </header>
+
+    <section class="note">
+      <b>How this was built.</b> Documented on 8 Nov 2026 from the shipped front-end code and checked against the live database schema. Signatures, return types and enum values come from Postgres (<code>pg_proc</code> and check constraints). Every RPC is <code>SECURITY DEFINER</code>; admin RPCs are executable by any signed-in user and check the admin role inside the function. Internal helper functions (triggers, loyalty, voucher logging and similar) can't be called through the API and are left out.
+    </section>
+    <section class="note">
+      <b>Mismatches found.</b> The offline-sale and expense forms offer <code>card</code> as a payment method, but the <code>offline_orders</code> and <code>expenses</code> tables only allow <code>cash, bank_transfer, qris, other</code>, so saving with Kartu will fail. Promotions use <code>free_item</code> as a discount type, while vouchers, tiers and campaigns use <code>shipping</code>.
+    </section>
+
+    <section>
+      <h2>Base URLs</h2>
+      <div class="tblw"><table>
+        <thead><tr><th>Surface</th><th>URL</th><th>Client call</th></tr></thead>
+        <tbody>
+          <tr><td>Tables (PostgREST)</td><td><code>https://&lt;project-ref&gt;.supabase.co/rest/v1/&lt;table&gt;</code></td><td><code>sb.from("table")</code></td></tr>
+          <tr><td>RPC functions</td><td><code>https://&lt;project-ref&gt;.supabase.co/rest/v1/rpc/&lt;fn&gt;</code></td><td><code>sb.rpc("fn", args)</code></td></tr>
+          <tr><td>Edge Functions</td><td><code>https://&lt;project-ref&gt;.supabase.co/functions/v1/&lt;name&gt;</code></td><td><code>fetch(…)</code></td></tr>
+          <tr><td>Storage</td><td><code>https://&lt;project-ref&gt;.supabase.co/storage/v1/object/…</code></td><td><code>sb.storage.from("bucket")</code></td></tr>
+        </tbody>
+      </table></div>
+      <p class="lede">The project URL and anon key come from <code>js/config.js</code> (<code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>). Other config keys: <code>ONLINE_PAYMENT</code>, <code>WHATSAPP</code>, <code>SITE_URL</code>.</p>
+    </section>
+
+    <section id="auth">
+      <h2>Authentication</h2>
+      <div class="grid2">
+        <div class="box"><span class="auth a-public">Public</span><p>Anon key only. Send <code>apikey</code> and <code>Authorization: Bearer &lt;anon key&gt;</code>.</p></div>
+        <div class="box"><span class="auth a-customer">Customer</span><p>Signed-in shopper. <code>Authorization: Bearer &lt;user access_token&gt;</code>. Row-level security scopes data to the user.</p></div>
+        <div class="box"><span class="auth a-admin">Admin</span><p>Signed-in user whose <code>profiles.role</code> is <code>admin</code>. Same headers as Customer; the RPCs and policies check the role.</p></div>
+      </div>
+      <p class="lede">Login is phone-based. <code>phone-signup</code> returns a synthetic <code>login</code> email, which the client passes to <code>auth.signInWithPassword({ email, password })</code>. Edge Functions are called with the anon key as Bearer and the user's JWT in a separate <code>x-user-token</code> header.</p>
+      <div class="codewrap"><button class="copy" type="button">Copy</button><pre>curl -X POST "https://&lt;project-ref&gt;.supabase.co/rest/v1/rpc/admin_set_order_status" \
+  -H "apikey: $ANON_KEY" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"p_order_id": "&lt;order-id&gt;", "p_status": "processing"}'</pre></div>
+    </section>
+
+    <section id="enums">
+      <h2>Enums &amp; values</h2>
+      <div class="tblw"><table>
+        <thead><tr><th>Name</th><th>Values</th><th>Used by</th></tr></thead>
+        <tbody id="enum-body"></tbody>
+      </table></div>
+    </section>
+
+    <div class="legend">
+      <span><span class="verb v-GET">GET</span> read</span>
+      <span><span class="verb v-POST">POST</span> RPC / insert / function</span>
+      <span><span class="verb v-PATCH">PATCH</span> update</span>
+      <span><span class="verb v-DELETE">DELETE</span> delete</span>
+      <span><span class="verb v-STORAGE">FILE</span> storage</span>
+    </div>
+
+    <div id="groups"></div>
+    <p class="empty" id="empty" hidden>No endpoints match that filter.</p>
+  </main>
+</div>
+
+</template>
+<script src="js/config.js"></script>
+<script src="js/vendor/supabase.js"></script>
+<script>
+(async () => {
+  const gate = document.getElementById("gate");
+  const msg = document.getElementById("gate-msg");
+  const act = document.getElementById("gate-act");
+  const deny = (t) => { msg.textContent = t; act.hidden = false; };
+  try {
+    const CFG = window.CN_CONFIG;
+    const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+    const { data: s } = await sb.auth.getSession();
+    if (!s?.session) return deny("Log in to the admin panel first, then reopen this page.");
+    const { data: ok, error } = await sb.rpc("is_admin");
+    if (error || ok !== true) return deny("This page is for admins only.");
+    gate.remove();
+    document.body.appendChild(document.getElementById("docs-tpl").content.cloneNode(true));
+    renderDocs();
+  } catch (e) {
+    deny("Couldn't check your login. Refresh the page to try again.");
+  }
+})();
+function renderDocs() {
+
+const ENUMS=[
+ ["Order status","pending, paid, processing, ready, shipping, completed, cancelled, expired, failed","orders.status, admin_set_order_status"],
+ ["Classification","real, mock","cashflow_set_order_classification, offline orders"],
+ ["Discount type (vouchers, tiers, campaigns)","percent, fixed, shipping","vouchers, loyalty_tiers, referral_campaigns"],
+ ["Discount type (promotions)","percent, fixed, free_item","promotions.discount_type"],
+ ["Campaign status","active, paused, ended","referral_campaigns.status"],
+ ["Campaign reward_on","signup, first_payment","referral_campaigns.reward_on"],
+ ["Role","customer, admin","profiles.role, admin_set_role"],
+ ["Offline sale source","walk_in, whatsapp, phone, social_media, other","offline_orders.source"],
+ ["Payment method (cashflow)","cash, bank_transfer, qris, other","offline_orders, expenses"],
+ ["Offline payment_status","paid, unpaid","offline_orders.payment_status"],
+ ["Offline entry_mode","items, amount","offline_orders.entry_mode"],
+ ["Transaction source","system, offline, expense","cashflow_transactions p.source"],
+ ["Voucher status (stored)","pending, available, reserved, used, revoked","vouchers.status"],
+ ["Voucher state (computed)","stored status, or expired once expires_at has passed","voucher_state(), admin_list_vouchers p_state"],
+ ["Voucher source","referral, admin, loyalty","vouchers.source, admin_list_vouchers p_source"],
+ ["Voucher event","created, assigned, reserved, released, used, revoked, activated","voucher_events, admin_voucher_history"],
+ ["Stock movement reason","restock, adjustment, sale, waste","stock_movements, admin_adjust_stock"],
+ ["Notification kind","product, promo, order, voucher, account","notifications.kind"],
+ ["Payments mode","sandbox, production","shop_settings.payments_mode, cashflow_set_payments_mode"],
+ ["Classification source","auto, admin, migration","orders.classification_source"],
+ ["Audit entity","order, offline_order, expense, expense_category, settings","cashflow_history p_entity"],
+ ["Category showcase layout","none, row, mosaic","menu_categories.showcase_layout"],
+ ["Section accent","caramel, rose, matcha, berry, ocean, charcoal","menu_sections.accent"],
+];
+
+/* endpoint: [verb, path, auth, title, desc, params[[name,type,note]], body] */
+const G=[
+{id:"storefront",name:"Storefront",blurb:"Public calls made by the shop page before checkout.",eps:[
+ ["POST","rpc/get_menu","public","Get menu","Full public menu: categories, sections, products and variants with prices."],
+ ["POST","rpc/shop_status","public","Shop open/closed","Whether the shop is open now, based on shop_settings (is_closed, schedule). Also used by admin."],
+ ["POST","rpc/delivery_settings","public","Delivery settings","Origin point, free radius, max radius and fee tiers for the delivery map."],
+ ["POST","rpc/delivery_quote","public","Delivery fee quote","Distance and delivery fee for a drop-off point.",[["p_lat","number","Latitude"],["p_lng","number","Longitude"]]],
+ ["POST","rpc/quote_cart","public","Price a cart","Server-side prices, discounts and totals for a cart, optionally with a promo code.",[["p_items","CartItem[]","See body below"],["p_promo_code","text | null","Promo or voucher code"]],`CartItem = {
+  "variant_id": 12,
+  "quantity": 2,
+  "addon": false,
+  "choices": { ... }   // selected product attributes
+}`],
+ ["POST","rpc/public_promotions","public","List active promotions","Promotions flagged to announce on the storefront."],
+ ["POST","rpc/promo_details","public","Promotion details","One promotion and its eligible products.",[["p_id","int","promotions.id"]]],
+ ["POST","rpc/referral_preview","public","Preview referral code","Shows what a referral code gives before signing up.",[["p_code","text","Referral code (uppercased)"]]],
+ ["POST","rpc/get_order_status","public","Guest order status","Track an order without logging in, using the access token returned at checkout.",[["p_order_number","text",""],["p_access_token","text","From create-payment response"]]],
+]},
+{id:"checkout",name:"Checkout & signup",blurb:"Edge Functions. Send anon key as Bearer, user JWT (if any) as x-user-token.",eps:[
+ ["POST","functions/v1/create-payment","public","Create order & payment","Creates the order and starts payment. Works for guests; pass x-user-token to attach it to the account. Response includes order_number, access_token and a free flag for zero-total orders; errors come back as { error, detail } (e.g. PAYMENT_GATEWAY_ERROR).",null,`{
+  "items": [ { "variant_id": 12, "quantity": 2, "addon": false, "choices": {} } ],
+  "promo_code": "HEMAT10",          // or null
+  "customer": {
+    "name": "Siti", "phone": "081234567890", "email": "",
+    "address": "Jl. ...", "lat": -6.54, "lng": 106.78
+  }
+}`],
+ ["POST","functions/v1/phone-signup","public","Sign up with phone","Creates a customer account. Returns login (email to use with signInWithPassword) and referral (reward info). Errors include PHONE_TAKEN and rate-limit errors (signup_limit_hour / _day).",null,`{
+  "name": "Siti",
+  "phone": "081234567890",
+  "password": "••••••",
+  "referral_code": "ABC123"     // or null
+}`],
+]},
+{id:"account",name:"Customer account",blurb:"Signed-in shopper. RLS limits rows to the current user.",eps:[
+ ["GET","profiles?select=full_name,phone,address,role","customer","Read own profile",""],
+ ["PATCH","profiles","customer","Update own profile","Client sends the changed fields (name, phone, address)."],
+ ["GET","orders?select=order_number,status,total,…","customer","My orders","Columns: order_number, status, total, subtotal, discount, shipping_discount, promo_code, gifts, created_at, paid_at, expires_at, payment_method, customer_name, phone, address, notes, delivery_fee, delivery_km, …"],
+ ["POST","rpc/my_loyalty","customer","Loyalty progress","Current tier progress and spend."],
+ ["POST","rpc/my_vouchers","customer","My vouchers",""],
+ ["POST","rpc/my_badges","customer","My badges",""],
+ ["POST","rpc/my_notifications","customer","Notifications","",[["p_limit","int","Client uses 60"]]],
+ ["POST","rpc/mark_notifications_read","customer","Mark notifications read","Returns the number of rows marked.",[["p_ids","bigint[] | null","null marks all as read"]]],
+ ["POST","rpc/unread_notifications","customer","Unread count","Number of unread notifications."],
+ ["POST","rpc/is_admin","public","Am I admin?","true when the caller's profile role is admin. Callable by anon (returns false)."],
+]},
+{id:"orders",name:"Admin · Orders",blurb:"Order list and status changes.",eps:[
+ ["GET","orders?select=*,order_items(*)","admin","List orders with items",""],
+ ["GET","profiles?select=phone","admin","Customer phone lookup","Used when opening a customer's orders."],
+ ["POST","rpc/admin_set_order_status","admin","Set order status","",[["p_order_id","uuid / id",""],["p_status","Order status","See enums"]]],
+ ["POST","rpc/cashflow_set_order_classification","admin","Mark order real / mock","Excludes test orders from cashflow figures.",[["p_order_id","id",""],["p_classification","real | mock",""],["p_note","text | null",""]]],
+]},
+{id:"shop",name:"Admin · Shop settings",blurb:"Single-row shop_settings table.",eps:[
+ ["GET","shop_settings?select=*","admin","Read settings",""],
+ ["PATCH","shop_settings","admin","Update settings","Any subset of the fields below.",[["is_closed","bool","Manual close"],["schedule_enabled","bool",""],["open_time / close_time","time",""],["closed_message","text",""],["delivery_fee_enabled","bool",""],["free_radius_km","number",""],["max_radius_km","number","Default 25"],["fee_tiers","json","[{ km, fee }]"],["origin_lat / origin_lng","number","Shop location"],["signup_limit_hour / signup_limit_day","int","Signup rate limits"],["loyalty_include_shipping","bool","Count delivery fee toward loyalty"]]],
+]},
+{id:"stock",name:"Admin · Stock",blurb:"Inventory per product variant.",eps:[
+ ["GET","products?select=id,name,is_active,sort_order,product_variants(…,inventory(stock,reserved,low_stock_threshold,unlimited))","admin","Stock overview",""],
+ ["POST","rpc/admin_set_stock","admin","Set available stock","",[["p_variant_id","bigint",""],["p_available","int | null","Available quantity"]]],
+ ["POST","rpc/admin_adjust_stock","admin","Adjust stock by delta","Not used by the current admin UI. Records a stock movement and returns the new stock.",[["p_variant_id","bigint",""],["p_change","int","Positive or negative"],["p_reason","text","restock, adjustment, sale, waste"],["p_note","text",""]]],
+ ["PATCH","inventory","admin","Low-stock threshold","",[["low_stock_threshold","int","≥ 0"]]],
+]},
+{id:"menu",name:"Admin · Menu & products",blurb:"Catalog structure: categories → sections → products → variants.",eps:[
+ ["GET","menu_categories?select=*","admin","List categories",""],
+ ["POST","menu_categories","admin","Create / update / delete category","Also PATCH and DELETE on the same table.",[["name","text",""],["slug","text",""],["eyebrow","text",""],["heading","text",""],["heading_script","text","Decorative script heading"],["description","text",""],["is_active","bool",""]]],
+ ["GET","menu_sections?select=*","admin","List sections",""],
+ ["POST","menu_sections","admin","Create / update / delete section","Also PATCH and DELETE.",[["category_id","int",""],["name","text",""],["slug","text",""],["tagline","text",""],["icon","text",""],["accent","Section accent","See enums"],["is_active","bool",""]]],
+ ["GET","products?select=*,product_variants(*)","admin","List products with variants",""],
+ ["POST","products","admin","Create / update product","Also PATCH.",[["name","text",""],["slug","text",""],["section_id","int",""],["subtitle","text",""],["note","text",""],["image_url","text","Public URL from product-images"],["attr_names","text[]","Attribute names"],["choices","json","Selectable options"],["addon_label","text",""],["is_active","bool",""],["sort_order","int",""]]],
+ ["POST","product_variants","admin","Create / update / delete variant","Also PATCH and DELETE.",[["product_id","int",""],["name","text",""],["attrs","json",""],["price","int","Rupiah"],["addon_price","int","Rupiah"],["sku","text",""],["is_active","bool",""],["sort_order","int",""]]],
+ ["STORAGE","storage/v1/object/product-images/<path>","admin","Upload product image","upload(path, file, { upsert:false }) then getPublicUrl(path). Bucket is public."],
+]},
+{id:"promos",name:"Admin · Promotions",blurb:"Code and automatic promotions.",eps:[
+ ["GET","promotions?select=*,promotion_products(product_id)","admin","List promotions",""],
+ ["POST","promotions","admin","Create / update / delete promotion","Also PATCH and DELETE.",[["name","text",""],["description","text",""],["code","text","Empty for automatic"],["discount_type","Discount type",""],["value","number",""],["gift_text","text","Free-gift label"],["max_discount","int",""],["min_spend","int",""],["usage_limit","int",""],["starts_at / ends_at","timestamptz",""],["is_active","bool",""],["applies_to_all","bool",""],["announce","bool","Show on storefront"]]],
+ ["POST","promotion_products","admin","Set eligible products","Client deletes existing rows, then inserts [{ promotion_id, product_id }]."],
+]},
+{id:"customers",name:"Admin · Customers & users",blurb:"Customer search, roles and account actions.",eps:[
+ ["POST","rpc/admin_list_customers","admin","List customers","",[["p_search","text | null",""]]],
+ ["POST","rpc/admin_find_customers","admin","Find customers","Used by pickers (assign voucher, promote to admin).",[["p_search","text",""]]],
+ ["POST","rpc/admin_set_role","admin","Change role","",[["p_user_id","uuid",""],["p_role","customer | admin",""]]],
+ ["POST","functions/v1/admin-users","admin","Account actions","Edge Function. Pick one action per call.",null,`{ "action": "create_admin",   "name": "...", "phone": "08...", "password": "..." }
+{ "action": "reset_password", "user_id": "<uuid>", "password": "..." }
+{ "action": "delete_user",    "user_id": "<uuid>" }`],
+]},
+{id:"referral",name:"Admin · Referral campaigns",blurb:"Reward customers who bring new signups.",eps:[
+ ["GET","referral_campaigns","admin","List campaigns",""],
+ ["POST","referral_campaigns","admin","Create / update campaign","Also PATCH (including status only).",[["name","text",""],["code","text",""],["status","active | paused | ended",""],["starts_at / ends_at","timestamptz",""],["max_rewards","int",""],["daily_limit","int",""],["max_per_ip","int","Anti-abuse"],["reward_on","text","first_payment"],["discount_type","Discount type",""],["value","number",""],["max_discount","int",""],["min_spend","int",""],["valid_days","int","Voucher validity"],["applies_to_all","bool",""],["note","text",""]]],
+ ["POST","referral_campaign_products","admin","Set campaign products","Delete then insert [{ campaign_id, product_id }]."],
+ ["POST","rpc/admin_campaign_stats","admin","Campaign stats",""],
+ ["POST","rpc/admin_campaign_registrations","admin","Campaign signups","",[["p_campaign_id","int",""]]],
+]},
+{id:"vouchers",name:"Admin · Vouchers",blurb:"Individual vouchers issued to customers.",eps:[
+ ["POST","rpc/admin_list_vouchers","admin","List vouchers","",[["p_search","text | null",""],["p_state","text | null","e.g. available"],["p_source","text | null","e.g. admin"]]],
+ ["POST","rpc/admin_create_voucher","admin","Create voucher","Include user_id to issue straight to a customer.",[["p","json","Object below"]],`{
+  "code": "NIKA20", "discount_type": "percent", "value": 20,
+  "min_spend": 50000, "max_discount": 15000,
+  "expires_at": "2026-12-31T16:59:59Z",
+  "applies_to_all": false, "product_ids": [3, 7],
+  "note": "...", "user_id": "<uuid>"   // optional
+}`],
+ ["POST","rpc/admin_assign_voucher","admin","Assign voucher","",[["p_voucher_id","int",""],["p_user","uuid",""],["p_note","text",""]]],
+ ["POST","rpc/admin_revoke_voucher","admin","Revoke voucher","",[["p_voucher_id","int",""],["p_note","text | null",""]]],
+ ["POST","rpc/admin_voucher_history","admin","Voucher history","",[["p_voucher_id","int",""]]],
+]},
+{id:"loyalty",name:"Admin · Loyalty",blurb:"Spend-based tiers that issue vouchers.",eps:[
+ ["GET","loyalty_tiers?select=*","admin","List tiers",""],
+ ["POST","loyalty_tiers","admin","Create / update / delete tier","Also PATCH (incl. is_active toggle) and DELETE.",[["name","text",""],["threshold","int","Spend in Rupiah"],["recurring","bool","Repeat every threshold"],["discount_type","Discount type",""],["value","number",""],["max_discount","int",""],["min_spend","int",""],["valid_days","int",""],["valid_until","date",""],["description","text",""],["is_active","bool",""]]],
+ ["POST","rpc/admin_loyalty_tier_stats","admin","Tier stats",""],
+ ["POST","rpc/admin_loyalty_grant_existing","admin","Grant tier to existing customers","Back-fills rewards for customers already past the threshold.",[["p_tier_id","int",""]]],
+ ["POST","rpc/admin_loyalty_customers","admin","Customer loyalty list","",[["p_search","text | null",""]]],
+ ["POST","rpc/admin_loyalty_history","admin","Customer loyalty history","",[["p_user","uuid",""]]],
+]},
+{id:"cashflow",name:"Admin · Cashflow",blurb:"Bookkeeping: online orders, offline sales and expenses. Range parameters (p_from, p_to) are dates; record dates inside p objects are ISO timestamps converted from WIB.",eps:[
+ ["POST","rpc/cashflow_summary","admin","Summary","Totals for a date range.",[["p_from","date",""],["p_to","date",""]]],
+ ["POST","rpc/cashflow_transactions","admin","Transaction list","Paged list across sources.",[["p","json","Object below"]],`{
+  "from": "...", "to": "...", "page": 1, "page_size": <n>,
+  "source": "system" | "offline" | "expense",   // omit for all
+  ...filters                                     // empty values are dropped
+}`],
+ ["POST","rpc/cashflow_customers","admin","Customers in range","",[["p_from","date",""],["p_to","date",""]]],
+ ["POST","rpc/cashflow_menu_sales","admin","Sales by menu item","",[["p_from","date",""],["p_to","date",""],["p_scope","text","Client sends real"],["p_group","text","product, …"]]],
+ ["POST","rpc/cashflow_menu_catalog","admin","Menu catalog","Variant list for the offline-sale form."],
+ ["POST","rpc/cashflow_save_offline_order","admin","Save offline sale","Create, or update when id + version are sent (optimistic locking). Use entry_mode amount with amount, or items with the item fields.",[["p","json","Object below"]],`{
+  "client_token": "<uuid>",            // idempotency key
+  "order_date": "...", "order_ref": null, "customer_name": null,
+  "source": "walk_in", "payment_method": "cash", "classification": "real",
+  "entry_mode": "items",               // or "amount" + "amount": 75000
+  "notes": null,
+  "payment_status": "paid",            // paid | unpaid (inferred)
+  "paid_at": "...",
+  "items": [
+    { "variant_id": 12, "quantity": 2, "unit_price": 25000, "discount": 0 },
+    { "product_name": "Custom item", "quantity": 1, "unit_price": 10000, "discount": 0 }
+  ],
+  "order_discount": 0, "extra_charge": 0, "expected_total": 60000,
+  "id": 41, "version": 3               // only when editing
+}`],
+ ["POST","rpc/cashflow_mark_offline_paid","admin","Mark offline sale paid","",[["p_id","int",""],["p_version","int","Optimistic lock"],["p_paid_at","timestamptz",""],["p_payment_method","Payment method",""]]],
+ ["POST","rpc/cashflow_save_expense","admin","Save expense","Create, or update with id + version.",[["p","json","Object below"]],`{
+  "client_token": "<uuid>", "expense_date": "...",
+  "description": "Gula pasir 5 kg", "category_id": 2, "amount": 85000,
+  "payment_method": "cash", "vendor": null,
+  "receipt_path": "2026/<token>.jpg", "notes": null,
+  "id": 9, "version": 1                // only when editing
+}`],
+ ["POST","rpc/cashflow_delete_offline_order","admin","Delete offline sale","Not used by the current admin UI.",[["p_id","bigint",""],["p_version","int","Optimistic lock"]]],
+ ["POST","rpc/cashflow_delete_expense","admin","Delete expense","Not used by the current admin UI.",[["p_id","bigint",""],["p_version","int","Optimistic lock"]]],
+ ["POST","rpc/cashflow_categories","admin","Expense categories",""],
+ ["POST","rpc/cashflow_save_category","admin","Save expense category","",[["p_id","int | null","null creates"],["p_name","text",""],["p_active","bool",""]]],
+ ["POST","rpc/cashflow_history","admin","Audit history","Change log of one record.",[["p_entity","text","Record type"],["p_id","text","Record id as string"]]],
+ ["POST","rpc/cashflow_set_payments_mode","admin","Set payments mode","",[["p_mode","text",""]]],
+ ["STORAGE","storage/v1/object/expense-receipts/<yyyy>/<token>.<ext>","admin","Expense receipt","Private bucket. upload(path, file, { upsert:false }); view with createSignedUrl(path, 300) (5-minute link)."],
+]},
+];
+
+/* Real signatures from pg_proc: name -> [args, returns] */
+const SIG={get_menu:["","jsonb"],shop_status:["","jsonb"],delivery_settings:["","jsonb"],delivery_quote:["p_lat double precision, p_lng double precision","jsonb"],quote_cart:["p_items jsonb, p_promo_code text","jsonb"],public_promotions:["","jsonb"],promo_details:["p_id bigint","jsonb"],referral_preview:["p_code text","jsonb"],get_order_status:["p_order_number text, p_access_token uuid","jsonb"],
+my_loyalty:["","jsonb"],my_vouchers:["","jsonb"],my_badges:["","jsonb"],my_notifications:["p_limit integer","jsonb"],mark_notifications_read:["p_ids bigint[]","integer"],unread_notifications:["","integer"],is_admin:["","boolean"],
+admin_set_order_status:["p_order_id uuid, p_status text","text"],cashflow_set_order_classification:["p_order_id uuid, p_classification text, p_note text","jsonb"],
+admin_set_stock:["p_variant_id bigint, p_available integer","jsonb"],admin_adjust_stock:["p_variant_id bigint, p_change integer, p_reason text, p_note text","integer"],
+admin_list_customers:["p_search text","TABLE(id uuid, email text, full_name text, phone text, address text, role text, created_at timestamptz, confirmed boolean, last_sign_in_at timestamptz, orders_count bigint, paid_count bigint, total_spent bigint, last_order_at timestamptz)"],admin_find_customers:["p_search text","TABLE(id uuid, full_name text, phone text, email text, created_at timestamptz)"],admin_set_role:["p_user_id uuid, p_role text","text"],
+admin_campaign_stats:["","jsonb"],admin_campaign_registrations:["p_campaign_id bigint","jsonb"],
+admin_list_vouchers:["p_search text, p_state text, p_source text","jsonb"],admin_create_voucher:["p jsonb","jsonb"],admin_assign_voucher:["p_voucher_id bigint, p_user uuid, p_note text","jsonb"],admin_revoke_voucher:["p_voucher_id bigint, p_note text","text"],admin_voucher_history:["p_voucher_id bigint","jsonb"],
+admin_loyalty_tier_stats:["","jsonb"],admin_loyalty_grant_existing:["p_tier_id bigint","integer"],admin_loyalty_customers:["p_search text","jsonb"],admin_loyalty_history:["p_user uuid","jsonb"],
+cashflow_summary:["p_from date, p_to date","jsonb"],cashflow_transactions:["p jsonb","jsonb"],cashflow_customers:["p_from date, p_to date","jsonb"],cashflow_menu_sales:["p_from date, p_to date, p_scope text, p_group text","jsonb"],cashflow_menu_catalog:["","jsonb"],cashflow_save_offline_order:["p jsonb","jsonb"],cashflow_mark_offline_paid:["p_id bigint, p_version integer, p_paid_at timestamptz, p_payment_method text","jsonb"],cashflow_save_expense:["p jsonb","jsonb"],cashflow_delete_offline_order:["p_id bigint, p_version integer","boolean"],cashflow_delete_expense:["p_id bigint, p_version integer","boolean"],cashflow_categories:["","jsonb"],cashflow_save_category:["p_id bigint, p_name text, p_active boolean","bigint"],cashflow_history:["p_entity text, p_id text","jsonb"],cashflow_set_payments_mode:["p_mode text","text"]};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const total=G.reduce((n,g)=>n+g.eps.length,0);
+const rpcN=G.flatMap(g=>g.eps).filter(e=>e[1].startsWith("rpc/")).length;
+document.getElementById("stats").innerHTML=[`${total} endpoints`,`${rpcN} RPC functions`,`3 Edge Functions`,`2 storage buckets`,`Supabase`].map(s=>`<span class="chip">${s}</span>`).join("");
+document.getElementById("enum-body").innerHTML=ENUMS.map(e=>`<tr><td>${esc(e[0])}</td><td><code style="white-space:normal">${esc(e[1])}</code></td><td>${esc(e[2])}</td></tr>`).join("");
+
+function epHTML(e,gid,i){
+  const [verb,path,auth,title,desc,params,body]=e;
+  const label=verb==="STORAGE"?"FILE":verb;
+  let h=`<article class="ep" id="${gid}-${i}" data-s="${esc((path+" "+title+" "+desc+" "+(params||[]).map(p=>p[0]).join(" ")).toLowerCase())}">
+  <div class="ep-top"><span class="verb v-${verb}">${label}</span><span class="path">/${esc(path)}</span><span class="auth a-${auth}">${auth}</span></div>
+  <h3>${esc(title)}</h3>`;
+  if(desc) h+=`<p class="desc">${esc(desc)}</p>`;
+  const fn=path.startsWith("rpc/")&&SIG[path.slice(4)];
+  if(fn) h+=`<div class="tblw"><code class="sig">${esc(path.slice(4))}(${esc(fn[0])}) → ${esc(fn[1])}</code></div>`;
+  if(params&&params.length) h+=`<div class="tblw"><table><thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead><tbody>${params.map(p=>`<tr><td><code>${esc(p[0])}</code></td><td>${esc(p[1])}</td><td>${esc(p[2])}</td></tr>`).join("")}</tbody></table></div>`;
+  if(body) h+=`<div class="codewrap"><button class="copy" type="button">Copy</button><pre>${esc(body)}</pre></div>`;
+  return h+`</article>`;
+}
+document.getElementById("groups").innerHTML=G.map(g=>`<section class="group" id="${g.id}" style="margin-bottom:40px">
+  <div class="group-head"><h2>${esc(g.name)}</h2><p>${esc(g.blurb)}</p></div>
+  ${g.eps.map((e,i)=>epHTML(e,g.id,i)).join("")}</section>`).join("");
+const toc=document.getElementById("toc");
+function drawToc(){toc.innerHTML=G.map(g=>{const n=document.querySelectorAll(`#${g.id} .ep:not([hidden])`).length;return `<li${n?"":" hidden"}><a href="#${g.id}">${esc(g.name.replace("Admin · ",""))}<small>${n}</small></a></li>`}).join("")}
+drawToc();
+
+const q=document.getElementById("q");
+q.addEventListener("input",()=>{
+  const v=q.value.trim().toLowerCase();let shown=0;
+  document.querySelectorAll(".group").forEach(sec=>{let n=0;
+    sec.querySelectorAll(".ep").forEach(ep=>{const ok=!v||ep.dataset.s.includes(v);ep.hidden=!ok;if(ok)n++;});
+    sec.hidden=!n;shown+=n;});
+  document.getElementById("empty").hidden=!!shown;drawToc();
+});
+
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest(".copy");if(!b)return;
+  const pre=b.parentElement.querySelector("pre");const txt=pre.textContent;
+  const done=()=>{b.textContent="Copied";setTimeout(()=>b.textContent="Copy",1400)};
+  try{navigator.clipboard.writeText(txt).then(done,()=>sel(pre))}catch(e){sel(pre)}
+  function sel(el){const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent="Press Ctrl+C"}
+});
+
+}
+</script>
+</body>
+</html>
