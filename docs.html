@@ -125,7 +125,7 @@ html{scroll-behavior:smooth}
       <b>How this was built.</b> Documented on 8 Nov 2026 from the shipped front-end code and checked against the live database schema. Signatures, return types and enum values come from Postgres (<code>pg_proc</code> and check constraints). Every RPC is <code>SECURITY DEFINER</code>; admin RPCs are executable by any signed-in user and check the admin role inside the function. Internal helper functions (triggers, loyalty, voucher logging and similar) can't be called through the API and are left out.
     </section>
     <section class="note">
-      <b>Mismatches found.</b> The offline-sale and expense forms offer <code>card</code> as a payment method, but the <code>offline_orders</code> and <code>expenses</code> tables only allow <code>cash, bank_transfer, qris, other</code>, so saving with Kartu will fail. Promotions use <code>free_item</code> as a discount type, while vouchers, tiers and campaigns use <code>shipping</code>.
+      <b>Note.</b> Promotions use <code>free_item</code> as a discount type, while vouchers, tiers and campaigns use <code>shipping</code>.
     </section>
 
     <section>
@@ -212,7 +212,7 @@ const ENUMS=[
  ["Campaign reward_on","signup, first_payment","referral_campaigns.reward_on"],
  ["Role","customer, admin","profiles.role, admin_set_role"],
  ["Offline sale source","walk_in, whatsapp, phone, social_media, other","offline_orders.source"],
- ["Payment method (cashflow)","cash, bank_transfer, qris, other","offline_orders, expenses"],
+ ["Payment method (cashflow)","cash, bank_transfer, qris, card, other","offline_orders, expenses"],
  ["Offline payment_status","paid, unpaid","offline_orders.payment_status"],
  ["Offline entry_mode","items, amount","offline_orders.entry_mode"],
  ["Transaction source","system, offline, expense","cashflow_transactions p.source"],
