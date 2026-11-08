@@ -272,3 +272,6 @@ The QA inspection's findings and the tests that cover them are in `docs/test-cas
 ## Privacy notice (OBS-35)
 `privacy.html` is the shop's privacy notice under UU PDP (UU 27/2022). It is linked from the footer, under **Bayar online**, and on the sign-up form.
 Update it, and change its *Berlaku sejak* date, **before** the shop starts collecting new personal data or uses a new service that receives it (Pasal 21 ayat 2). Examples: a new form field, an analytics or chat tool, moving the Supabase project to another region, or a new payment or delivery partner.
+
+## Colours and contrast (OBS-33)
+Text and button colours meet WCAG AA contrast (4.5:1) on the cream backgrounds. `--rose` (#B63853), `--caramel` (#A05F20) and `--wa` (#187A42) are slightly darker than the original brand colours for that reason; `--rose-bright` (#D9586F, the original rose) is kept for the logo, which is exempt, and for large text on the dark brown promo band. `tests/ui/contrast.ui.test.js` checks the shop, the privacy notice and the admin page (light and dark) with axe-core, so a colour change that makes text hard to read fails the tests.

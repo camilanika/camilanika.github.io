@@ -14,10 +14,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
 <style>
-:root{--bg:#FBF3EA;--paper:#FFFAF4;--fg:#4A2A1C;--muted:#7D5F52;--line:#EBD7C8;--rose:#D9586F;--rose-ink:#fff;--rose-soft:#FBE1E6;--caramel:#B9763A;--ok:#1F9D55;--ok-soft:#DDF3E6;--warn-soft:#F7E6D3;
+:root{--bg:#FBF3EA;--paper:#FFFAF4;--fg:#4A2A1C;--muted:#7D5F52;--line:#EBD7C8;--rose:#B63853;--rose-ink:#fff;--rose-soft:#FBE1E6;--caramel:#A05F20;--ok:#187A42;--ok-ink:#fff;--ok-soft:#DDF3E6;--warn-soft:#F7E6D3;
   --f-display:"Baloo 2","Nunito",system-ui,sans-serif;--f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1C1411;--paper:#271C18;--fg:#F6E6DA;--muted:#C9AE9F;--line:#3E2E27;--rose:#EE7F95;--rose-ink:#2A0F16;--rose-soft:#3A2128;--caramel:#E0A266;--ok:#36C075;--ok-soft:#1E3427;--warn-soft:#3A2B1C;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#1C1411;--paper:#271C18;--fg:#F6E6DA;--muted:#C9AE9F;--line:#3E2E27;--rose:#EE7F95;--rose-ink:#2A0F16;--rose-soft:#3A2128;--caramel:#E0A266;--ok:#36C075;--ok-soft:#1E3427;--warn-soft:#3A2B1C;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1C1411;--paper:#271C18;--fg:#F6E6DA;--muted:#C9AE9F;--line:#3E2E27;--rose:#EE7F95;--rose-ink:#2A0F16;--rose-soft:#3A2128;--caramel:#E0A266;--ok:#36C075;--ok-ink:#0F2A1A;--ok-soft:#1E3427;--warn-soft:#3A2B1C;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1C1411;--paper:#271C18;--fg:#F6E6DA;--muted:#C9AE9F;--line:#3E2E27;--rose:#EE7F95;--rose-ink:#2A0F16;--rose-soft:#3A2128;--caramel:#E0A266;--ok:#36C075;--ok-ink:#0F2A1A;--ok-soft:#1E3427;--warn-soft:#3A2B1C;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body)}
 h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.15}
@@ -77,7 +77,7 @@ main#app{flex:1;min-width:0;padding:1.3rem clamp(16px,2.5vw,32px) 4rem;max-width
 .btn:disabled{opacity:.55;cursor:wait}
 .btn-rose{background:var(--rose);color:var(--rose-ink)}
 .btn-ghost{background:transparent;border-color:var(--line);color:var(--fg)}
-.btn-ok{background:var(--ok);color:#fff}
+.btn-ok{background:var(--ok);color:var(--ok-ink)}
 .btn-sm{padding:.4rem .7rem;font-size:.8rem}
 .bar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1rem}
 .bar h2{font-size:1.6rem;margin-right:auto}

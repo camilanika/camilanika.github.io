@@ -10,6 +10,7 @@
     "test:known-defects": "bash db/known_defects.sh"
   },
   "devDependencies": {
+    "axe-core": "^4.10.2",
     "leaflet": "^1.9.4",
     "pg": "^8.13.0",
     "playwright": "^1.65.0"
