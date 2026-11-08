@@ -133,6 +133,36 @@ test("PAY: pressing 'Bayar online' again while the first request runs doesn't cr
   await page.context().close().catch(() => {});
 });
 
+test("DEF-002: a refused checkout explains why and keeps the cart (online payment off, too many unpaid orders)", async () => {
+  const cases = [
+    ["update public.shop_settings set online_payment = 'test' where id = 1", /Pembayaran online belum dibuka/],
+    ["update public.shop_settings set online_payment = 'on', checkout_max_pending = 1 where id = 1", /belum dibayar/],
+  ];
+  // an unpaid order for the same number (written differently) already exists
+  await H.sql("select public.create_order(null, '[{\"variant_id\":1,\"quantity\":1}]', null, 'Lama', '+62 812-3456-7890')");
+  try {
+    for (const [setup, message] of cases) {
+      await H.sql(setup);
+      const before = (await H.sql("select count(*)::int n from public.orders"))[0].n;
+      const page = await openShop();
+      await page.locator("[data-pick]").first().click();
+      await page.locator("[data-add]:visible").first().click();
+      await page.locator("[data-open-cart]:visible").first().click();
+      if (await page.locator("#to-checkout").isVisible()) await page.locator("#to-checkout").click();
+      await page.fill("#cust-name", "Ditolak");
+      await page.fill("#cust-phone", "081234567890");
+      await page.locator("#pay-btn").click();
+      await page.waitForFunction((src) => new RegExp(src).test(document.body.innerText), message.source);
+      assert.equal((await H.sql("select count(*)::int n from public.orders"))[0].n, before, "no order created");
+      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("cn-cart-v2") || "[]").length), 1, "the cart is kept");
+      assert.deepEqual(page.__errors || [], []);
+      await page.context().close();
+    }
+  } finally {
+    await H.sql("update public.shop_settings set online_payment = 'on', checkout_max_pending = 1000 where id = 1");
+  }
+});
+
 test("SHOP: a malformed order link still loads the menu", async () => {
   const page = await H.open("#pesanan/%E0", { uid: null, viewport: PHONE, file: "" });
   await page.waitForTimeout(2500);

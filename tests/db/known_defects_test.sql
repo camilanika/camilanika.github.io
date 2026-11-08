@@ -5,7 +5,7 @@
 -- When a fix lands, its check turns "FIXED": move it into a regression file (qa_fixes_test.sql).
 -- IDs match §4 of docs/test-cases-and-automation.docx. This script never fails the build.
 -- Fixed by migration 017 and moved to qa_fixes_test.sql: DEF-002 (per-item cap), OBS-1, 2, 4, 6, 7, 8,
--- 14, 15, 16, 17, 19, 20, 21, 22.
+-- 14, 15, 16, 17, 19, 20, 21, 22. Fixed by migration 018 and moved to fixes_018_test.sql: OBS-12.
 -- =====================================================================
 \set ON_ERROR_STOP 1
 set client_min_messages = warning;
@@ -23,24 +23,7 @@ grant execute on all functions in schema t to anon, authenticated;
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000c', 'customer@test.local');
 update public.inventory set unlimited = true;
 
--- ---------------------------------------------------------------- OBS-12: admin-only note readable by the customer
--- Not fixed: admin.html reads orders with select("*") as the same "authenticated" role customers use, so a
--- column-level revoke would break the admin's own order list. Needs admin-only columns moved to their own table.
-create table t.ids as select public.create_order('00000000-0000-0000-0000-00000000000c', '[{"variant_id":1,"quantity":1}]', null, 'C', '081234567893')->>'order_number' as c_order_number;
-grant select on t.ids to authenticated;
-update public.orders set classification_note = 'internal: customer is a chargeback risk' where order_number = (select c_order_number from t.ids);
-create function t.read_note() returns void language plpgsql as $$
-declare v text; begin
-  v := (select classification_note from public.orders where order_number = (select c_order_number from t.ids));
-  perform t.ok('OBS-12', false, 'customers can''t read the admin''s internal classification note', 'customer read: ' || coalesce(v, 'NULL'));
-exception when others then perform t.ok('OBS-12', true, 'customers can''t read the admin''s internal classification note', sqlerrm);
-end $$;
-grant execute on function t.read_note() to authenticated;
-begin;
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true);
-set local role authenticated;
-select t.read_note();
-commit;
+-- (no open database defects: OBS-12 was fixed by migration 018 and moved to fixes_018_test.sql)
 
 -- ---------------------------------------------------------------- report (never fails the build)
 \o

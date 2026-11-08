@@ -28,10 +28,17 @@ async function asUser(pool, uid, fn) {
 }
 
 const returnsSet = new Map();   // function name -> returns a set of rows (like supabase-js, those come back as an array)
+const arrayArgs = new Map();    // function name -> names of its Postgres array parameters
 async function handleRpc(pool, { fn, args, uid }) {
   const names = Object.keys(args);
   const call = `${ident("public")}.${ident(fn)}(${names.map((n, i) => `${ident(n)} => $${i + 1}`).join(", ")})`;
-  const vals = names.map((n) => (args[n] !== null && typeof args[n] === "object" ? JSON.stringify(args[n]) : args[n]));
+  // like PostgREST: a JSON array goes to a Postgres array parameter (text[] etc.) as an array, anything else object-shaped as JSON
+  if (!arrayArgs.has(fn)) {
+    const { rows } = await pool.query(
+      "select x.n from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace, unnest(p.proargnames[1:coalesce(array_length(p.proargtypes::oid[], 1), 0)], p.proargtypes::oid[]) as x(n, t) where ns.nspname = 'public' and p.proname = $1 and format_type(x.t, null) like '%[]'", [fn]);
+    arrayArgs.set(fn, new Set(rows.map((r) => r.n)));
+  }
+  const vals = names.map((n) => (args[n] !== null && typeof args[n] === "object" && !(Array.isArray(args[n]) && arrayArgs.get(fn).has(n)) ? JSON.stringify(args[n]) : args[n]));
   if (!returnsSet.has(fn)) {
     const { rows } = await pool.query("select bool_or(proretset) s from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = $1", [fn]);
     returnsSet.set(fn, !!rows[0].s);
@@ -62,6 +69,9 @@ async function start({ seedSql } = {}) {
   execFileSync("bash", [path.join(ROOT, "tests/db/build.sh"), "cn_ui"], { env, stdio: "pipe" });
   const pool = new Pool({ host: env.PGHOST, port: Number(env.PGPORT), user: "postgres", database: "cn_ui", max: 4 });
   await pool.query(fs.readFileSync(path.join(__dirname, "fixtures.sql"), "utf8"));
+  // the shop pages open with ?test=1 as a guest: let everyone pay online, and keep the checkout limits (migration 018)
+  // out of the way of tests that order many times; the limit tests set their own values
+  await pool.query("update public.shop_settings set online_payment = 'on', checkout_limit_hour = 1000, checkout_limit_day = 1000, checkout_max_pending = 1000 where id = 1");
   if (seedSql) await pool.query(seedSql);
 
   const server = http.createServer(async (req, res) => {
@@ -102,6 +112,9 @@ async function start({ seedSql } = {}) {
     // create-payment Edge Function stand-in: creates the order in the test database like the real one (guest checkout)
     await ctx.route(/\/functions\/v1\/create-payment$/, async (r) => {
       const b = JSON.parse(r.request().postData() || "{}"), c = b.customer || {};
+      // like the real function: checkout_guard first (DEF-002), then the order
+      const { rows: [{ g }] } = await pool.query("select public.checkout_guard('ui-test-network', $1, null) as g", [c.phone || ""]);
+      if (!g.ok) return r.fulfill({ status: g.error === "ONLINE_PAYMENT_OFF" ? 403 : 429, contentType: "application/json", body: JSON.stringify({ error: g.error }) });
       try {
         const { rows: [{ o }] } = await pool.query(
           "select public.create_order(null, $1::jsonb, $2, $3, $4, $5, $6, $7, 60, $8, $9) as o",

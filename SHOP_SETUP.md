@@ -249,3 +249,22 @@ The QA inspection's findings and the tests that cover them are in `docs/test-cas
 - Supabase → Authentication → Sign In / Providers: turn off **Allow new users to sign up**. Customers still sign up through `phone-signup` (it uses the service role), but nobody can create accounts directly with the public key.
 - Supabase → Authentication: turn on leaked-password protection.
 
+## Order privacy and checkout limits (migrations 018 and 019)
+**Install once, in this order** (each step keeps the live shop working):
+1. Run `supabase/migrations/018_order_privacy_checkout_guard.sql` in the SQL Editor (after 017; safe to run twice). It only adds things.
+2. Merge the website changes into `main` (the admin page now reads orders through `admin_list_orders`, which step 1 creates).
+3. Paste the updated Edge Function `create-payment` again (it calls `checkout_guard`, which step 1 creates).
+4. Run `supabase/migrations/019_order_columns_private.sql` (safe to run twice). Only now are the admin-only fields hidden from customers; running it before step 2 would empty the admin's order list until the merge.
+
+- **OBS-12:** customers can only read the order fields the shop shows them. Internal fields (classification note, review and source, payment environment, *Perlu dicek* reason, payment references, access token) are admin-only. A column added to `orders` later is hidden from customers until it is added to the `grant select (…)` list in migration 019.
+- **DEF-002, online payment switch:** `create-payment` now follows **`shop_settings.online_payment`** as well as `ONLINE_PAYMENT` in `js/config.js`. Keep the two in step:
+
+  | `js/config.js` `ONLINE_PAYMENT` | `shop_settings.online_payment` | Who can pay online |
+  |---|---|---|
+  | `false` | `off` | nobody |
+  | `"test"` (with `?test=1`) | `test` | only admins: **log in to the shop with your admin account** before testing |
+  | `true` | `on` | everyone |
+
+  Change it in Supabase → Table Editor → `shop_settings` (the row with id 1). New installs start at `test`.
+- **DEF-002, limits:** per network, at most `checkout_limit_hour` (default 10) checkout attempts an hour and `checkout_limit_day` (default 30) a day; per phone number, at most `checkout_max_pending` (default 3) unpaid orders at once. Admins are never limited. Customers who hit a limit see a message telling them to wait or order on WhatsApp.
+
