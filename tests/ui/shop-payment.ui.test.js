@@ -231,3 +231,45 @@ test("OBS-35: the privacy notice reads well on a phone and is linked where custo
   assert.deepEqual(page.__errors || [], []);
   await page.context().close();
 });
+
+test("A11Y: drawers are modal dialogs: Tab stays inside, and closing returns focus to the opener", async () => {
+  const page = await openShop("");
+  const where = () => page.evaluate(() => { const a = document.activeElement; return { id: a.id, inAccount: !!a.closest("#account"), inCart: !!a.closest("#drawer") }; });
+
+  // account drawer, keyboard only
+  await page.focus("#acct-btn");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.getElementById("account").classList.contains("open"));
+  assert.deepEqual(await page.evaluate(() => [document.getElementById("account").getAttribute("role"), document.getElementById("account").getAttribute("aria-modal")]), ["dialog", "true"]);
+  assert.ok((await where()).inAccount, "focus moves into the drawer");
+  for (let i = 0; i < 40; i++) await page.keyboard.press("Tab");
+  assert.ok((await where()).inAccount, "Tab stays inside the drawer");
+  for (let i = 0; i < 15; i++) await page.keyboard.press("Shift+Tab");
+  assert.ok((await where()).inAccount, "Shift+Tab stays inside the drawer");
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => !document.getElementById("account").classList.contains("open"));
+  assert.equal((await where()).id, "acct-btn", "Escape returns focus to the Akun button");
+
+  // the sign-up / login tabs re-render the form; focus still can't escape
+  await page.focus("#acct-btn");
+  await page.keyboard.press("Enter");
+  await page.locator("[data-mode='signup']").click();
+  for (let i = 0; i < 25; i++) await page.keyboard.press("Tab");
+  assert.ok((await where()).inAccount, "Tab stays inside after switching to the sign-up form");
+  await page.locator("#account [data-close-account]").first().click();
+  assert.equal((await where()).id, "acct-btn", "the close button returns focus to the Akun button");
+
+  // cart drawer
+  await page.locator("[data-pick]").first().click();
+  await page.locator("[data-add]:visible").first().click();
+  const cartBtn = page.locator("[data-open-cart]:visible").first();
+  await cartBtn.focus();
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.getElementById("drawer").classList.contains("open"));
+  for (let i = 0; i < 30; i++) await page.keyboard.press("Tab");
+  assert.ok((await where()).inCart, "Tab stays inside the cart");
+  await page.keyboard.press("Escape");
+  assert.ok(await cartBtn.evaluate((b) => b === document.activeElement), "Escape returns focus to the cart button");
+  assert.deepEqual(page.__errors || [], []);
+  await page.context().close();
+});

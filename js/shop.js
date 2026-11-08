@@ -759,10 +759,41 @@
 
   // drawers
   const bg = $("drawer-bg");
-  const openDrawer = (el) => { closeAll(); el.classList.add("open"); el.setAttribute("aria-hidden", "false"); el.inert = false; bg.hidden = false; el.querySelector(".icon-btn")?.focus(); };
-  const closeAll = () => { document.querySelectorAll(".drawer.open").forEach((d) => { d.classList.remove("open"); d.setAttribute("aria-hidden", "true"); d.inert = true; }); bg.hidden = true; };
+  // Drawers are modal dialogs: focus moves in, Tab stays inside, and closing returns focus to
+  // the button that opened them (same behaviour as the option sheet).
+  let drawerFrom = null;
+  const openDrawer = (el) => {
+    const from = document.activeElement;
+    const inDrawer = from?.closest?.(".drawer");
+    closeAll(false);
+    if (!inDrawer && from && from !== document.body) drawerFrom = from;   // switching drawers keeps the first opener
+    el.classList.add("open"); el.setAttribute("aria-hidden", "false"); el.inert = false; bg.hidden = false;
+    el.querySelector(".icon-btn")?.focus();
+  };
+  const closeAll = (restore = true) => {
+    const open = [...document.querySelectorAll(".drawer.open")];
+    const lost = open.some((d) => d.contains(document.activeElement)) || document.activeElement === document.body;
+    open.forEach((d) => { d.classList.remove("open"); d.setAttribute("aria-hidden", "true"); d.inert = true; });
+    bg.hidden = true;
+    if (!restore || !open.length) return;
+    // only when focus would otherwise be lost, and only to a control that is still on screen
+    if (lost && drawerFrom?.isConnected && drawerFrom.offsetParent !== null) drawerFrom.focus({ preventScroll: true });
+    drawerFrom = null;
+  };
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" || !$("opt-sheet").hidden) return;   // the option sheet traps focus itself
+    const d = document.querySelector(".drawer.open");
+    if (!d) return;
+    const f = [...d.querySelectorAll("button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex='-1'])")]
+      .filter((x) => x.offsetParent !== null);
+    if (!f.length) return;
+    const i = f.indexOf(document.activeElement);
+    if (i === -1) { e.preventDefault(); (e.shiftKey ? f[f.length - 1] : f[0]).focus(); }
+    else if (e.shiftKey && i === 0) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+  }, true);
   document.querySelectorAll("[data-open-cart]").forEach((b) => b.addEventListener("click", () => { openDrawer($("drawer")); scheduleQuote(); }));
-  $("close-cart").addEventListener("click", closeAll); bg.addEventListener("click", closeAll);
+  $("close-cart").addEventListener("click", () => closeAll()); bg.addEventListener("click", () => closeAll());
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (document.querySelector(".drawer.open")) closeAll(); else if (!$("orders-page").hidden) closeOrders(); } });
 
   // ------------------------------------------------------------------ payment
