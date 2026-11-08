@@ -2,6 +2,9 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
+<!-- QA fix OBS-31: GitHub Pages can't send X-Frame-Options / frame-ancestors, so the page hides itself inside a frame (OWASP clickjacking defence) -->
+<style id="anti-clickjack">html{display:none !important}</style>
+<script>if (self === top) document.getElementById("anti-clickjack").remove(); else top.location = self.location;</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="img/logo-192.png">
@@ -351,8 +354,8 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 <script src="js/config.js?v=202610271844"></script>
 <script src="js/vendor/supabase.js"></script>
 <script src="js/nota.js?v=202610291300"></script>
-<script src="js/cashflow-core.js?v=202610291300"></script>
-<script src="js/cashflow.js?v=202611051022"></script>
+<script src="js/cashflow-core.js?v=202611081800"></script>
+<script src="js/cashflow.js?v=202611081800"></script>
 <script>
 (() => {
   const CFG = window.CN_CONFIG;
@@ -360,6 +363,14 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   const $ = (id) => document.getElementById(id);
   const app = $("app");
   const rp = (n) => n == null ? "–" : "Rp" + Math.round(n).toLocaleString("id-ID");
+  // Whole numbers typed by an admin: "10000" or Indonesian thousands "10.000" (number inputs also turn "10,000" into "10.000").
+  // Anything else (decimals, text) is NaN so the form's own check refuses it. Empty = null. (QA fix DEF-001)
+  const intIn = (v) => { const s = String(v ?? "").trim(); if (s === "") return null;
+    if (/^\d+$/.test(s)) return Number(s); if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, "")); return NaN; };
+  // orders.payment_issue (migration 017): a payment that needs an admin to look (QA fix OBS-2, OBS-4)
+  const issueText = (v) => String(v || "").split("; ").map((x) => x.startsWith("OVERSOLD") ? "Dibayar setelah stoknya terjual ke pesanan lain (stok kurang " + (x.split(":")[2] || "?") + ")"
+    : x === "VOUCHER_CONFLICT" ? "Dibayar terlambat; vouchernya sudah dipakai pesanan lain" : x).join(". ");
+  const safeDecode = (x) => { try { return decodeURIComponent(x); } catch { return x; } };  // a malformed link must not stop the page (QA fix OBS-10)
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtDate = (d) => d ? new Date(d).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "";
   const toast = (t) => { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (el.hidden = true), 2500); };
@@ -478,7 +489,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     if (TAB_NAME[t]) tab = t;
     if (t === "vouchers" && SUB_NAME[sub]) vSub = sub;
     if (t === "cashflow") cfSub = sub || "";
-    if (t === "orders") orderFocus = sub ? decodeURIComponent(sub) : "";
+    if (t === "orders") orderFocus = sub ? safeDecode(sub) : "";
   }
   window.addEventListener("hashchange", () => { const prev = tab + vSub + orderFocus; placeFromHash(); if (prev !== tab + vSub + orderFocus && !$("topbar").hidden) show(tab); });
   let lastUser;
@@ -532,7 +543,9 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     let q = sb.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(100);
     if (orderFocus) q = q.eq("order_number", orderFocus);   // opened from Cashflow Summary (#orders/CN-...)
     else if (groups[orderFilter]) q = q.in("status", groups[orderFilter]);
+    const seq = (loadOrders.seq = (loadOrders.seq || 0) + 1);  // a slower, older response never replaces a newer list (QA fix OBS-30)
     const { data, error } = await q;
+    if (seq !== loadOrders.seq) return;
     const el = $("olist"); if (!el) return;
     if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
     if (!data.length) { el.innerHTML = `<p class="muted">Tidak ada pesanan.</p>`; return; }
@@ -548,7 +561,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       acts.push(`<button class="btn btn-ghost btn-sm" data-nota="${o.id}">🖨️ Cetak nota</button>`);
       if (o.classification) acts.push(`<button class="btn btn-ghost btn-sm" data-cls="${o.classification === "mock" ? "real" : "mock"}" data-id="${o.id}" data-no="${esc(o.order_number)}">${o.classification === "mock" ? "Tandai pembelian asli" : "Tandai pesanan tes"}</button>`);
       return `<div class="card order">
-        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span>${o.classification === "mock" ? `<span class="badge cf-mock" title="Tidak ditampilkan atau dihitung di Cashflow Summary">Pesanan tes</span>` : ""}</div>
+        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span>${o.classification === "mock" ? `<span class="badge cf-mock" title="Tidak ditampilkan atau dihitung di Cashflow Summary">Pesanan tes</span>` : ""}${o.payment_issue ? `<span class="badge failed" title="${esc(issueText(o.payment_issue))}">Perlu dicek</span>` : ""}</div>
           <div class="muted" style="font-size:.85rem">${fmtDate(o.created_at)}${o.payment_method ? " · " + esc(o.payment_method) : ""}${o.user_id ? "" : " · tamu"}</div>
           <div style="margin-top:.4rem"><b>${esc(o.customer_name)}</b> · ${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(o.phone)}</a>` : ""}${o.email ? `<br><span class="muted">${esc(o.email)}</span>` : ""}</div>
           ${o.address ? `<div class="muted" style="white-space:pre-line">${esc(o.address)}</div>` : ""}${o.notes ? `<div class="muted">${esc(o.notes)}</div>` : ""}
@@ -700,7 +713,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     tb.querySelectorAll("[data-save]").forEach((b) => b.onclick = () => {
       const raw = tb.querySelector(`[data-av="${b.dataset.save}"]`).value.trim();
       if (raw === "") return toast("Ketik jumlahnya dulu, atau pakai Tak terbatas");
-      const n = parseInt(raw, 10);
+      const n = intIn(raw);
       if (!(n >= 0)) return toast("Jumlah harus 0 atau lebih");
       setStock(b, b.dataset.save, n, n === 0 ? "Stok dikosongkan" : `Tersedia ${n}`);
     });
@@ -1024,8 +1037,8 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
         const v = variants[+tr.dataset.v];
         v.attrs = {}; attrs.forEach((a) => { const val = tr.querySelector(`[data-a="${CSS.escape(a)}"]`)?.value.trim(); if (val) v.attrs[a] = val; });
         v.name = tr.querySelector("[data-n]").value.trim();
-        v.price = parseInt(tr.querySelector("[data-pr]").value, 10);
-        const ap = tr.querySelector("[data-ap]").value; v.addon_price = ap === "" ? null : parseInt(ap, 10);
+        v.price = intIn(tr.querySelector("[data-pr]").value);
+        const ap = tr.querySelector("[data-ap]").value; v.addon_price = intIn(ap);
         v.sku = tr.querySelector("[data-sku]").value.trim() || null;
         v.is_active = tr.querySelector("[data-act]").checked;
       });
@@ -1087,13 +1100,14 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
         name: $("pn").value.trim(), slug: slugify($("ps").value || $("pn").value), section_id: $("psec").value ? +$("psec").value : null,
         subtitle: $("psub").value.trim() || null, note: $("pnote").value.trim() || null, image_url: $("pimg").value.trim() || null,
         attr_names: attrs, choices: p.choices, addon_label: $("padd").value.trim() || null,
-        is_active: $("pact").checked, sort_order: parseInt($("pso").value, 10) || 0,
+        is_active: $("pact").checked, sort_order: intIn($("pso").value) || 0,
       };
       if (!prod.name || !prod.slug) return fail("Nama produk wajib diisi.");
       if (!prod.section_id) return fail("Pilih series supaya produk tampil di toko.");
       if (!live.length) return fail("Tambahkan minimal satu varian.");
       for (const v of live) {
         if (!Number.isInteger(v.price) || v.price < 0) return fail("Setiap varian harus punya harga.");
+        if (v.addon_price !== null && !(Number.isInteger(v.addon_price) && v.addon_price >= 0)) return fail("Harga tambahan harus angka bulat 0 atau lebih (contoh 5000 atau 5.000).");
         if (attrs.some((a) => !v.attrs[a])) return fail("Isi semua atribut di setiap varian.");
         if (!v.name) v.name = autoName(v) || "Default";
       }
@@ -1140,7 +1154,9 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   }
   async function loadCustomers() {
     const tb = $("cbody"); if (!tb) return;
+    const seq = (loadCustomers.seq = (loadCustomers.seq || 0) + 1);  // a slower, older response never replaces a newer list (QA fix OBS-30)
     const { data, error } = await sb.rpc("admin_list_customers", { p_search: custSearch || null });
+    if (seq !== loadCustomers.seq) return;
     if (error) { tb.innerHTML = `<tr><td colspan="7" class="msg err">${esc(err(error))}</td></tr>`; return; }
     const me = (await sb.auth.getUser()).data.user?.id;
     tb.innerHTML = data.map((c) => {
@@ -1155,7 +1171,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
         <td><span class="badge ${c.role === "admin" ? "processing" : ""}">${c.role === "admin" ? "Admin" : "Pelanggan"}</span></td>
         <td><div class="adj">
           ${c.orders_count ? `<button class="btn btn-ghost btn-sm" data-corders="${c.id}">Pesanan</button>` : ""}
-          <button class="btn btn-ghost btn-sm" data-reset="${c.id}">Reset password</button>
+          ${c.role === "admin" && c.id !== me ? "" : `<button class="btn btn-ghost btn-sm" data-reset="${c.id}">Reset password</button>`}
           ${c.id === me || c.role === "admin" ? "" : `<button class="btn btn-ghost btn-sm" data-del="${c.id}" style="color:var(--rose)">Hapus akun</button>`}
           ${c.id === me ? "" : `<button class="btn btn-ghost btn-sm" data-role="${c.id}" data-to="${c.role === "admin" ? "customer" : "admin"}" data-name="${esc(c.full_name || c.email)}">${c.role === "admin" ? "Cabut admin" : "Jadikan admin"}</button>`}
         </div></td></tr>`;
@@ -1330,7 +1346,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       $("rpsave").disabled = true;
       const out = await adminUsers({ action: "reset_password", user_id: c.id, password: pw });
       $("rpsave").disabled = false;
-      if (out.error) { $("rpm").textContent = out.error === "NOT_ADMIN" ? "Hanya admin yang bisa reset password." : "Gagal menyimpan. Coba lagi."; $("rpm").className = "msg err"; return; }
+      if (out.error) { $("rpm").textContent = { NOT_ADMIN: "Hanya admin yang bisa reset password.", REMOVE_ADMIN_FIRST: "Password admin lain tidak bisa diganti dari sini. Cabut akses admin dulu.", PASSWORD_TOO_SHORT: "Password minimal 8 karakter." }[out.error] || "Gagal menyimpan. Coba lagi."; $("rpm").className = "msg err"; return; }
       const msg = `Halo ${c.full_name || ""}, password akun CamilaNika kamu sudah kami ganti. Password baru: ${pw}\nMasuk di camilanika.github.io pakai nomor WhatsApp ini, lalu ganti password lewat menu Akun kalau mau.`;
       $("modal-box").innerHTML = `<div class="modal-head"><h2>Password diganti</h2><button class="x" data-close aria-label="Tutup">×</button></div>
         <p style="margin:0">Password baru: <code style="font-size:1.05rem;user-select:all">${esc(pw)}</code></p>
@@ -1463,7 +1479,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     $("kt").onchange = sync; sync(); wirePicker("kp");
     $("kgen").onclick = () => { $("kc").value = "CN" + randCode(6); };
     $("ksave").onclick = async () => {
-      const num = (id) => $(id).value === "" ? null : parseInt($(id).value, 10), t = $("kt").value;
+      const num = (id) => intIn($(id).value), t = $("kt").value;
       const row = { name: $("kn").value.trim(), code: $("kc").value.trim().toUpperCase(), status: $("ks").value,
         starts_at: $("kst").value ? new Date($("kst").value).toISOString() : null, ends_at: $("ken").value ? new Date($("ken").value).toISOString() : null,
         max_rewards: num("kmax"), daily_limit: num("kday"), max_per_ip: num("kip") || 3, reward_on: $("kro").value,
@@ -1520,7 +1536,9 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     await loadVouchers();
   }
   async function loadVouchers() {
+    const seq = (loadVouchers.seq = (loadVouchers.seq || 0) + 1);  // a slower, older response never replaces a newer list (QA fix OBS-30)
     const { data, error } = await sb.rpc("admin_list_vouchers", { p_search: vFilter.q || null, p_state: vFilter.state || null, p_source: vFilter.source || null });
+    if (seq !== loadVouchers.seq) return;
     const tb = $("vbody2"); if (!tb) return;
     if (error) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(verr(error))}</td></tr>`; return; }
     if (!data.length) { tb.innerHTML = `<tr><td colspan="8" class="muted">Tidak ada voucher.</td></tr>`; return; }
@@ -1571,7 +1589,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     $(px + "t").onchange = sync; sync(); wirePicker(px + "p");
   }
   function readVoucherFields(px) {
-    const num = (id) => $(id).value === "" ? null : parseInt($(id).value, 10), t = $(px + "t").value;
+    const num = (id) => intIn($(id).value), t = $(px + "t").value;
     const v = { code: $(px + "c").value.trim().toUpperCase() || null, discount_type: t, value: num(px + "v"), min_spend: num(px + "min") || 0,
       max_discount: t === "percent" ? num(px + "m") : null, expires_at: $(px + "e").value ? new Date($(px + "e").value).toISOString() : null,
       applies_to_all: $(px + "p-all").checked, product_ids: picked(px + "p") };
@@ -1739,7 +1757,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       closeModal(); toast("Milestone dihapus"); loadTiers();
     };
     $("tsave").onclick = async () => {
-      const num = (id) => $(id).value === "" ? null : parseInt($(id).value, 10), k = $("tt").value;
+      const num = (id) => intIn($(id).value), k = $("tt").value;
       const row = { name: $("tn").value.trim(), threshold: num("tth"), recurring: $("trec").checked, discount_type: k, value: num("tv"),
         max_discount: k === "percent" ? num("tm") : null, min_spend: num("tmin") || 0, valid_days: num("tvd") || 30,
         valid_until: $("tvu").value ? new Date($("tvu").value).toISOString() : null, description: $("tdesc").value.trim() || null, is_active: $("tact").checked };
@@ -1757,7 +1775,9 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     };
   }
   async function loadLoyCustomers() {
+    const seq = (loadLoyCustomers.seq = (loadLoyCustomers.seq || 0) + 1);  // a slower, older response never replaces a newer list (QA fix OBS-30)
     const { data, error } = await sb.rpc("admin_loyalty_customers", { p_search: loySearch || null });
+    if (seq !== loadLoyCustomers.seq) return;
     const tb = $("lcbody"); if (!tb) return;
     if (error) { tb.innerHTML = `<tr><td colspan="7" class="msg err">${esc(err(error))}</td></tr>`; return; }
     if (!data.length) { tb.innerHTML = `<tr><td colspan="7" class="muted">${loySearch ? "Tidak ada yang cocok." : "Belum ada pelanggan dengan pesanan dibayar."}</td></tr>`; return; }
@@ -1792,7 +1812,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       <p class="muted" style="margin:0;font-size:.85rem">Batas voucher per kampanye (total, per hari, per jaringan) diatur di tiap kampanye. Verifikasi OTP WhatsApp bisa ditambahkan nanti untuk memastikan satu nomor = satu orang.</p>
       <p class="msg" id="slmsg"></p><div class="row-actions"><button class="btn btn-rose" id="slsave">Simpan</button></div></div>`;
     $("slsave").onclick = async () => {
-      const h = parseInt($("slh").value, 10), d = parseInt($("sld").value, 10);
+      const h = intIn($("slh").value), d = intIn($("sld").value);
       if (!(h >= 1 && d >= h)) { $("slmsg").textContent = "Isi angka minimal 1, dan batas harian ≥ batas per jam."; $("slmsg").className = "msg err"; return; }
       const { error } = await sb.from("shop_settings").update({ signup_limit_hour: h, signup_limit_day: d }).eq("id", 1);
       $("slmsg").textContent = error ? err(error) : "Tersimpan ✓"; $("slmsg").className = "msg " + (error ? "err" : "ok");
@@ -1884,7 +1904,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     const showOrig = () => { $("dl-orig").textContent = ` ${origin.lat.toFixed(5)}, ${origin.lng.toFixed(5)}`; };
     showOrig();
     const readTiers = () => $("dl-tiers").querySelectorAll("tr[data-t]").forEach((r) => {
-      tiers[+r.dataset.t] = { up_to_km: parseFloat(r.querySelector("[data-km]").value), fee: parseInt(r.querySelector("[data-fee]").value, 10) };
+      tiers[+r.dataset.t] = { up_to_km: parseFloat(r.querySelector("[data-km]").value), fee: intIn(r.querySelector("[data-fee]").value) };
     });
     const drawTiers = () => {
       $("dl-tiers").innerHTML = tiers.map((t, i) => `<tr data-t="${i}">
@@ -1900,6 +1920,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       const clean = tiers.filter((t) => Number.isFinite(t.up_to_km) && Number.isFinite(t.fee)).sort((a, b) => a.up_to_km - b.up_to_km);
       const fail = (m) => { $("dl-m").textContent = m; $("dl-m").className = "msg err"; };
       if (clean.length !== tiers.length) return fail("Isi km dan ongkir di setiap baris (atau hapus barisnya).");
+      if (clean.some((t) => t.fee < 0 || t.up_to_km < 0)) return fail("Km dan ongkir tidak boleh negatif.");
       const free = parseFloat($("dl-free").value) || 0, max = parseFloat($("dl-max").value) || 0;
       if ($("dl-on").checked && max <= free && !clean.length) return fail("Isi tarif, atau naikkan Maks jarak antar.");
       save({ delivery_fee_enabled: $("dl-on").checked, free_radius_km: free, max_radius_km: max, fee_tiers: clean, origin_lat: origin.lat, origin_lng: origin.lng }, "Pengaturan pengiriman tersimpan");
@@ -1996,7 +2017,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       closeModal(); toast("Promo dihapus"); loadPromos();
     };
     $("qsave").onclick = async () => {
-      const t = $("qt").value, num = (id) => $(id).value === "" ? null : parseInt($(id).value, 10);
+      const t = $("qt").value, num = (id) => intIn($(id).value);
       const row = {
         name: $("qn").value.trim(), description: $("qd").value.trim() || null, code: $("qc").value.trim().toUpperCase() || null,
         discount_type: t, value: t === "free_item" ? 0 : num("qv") || 0, gift_text: t === "free_item" ? $("qg").value.trim() : null,

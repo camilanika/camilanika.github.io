@@ -706,7 +706,7 @@ body.sheet-open{overflow:hidden}
   </section>
 
   <div class="perks">
-    <ul class="wrap">
+    <ul class="wrap" tabindex="0" aria-label="Keunggulan CamilaNika">
       <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8 9.5 8z"/></svg></span><span><b>Bahan premium</b><small>Dipilih untuk rasa terbaik</small></span></li>
       <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 19c8 0 14-6 14-14C11 5 5 11 5 19Zm0 0 7-7"/></svg></span><span><b>Tanpa pengawet</b><small>Rasa asli, apa adanya</small></span></li>
       <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span><b>Tahan 24 jam</b><small>Suhu ruang · 7 hari di kulkas</small></span></li>
@@ -792,7 +792,7 @@ body.sheet-open{overflow:hidden}
   <div class="sheet-body" id="opt-body"></div>
 </section>
 <div class="drawer-bg" id="drawer-bg" hidden></div>
-<aside class="drawer" id="drawer" aria-label="Keranjang pesanan" aria-hidden="true">
+<aside class="drawer" id="drawer" aria-label="Keranjang pesanan" aria-hidden="true" inert>
   <div class="drawer-head">
     <h3>Pesanan kamu</h3>
     <button class="icon-btn" type="button" id="close-cart" aria-label="Tutup keranjang">×</button>
@@ -841,7 +841,7 @@ body.sheet-open{overflow:hidden}
   </div>
 </aside>
 
-<aside class="drawer" id="notif" aria-label="Notifikasi" aria-hidden="true">
+<aside class="drawer" id="notif" aria-label="Notifikasi" aria-hidden="true" inert>
   <div class="drawer-head">
     <h3 id="notif-title">Notifikasi</h3>
     <button class="icon-btn" type="button" data-close-notif aria-label="Tutup">×</button>
@@ -851,7 +851,7 @@ body.sheet-open{overflow:hidden}
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<aside class="drawer" id="account" aria-label="Akun" aria-hidden="true">
+<aside class="drawer" id="account" aria-label="Akun" aria-hidden="true" inert>
   <div class="drawer-head">
     <h3 id="acct-title">Akun</h3>
     <button class="icon-btn" type="button" data-close-account aria-label="Tutup">×</button>
@@ -887,7 +887,7 @@ body.sheet-open{overflow:hidden}
 
 <script src="js/config.js?v=202611051022"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202611051022"></script>
+<script src="js/shop.js?v=202611081800"></script>
 
 </body>
 </html>

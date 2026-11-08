@@ -94,6 +94,8 @@
   const resetPages = () => Object.keys(pages).forEach((k) => (pages[k] = 1));
 
   async function reloadAll(quiet) {
+    // "Hari ini" / "Bulan ini" move with the clock: a page left open past midnight WIB shows the new day (QA fix OBS-26)
+    if (preset !== "custom") { const fresh = C.presetRange(preset); if (fresh.from !== range.from || fresh.to !== range.to) { range = fresh; resetPages(); } }
     $("cf-range").textContent = `Periode: ${C.rangeLabel(range)} (WIB)`;
     await Promise.all([loadSummary(quiet), drawSub(quiet)]);
   }
@@ -116,7 +118,7 @@
         card("Total Items Sold", Number(s.total_items_sold).toLocaleString("id-ID"), "Dari pesanan dengan rincian item"),
       ].join("");
       const banners = [];
-      if (s.payments_mode === "sandbox") banners.push(`<div class="cf-note warn">Pembayaran online masih <b>Sandbox (tes)</b>: pesanan online baru dianggap <b>tes</b> dan tidak ditampilkan di sini. Ganti ke Production di <a href="#cashflow/settings" data-go="settings">Pengaturan</a> saat Midtrans sudah live.</div>`);
+      if (s.payments_mode === "sandbox") banners.push(`<div class="cf-note warn">Pembayaran online masih <b>Sandbox (tes)</b>: pesanan online baru dianggap <b>tes</b> dan tidak ditampilkan di sini. Ganti ke Production di <a href="#cashflow/settings" data-go="settings">Pengaturan</a> saat iPaymu sudah live.</div>`);
       if (s.orders_to_review > 0) banners.push(`<div class="cf-note">${s.orders_to_review} pesanan selesai di periode ini <b>perlu ditinjau</b>: pastikan itu pembelian asli. <a href="#cashflow/orders" data-go="orders" data-review="1">Tinjau sekarang</a></div>`);
       if (s.unpaid_offline_orders > 0) banners.push(`<div class="cf-note warn">${s.unpaid_offline_orders} penjualan offline <b>belum dibayar</b> (${rp(s.unpaid_offline_value)}), belum dihitung sebagai pemasukan. <a href="#cashflow/offline" data-go="offline" data-unpaid="1">Lihat</a></div>`);
       if (s.estimated_completion_dates > 0) banners.push(`<div class="cf-note">${s.estimated_completion_dates} pesanan selesai sebelum fitur ini ada; tanggal selesainya diperkirakan dari waktu perubahan terakhir.</div>`);
@@ -213,13 +215,16 @@
   async function loadList(quiet) {
     const el = $("cf-list"); if (!el) return;
     const mySub = sub;
+    const seq = (loadList.seq = (loadList.seq || 0) + 1);   // only the newest request may draw the list (QA fix OBS-3)
     const args = { from: range.from, to: range.to, page: pages[sub], page_size: PAGE_SIZE, ...filters[sub], ...LIST_FIXED[sub] };
     if (sub === "orders") args.source = "system";
     Object.keys(args).forEach((k) => (args[k] === undefined || args[k] === "") && delete args[k]);
     if (!quiet) el.setAttribute("aria-busy", "true");
     try {
       const data = await rpc("cashflow_transactions", { p: args });
-      if (sub !== mySub || !$("cf-list")) return;
+      if (sub !== mySub || seq !== loadList.seq || !$("cf-list")) return;
+      // the last row of the last page was deleted: show the new last page instead of an empty one (QA fix OBS-28)
+      if (!(data.rows || []).length && pages[sub] > 1 && data.total_count > 0) { pages[sub] = Math.ceil(data.total_count / PAGE_SIZE); return loadList(quiet); }
       el.innerHTML = listHtml(data);
       wireList(el, data);
     } catch (e) {
@@ -456,7 +461,7 @@
     const syncPst = () => { $("of-paidat-wrap").hidden = pst() !== "paid"; };
     const toPayloadItems = () => items.map((it) => ({
       ...(it.key && it.key !== "custom" ? { variant_id: Number(it.key.slice(1)) } : { product_name: it.product_name }),
-      quantity: Number(it.quantity), unit_price: C.parseRupiah(it.unit_price), discount: it.discount === "" ? 0 : C.parseRupiah(it.discount),
+      quantity: C.parseQty(it.quantity), unit_price: C.parseRupiah(it.unit_price), discount: it.discount === "" ? 0 : C.parseRupiah(it.discount),
     }));
     const recalc = () => {
       const isItems = mode() === "items";
@@ -523,6 +528,7 @@
     const editing = !!r;
     try { categories = await rpc("cashflow_categories"); } catch (e) { X.toast(C.errorText(e)); return; }
     const token = C.newToken();
+    let uploaded = null;            // receipt stored by an earlier attempt of this form
     const catOpts = categories.filter((c) => c.is_active || c.id === r?.category_id)
       .map((c) => `<option value="${c.id}" ${c.id === r?.category_id ? "selected" : ""}>${esc(c.name)}${c.is_active ? "" : " (disembunyikan)"}</option>`).join("");
     X.openModal(`<div class="modal-head"><h2>${editing ? "Ubah pengeluaran" : "Catat pengeluaran"}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
@@ -552,13 +558,14 @@
       try {
         let receipt = $("ef-rm")?.checked ? null : d.receipt_path || null;
         const file = $("ef-file").files[0];
-        if (file) {
+        if (file && uploaded?.file === file) receipt = uploaded.path;   // retry after a failed save: the file is already stored (QA fix OBS-27)
+        else if (file) {
           if (file.size > 5 * 1024 * 1024) throw new Error("File bukti lebih dari 5 MB.");
           const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "bin";
           const path = `${f.expense_date.slice(0, 4)}/${token}.${ext}`;
           const { error } = await X.sb.storage.from("expense-receipts").upload(path, file, { contentType: file.type, upsert: false });
           if (error) throw new Error("Bukti gagal diunggah: " + error.message);
-          receipt = path;
+          receipt = path; uploaded = { file, path };
         }
         const payload = { client_token: token, expense_date: C.wibInputToIso(f.expense_date), description: f.description.trim(), category_id: Number(f.category_id),
           amount: C.parseRupiah(f.amount), payment_method: f.payment_method, vendor: $("ef-vendor").value.trim() || null, receipt_path: receipt, notes: $("ef-notes").value.trim() || null };

@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Migration 014: Cashflow Summary (income, expenses, real vs mock orders, menu sales)
--- Safe to run on the live database (and safe to run twice).
+-- Safe to run on the live database (and safe to run twice, until a later migration is applied).
 --
 -- How records are told apart
 --   orders (online, system-generated)
@@ -36,7 +36,18 @@
 --   A paid order cancelled from Pesanan (refunded in Midtrans) has status 'cancelled', so it is
 --   not counted. The shop has no partial-refund records; see SHOP_SETUP.md.
 -- =====================================================================
+
 begin;
+-- QA fix OBS-7 (8 Nov 2026): a later migration replaced functions this file defines.
+-- Running this file again on its own would bring back the old rules, so it stops instead: inside the
+-- transaction, the error rolls back the whole file, whatever client runs it.
+do $$ begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'offline_orders' and column_name = 'payment_status')
+     and coalesce(current_setting('cn.rerun_cashflow', true), '') <> 'on' then
+    raise exception 'Migration 016 is already applied, so running 014 again on its own would undo it. To re-run the whole Cashflow sequence on purpose, first run: set cn.rerun_cashflow = ''on''; then run every migration from 014 onwards, in order.';
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------- run-once markers
 create table if not exists public.cashflow_meta (

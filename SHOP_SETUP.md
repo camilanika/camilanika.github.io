@@ -82,7 +82,7 @@ Open `https://camilanika.github.io/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
@@ -104,7 +104,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 ## Stock
 - In **Stok**, type how many are available and press **Simpan** (or Enter). **Kosongkan** marks it sold out. **Tak terbatas** makes it always available without counting; type a number again any time to go back to counting.
 - New variants start as **Tak terbatas**. Unlimited items are never reserved or counted down when paid.
-- Unpaid online orders hold ("Dipesan") counted stock for 30 minutes; the number you type is what's left for new customers on top of those.
+- Unpaid online orders hold ("Dipesan") counted stock for 60 minutes (released up to 15 minutes later, so a payment page that is still open can finish); the number you type is what's left for new customers on top of those.
 
 ## Opening hours
 - Admin page → **Toko**: **Tutup toko** closes the shop until you press **Buka toko** (ignores the schedule).
@@ -194,7 +194,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Each page has its own address (e.g. `admin.html#vouchers/loyalty`), so refresh and bookmarks keep you on the same page.
 
 ## Cashflow Summary (Admin → 💰 Cashflow Summary)
-**Install once:** run `supabase/migrations/014_cashflow.sql`, `015_cashflow_hide_mock.sql` and `016_offline_payment_status.sql` (in that order) in the SQL Editor, then paste the updated `create-payment` and `midtrans-webhook` Edge Functions again (they now report whether a payment went through Midtrans Sandbox or Production). The page works before the functions are redeployed; until then the Pengaturan setting decides.
+**Install once:** run `supabase/migrations/014_cashflow.sql`, `015_cashflow_hide_mock.sql` and `016_offline_payment_status.sql` (in that order) in the SQL Editor, then paste the updated `create-payment` and `ipaymu-webhook` Edge Functions again (they report whether a payment went through iPaymu Sandbox or Production). The page works before the functions are redeployed; until then the Pengaturan setting decides.
 
 **What it shows** (for Hari ini, Kemarin, Minggu ini, Bulan ini, Tahun ini or any dates; WIB, weeks start Monday):
 - **Offline Order Income**: walk-in / WhatsApp / phone sales you record here, once they're paid (on the day they were paid).
@@ -236,3 +236,16 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Refunds: a paid order cancelled in **Pesanan** (refund done in iPaymu) is not counted. Partial refunds aren't recorded anywhere in the shop, so they can't be shown.
 - Orders completed before this update get their completion date from the order's last change (marked "perkiraan").
 - Menu sales use each product's current submenu for online orders; offline lines keep the submenu they had when saved.
+
+## QA fixes (8 Nov 2026)
+The QA inspection's findings and the tests that cover them are in `docs/test-cases-and-automation.docx`.
+
+**Install once:** run `supabase/migrations/017_qa_fixes.sql` in the SQL Editor (after 016; safe to run twice). Then paste the updated Edge Functions `create-payment`, `ipaymu-webhook`, `admin-users` and `phone-signup` again. The website changes go live when this branch is merged into `main`.
+
+- Migrations 014, 015 and 016 now refuse to run again on their own once a later one is applied, because that would undo the later fixes. To re-run the whole Cashflow sequence on purpose, first run `set cn.rerun_cashflow = 'on';` in the same session, then every migration from 014 onwards, in order.
+- Orders that need a look get a **Perlu dicek** badge in **Pesanan**: paid after their stock was sold to another order, or paid late after their voucher went to another order. Check them in the iPaymu dashboard (refund, or send the item if stock allows).
+
+**Recommended settings (not in code):**
+- Supabase → Authentication → Sign In / Providers: turn off **Allow new users to sign up**. Customers still sign up through `phone-signup` (it uses the service role), but nobody can create accounts directly with the public key.
+- Supabase → Authentication: turn on leaked-password protection.
+

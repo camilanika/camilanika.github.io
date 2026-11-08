@@ -18,6 +18,8 @@
   const $ = (id) => document.getElementById(id);
   const rp = (n) => "Rp" + Math.round(n).toLocaleString("id-ID");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let paying = false;   // true while create-payment runs: the pay button stays off whatever redraws it (QA fix OBS-5)
+  const safeDecode = (x) => { try { return decodeURIComponent(x); } catch { return x; } };  // a malformed link must not stop the page (QA fix OBS-10)
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
@@ -30,11 +32,12 @@
     OUT_OF_STOCK: "Maaf, stok salah satu menu tidak cukup. Jumlahnya sudah kami sesuaikan, cek lagi ya.",
     PRODUCT_UNAVAILABLE: "Ada menu yang sudah tidak tersedia. Keranjang sudah diperbarui.",
     PROMO_NOT_APPLICABLE: "Kode promo tidak berlaku untuk pesanan ini.",
+    PROMO_LIMIT_REACHED: "Kuota promo ini sudah habis. Coba lagi tanpa kode promo.",
     NAME_REQUIRED: "Isi nama dulu ya.",
     PHONE_REQUIRED: "Isi nomor WhatsApp dulu ya.",
     PAYMENT_GATEWAY_ERROR: "Pembayaran sedang bermasalah. Coba lagi sebentar, atau kirim pesanan lewat WhatsApp.",
     PAYMENT_NOT_CONFIGURED: "Pembayaran online belum aktif. Silakan pesan lewat WhatsApp.",
-    INVALID_QUANTITY: "Jumlah pesanan tidak valid.",
+    INVALID_QUANTITY: "Jumlah pesanan tidak valid (maksimal 100 per menu).",
     INVALID_CHOICE: "Pilihan menu tidak valid, coba tambah ulang ke keranjang.",
     ADDON_UNAVAILABLE: "Tambahan (extra shot) tidak tersedia untuk menu ini.",
     SHOP_CLOSED: "Maaf, toko sedang tutup. Pesanan belum bisa dibuat.",
@@ -125,7 +128,7 @@
     if (!imgs.length || c.showcase_layout === "none") return "";
     const img = (i, extra = "") => `<img src="${esc(i.url)}" alt="${esc(i.alt || i.caption || "")}" loading="lazy"${extra}>`;
     if (c.showcase_layout === "row") {
-      return `<div class="bottle-row">${imgs.map((i) => `<figure class="bottle">${img(i)}${i.caption ? `<figcaption>${esc(i.caption)}${i.tag ? `<span>${esc(i.tag)}</span>` : ""}</figcaption>` : ""}</figure>`).join("")}</div>
+      return `<div class="bottle-row" tabindex="0" role="group" aria-label="Foto produk (geser)">${imgs.map((i) => `<figure class="bottle">${img(i)}${i.caption ? `<figcaption>${esc(i.caption)}${i.tag ? `<span>${esc(i.tag)}</span>` : ""}</figcaption>` : ""}</figure>`).join("")}</div>
         ${imgs.length > 3 ? '<p class="swipe-hint">Geser untuk lihat foto lainnya →</p>' : ""}`;
     }
     // mosaic: first photo is tall; if the grid would leave a gap, the last photo goes full width
@@ -554,7 +557,7 @@
     $("shop-cart-note").hidden = shop.open;
     $("shop-cart-note").textContent = shopClosedText();
     $("to-checkout").disabled = !shop.open;
-    $("pay-btn").disabled = !shop.open || deliveryState().blocking;
+    $("pay-btn").disabled = paying || !shop.open || deliveryState().blocking;
     $("send-wa").classList.toggle("is-disabled", !shop.open);
     $("send-wa").setAttribute("aria-disabled", String(!shop.open));
   }
@@ -753,8 +756,8 @@
 
   // drawers
   const bg = $("drawer-bg");
-  const openDrawer = (el) => { closeAll(); el.classList.add("open"); el.setAttribute("aria-hidden", "false"); bg.hidden = false; el.querySelector(".icon-btn")?.focus(); };
-  const closeAll = () => { document.querySelectorAll(".drawer.open").forEach((d) => { d.classList.remove("open"); d.setAttribute("aria-hidden", "true"); }); bg.hidden = true; };
+  const openDrawer = (el) => { closeAll(); el.classList.add("open"); el.setAttribute("aria-hidden", "false"); el.inert = false; bg.hidden = false; el.querySelector(".icon-btn")?.focus(); };
+  const closeAll = () => { document.querySelectorAll(".drawer.open").forEach((d) => { d.classList.remove("open"); d.setAttribute("aria-hidden", "true"); d.inert = true; }); bg.hidden = true; };
   document.querySelectorAll("[data-open-cart]").forEach((b) => b.addEventListener("click", () => { openDrawer($("drawer")); scheduleQuote(); }));
   $("close-cart").addEventListener("click", closeAll); bg.addEventListener("click", closeAll);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (document.querySelector(".drawer.open")) closeAll(); else if (!$("orders-page").hidden) closeOrders(); } });
@@ -764,7 +767,7 @@
   // SITE_URL?order=CN-... (returnUrl, or cancelUrl with &cancel=1). The webhook marks the order paid.
   const rememberOrder = (o) => {
     const list = store.get("cn-orders", []).filter((x) => x.order_number !== o.order_number);
-    list.unshift({ order_number: o.order_number, access_token: o.access_token, url: o.url || null, at: Date.now() });
+    list.unshift({ order_number: o.order_number, access_token: o.access_token, url: o.url || null, at: Date.now(), user: session?.user?.id || null });
     store.set("cn-orders", list.slice(0, 30));
   };
   const findOrder = (num) => store.get("cn-orders", []).find((x) => x.order_number === num);
@@ -785,6 +788,7 @@
   function clearCart() { cart = []; promoCode = ""; quote = null; $("promo-code").value = ""; $("checkout").hidden = true; save(); renderCart(); refreshCards(); }
 
   $("pay-btn").addEventListener("click", async () => {
+    if (paying) return;
     showErr("");
     const name = $("cust-name").value.trim(), phone = $("cust-phone").value.trim();
     if (!name) { showErr(ERRORS.NAME_REQUIRED); $("cust-name").focus(); return; }
@@ -792,7 +796,7 @@
     if (deliveryState().blocking) { showErr(deliveryState().text || ERRORS.LOCATION_REQUIRED); return; }
     if (quote?.shipping_cap && !deliveryState().fee) { showErr($("shipdisc-note").textContent || ERRORS.VOUCHER_NO_SHIPPING); return; }
     const btn = $("pay-btn"), label = btn.querySelector("span");
-    btn.disabled = true; label.textContent = "Menyiapkan pembayaran…";
+    paying = true; btn.disabled = true; label.textContent = "Menyiapkan pembayaran…";
     try {
       const { data: s } = await sb.auth.getSession();
       const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/create-payment`, {
@@ -823,7 +827,7 @@
     } catch (e) {
       showErr(ERRORS.PAYMENT_GATEWAY_ERROR);
     } finally {
-      btn.disabled = false; label.textContent = "Bayar online";
+      paying = false; btn.disabled = false; label.textContent = "Bayar online"; renderCart();
     }
   });
 
@@ -930,7 +934,7 @@
     if (!m && !mv && !ml) { if (!OP.hidden) { OP.hidden = true; document.body.style.overflow = ""; } return; }
     closeAll();
     OP.hidden = false; document.body.style.overflow = "hidden"; OP.scrollTop = 0;
-    if (ml) renderLoyaltyPage(); else if (mv) renderVoucherPage(); else if (m[1]) renderOrderDetail(decodeURIComponent(m[1])); else renderOrderList();
+    if (ml) renderLoyaltyPage(); else if (mv) renderVoucherPage(); else if (m[1]) renderOrderDetail(safeDecode(m[1])); else renderOrderList();
   }
   window.addEventListener("popstate", route);
   window.addEventListener("hashchange", route);
@@ -1411,8 +1415,15 @@
   }
 
   async function onSession(s) {
+    const signedOut = !s && !!session;
     session = s;
     profile = null;
+    if (signedOut) {
+      // logging out leaves no personal details behind on a shared device (QA fix OBS-11)
+      ["cust-name", "cust-phone", "cust-addr", "cust-email"].forEach((id) => { if ($(id)) $(id).value = ""; });
+      store.set("cn-orders", store.get("cn-orders", []).filter((x) => !x.user));
+      renderCart();
+    }
     if (s) {
       const { data } = await sb.from("profiles").select("full_name,phone,address,role").eq("id", s.user.id).maybeSingle();
       profile = data;

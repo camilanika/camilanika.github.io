@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Migration 015: Cashflow Summary leaves mock (test) orders out completely
--- Safe to run on the live database (and safe to run twice). Run after 014.
+-- Safe to run on the live database (and safe to run twice, until a later migration is applied). Run after 014.
 --
 -- * cashflow_transactions never lists mock orders (online or offline).
 -- * cashflow_summary no longer returns mock totals; "perlu ditinjau" and
@@ -9,7 +9,18 @@
 -- Orders keep their Real/Mock label; it is changed from the Pesanan page
 -- (cashflow_set_order_classification, unchanged).
 -- =====================================================================
+
 begin;
+-- QA fix OBS-7 (8 Nov 2026): a later migration replaced functions this file defines.
+-- Running this file again on its own would bring back the old rules, so it stops instead: inside the
+-- transaction, the error rolls back the whole file, whatever client runs it.
+do $$ begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'offline_orders' and column_name = 'payment_status')
+     and coalesce(current_setting('cn.rerun_cashflow', true), '') <> 'on' then
+    raise exception 'Migration 016 is already applied, so running 015 again on its own would undo it. To re-run the whole Cashflow sequence on purpose, first run: set cn.rerun_cashflow = ''on''; then run every migration from 015 onwards, in order.';
+  end if;
+end $$;
 
 create or replace function public.cashflow_summary(p_from date, p_to date)
 returns jsonb language plpgsql stable security definer set search_path = public as $$

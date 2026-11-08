@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Migration 016: payment status for offline sales (Lunas / Belum dibayar)
--- Safe to run on the live database (and safe to run twice). Run after 015.
+-- Safe to run on the live database (and safe to run twice, until a later migration is applied). Run after 015.
 --
 -- offline_orders.payment_status  'paid' (Lunas) | 'unpaid' (Belum dibayar)
 -- offline_orders.paid_at         when the money came in (null while unpaid)
@@ -12,7 +12,18 @@
 -- * cashflow_transactions gets a customer filter (p.customer, exact name, any case);
 --   cashflow_customers lists the customers of a period for that filter.
 -- =====================================================================
+
 begin;
+-- QA fix OBS-7 (8 Nov 2026): a later migration replaced functions this file defines.
+-- Running this file again on its own would bring back the old rules, so it stops instead: inside the
+-- transaction, the error rolls back the whole file, whatever client runs it.
+do $$ begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'orders' and column_name = 'payment_issue')
+     and coalesce(current_setting('cn.rerun_cashflow', true), '') <> 'on' then
+    raise exception 'Migration 017 is already applied, so running 016 again on its own would undo it. To re-run the whole Cashflow sequence on purpose, first run: set cn.rerun_cashflow = ''on''; then run every migration from 016 onwards, in order.';
+  end if;
+end $$;
 
 alter table public.offline_orders
   add column if not exists payment_status text not null default 'paid',

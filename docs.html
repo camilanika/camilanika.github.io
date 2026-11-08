@@ -3,6 +3,9 @@
 <head>
 <title>CamilaNika API Reference</title>
 <meta charset="utf-8">
+<!-- QA fix OBS-31: GitHub Pages can't send X-Frame-Options / frame-ancestors, so the page hides itself inside a frame (OWASP clickjacking defence) -->
+<style id="anti-clickjack">html{display:none !important}</style>
+<script>if (self === top) document.getElementById("anti-clickjack").remove(); else top.location = self.location;</script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
