@@ -22,9 +22,10 @@ async function contrastProblems(page) {
   }));
 }
 
-for (const [name, vp] of [["phone", PHONE], ["desktop", DESK]]) {
-  test(`OBS-33: shop, options sheet, cart and sign-up form meet AA contrast (${name})`, async () => {
+for (const scheme of ["light", "dark"]) for (const [name, vp] of [["phone", PHONE], ["desktop", DESK]]) {
+  test(`OBS-33: shop, options sheet, cart and sign-up form meet AA contrast (${name}, ${scheme} mode)`, async () => {
     const page = await H.open("?test=1", { uid: null, viewport: vp, file: "" });
+    await page.emulateMedia({ colorScheme: scheme });
     await page.locator("[data-pick]").first().waitFor();
     const found = [];
     found.push(...await contrastProblems(page));

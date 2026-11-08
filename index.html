@@ -25,6 +25,7 @@
 :root{
   --bg:#FBF3EA; --paper:#FFFAF4; --fg:#4A2A1C; --muted:#7D5F52; --line:#EBD7C8;
   --rose:#B63853; --rose-bright:#D9586F; --rose-ink:#FFFFFF; --rose-soft:#FBE1E6; --caramel:#A05F20; --wa:#187A42; --go:#D9232B;
+  --wa-ink:#FFFFFF; --go-text:#D9232B; --on-accent:#FFFFFF;   /* text on --wa, GoFood red as text, text on section accents */
   --matcha:#6E9A3E; --berry:#8E4EA8; --ocean:#2F7FA8; --charcoal:#5B4A42;
   --shadow:0 10px 30px -12px rgba(74,42,28,.28);
   --f-display:"Baloo 2","Nunito",system-ui,sans-serif;
@@ -34,11 +35,13 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#1C1411; --paper:#271C18; --fg:#F6E6DA; --muted:#C9AE9F; --line:#3E2E27;
   --rose:#EE7F95; --rose-ink:#2A0F16; --rose-soft:#3A2128; --caramel:#E0A266; --wa:#36C075;
+  --wa-ink:#0F2A1A; --go-text:#F74645; --on-accent:#1C1411;
   --matcha:#9CC56A; --berry:#C08ADB; --ocean:#6DB7DE; --charcoal:#BBA79C;
   --shadow:0 10px 30px -12px rgba(0,0,0,.6); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#1C1411; --paper:#271C18; --fg:#F6E6DA; --muted:#C9AE9F; --line:#3E2E27;
   --rose:#EE7F95; --rose-ink:#2A0F16; --rose-soft:#3A2128; --caramel:#E0A266; --wa:#36C075;
+  --wa-ink:#0F2A1A; --go-text:#F74645; --on-accent:#1C1411;
   --matcha:#9CC56A; --berry:#C08ADB; --ocean:#6DB7DE; --charcoal:#BBA79C;
   --shadow:0 10px 30px -12px rgba(0,0,0,.6); color-scheme:dark}
 
@@ -62,7 +65,7 @@ p{margin:0}
 /* buttons */
 .btn{display:inline-flex;align-items:center;gap:.5rem;font:800 1rem/1 var(--f-body);padding:.9rem 1.3rem;border-radius:999px;border:2px solid transparent;cursor:pointer;text-decoration:none;transition:transform .15s,background .15s}
 .btn:hover{transform:translateY(-2px)}
-.btn-wa{background:var(--wa);color:#fff}
+.btn-wa{background:var(--wa);color:var(--wa-ink)}
 .btn-rose{background:var(--rose);color:var(--rose-ink)}
 .btn-ghost{background:transparent;border-color:var(--fg);color:var(--fg)}
 .btn-go{background:var(--go);color:#fff}
@@ -71,7 +74,7 @@ p{margin:0}
 .gofood h3{font-size:1.5rem}
 .gofood p{color:var(--muted);max-width:52ch}
 .gofood > div{display:grid;gap:.35rem;min-width:0}
-.go-link{font-weight:800;color:var(--go);text-decoration:underline;text-underline-offset:3px;text-align:center}
+.go-link{font-weight:800;color:var(--go-text);text-decoration:underline;text-underline-offset:3px;text-align:center}
 .btn svg{width:20px;height:20px;flex:none}
 
 /* header */
@@ -150,7 +153,7 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .acc-caramel{--accent:var(--caramel)} .acc-rose{--accent:var(--rose)} .acc-matcha{--accent:var(--matcha)}
 .acc-berry{--accent:var(--berry)} .acc-ocean{--accent:var(--ocean)} .acc-charcoal{--accent:var(--charcoal)}
 .series-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4rem 1rem;margin:0 0 1rem}
-.series-head h3{background:var(--accent);color:#fff;font-size:clamp(1.3rem,2.6vw,1.7rem);padding:.35rem 1.1rem;border-radius:12px 999px 999px 12px}
+.series-head h3{background:var(--accent);color:var(--on-accent);font-size:clamp(1.3rem,2.6vw,1.7rem);padding:.35rem 1.1rem;border-radius:12px 999px 999px 12px}
 .series-head p{margin:0;color:var(--muted);font-weight:700;font-style:italic}
 @media (max-width:600px){.series{padding:.8rem}}
 .item{background:var(--paper);border:2px dashed var(--line);border-radius:22px;padding:1.3rem;display:flex;flex-direction:column;gap:.85rem;min-width:0}
@@ -736,7 +739,7 @@ body.sheet-open{overflow:hidden}
 
       <div class="gofood">
         <div>
-          <p class="eyebrow" style="color:var(--go)">Sekarang juga ada di GoFood</p>
+          <p class="eyebrow" style="color:var(--go-text)">Sekarang juga ada di GoFood</p>
           <h3>Lebih praktis pesan lewat GoFood?</h3>
           <p>Cari CamilaNika di aplikasi Gojek, atau langsung buka toko kami lewat tombol ini. Bisa diantar ke mana saja dalam jangkauan GoFood.</p>
         </div>
@@ -891,7 +894,7 @@ body.sheet-open{overflow:hidden}
 
 <script src="js/config.js?v=202611051022"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202611082130"></script>
+<script src="js/shop.js?v=202611082230"></script>
 
 </body>
 </html>
