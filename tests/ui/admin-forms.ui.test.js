@@ -64,6 +64,22 @@ test("ADMIN: the admin page refuses to work inside another site's frame (OBS-31)
   await page.context().close();
 });
 
+// A real attacker frames the page from another origin. Chromium then blocks the jump out of the frame
+// (no user gesture), so what protects the admin is that the framed page stays hidden.
+test("ADMIN: framed from another origin, the admin page shows nothing (OBS-31)", async () => {
+  const other = H.base.replace("127.0.0.1", "localhost");          // same server, different origin
+  const page = await H.open("", { file: "index.html" });
+  await page.goto(other + "/index.html");
+  await page.evaluate((src) => { document.body.innerHTML = `<iframe src="${src}" width="800" height="500"></iframe>`; }, H.base + "/admin.html");
+  const frame = await (await page.locator("iframe").elementHandle()).contentFrame();
+  await frame.waitForLoadState("load");
+  await page.waitForTimeout(500);
+  assert.match(frame.url(), /127\.0\.0\.1.*admin\.html/, "the admin page loaded in the frame");
+  assert.equal(new URL(page.url()).hostname, "localhost", "the framing page is still there");
+  assert.equal(await frame.evaluate(() => getComputedStyle(document.documentElement).display), "none");
+  await page.context().close();
+});
+
 test("ADMIN: an order paid after its stock was resold shows 'Perlu dicek' (OBS-2, OBS-4)", async () => {
   const [o] = await H.sql("select order_number from public.orders where status = 'completed' order by order_number limit 1");
   await H.sql("update public.orders set payment_issue = 'OVERSOLD:1:2' where order_number = $1", [o.order_number]);

@@ -6,6 +6,7 @@
 -- IDs match §4 of docs/test-cases-and-automation.docx. This script never fails the build.
 -- Fixed by migration 017 and moved to qa_fixes_test.sql: DEF-002 (per-item cap), OBS-1, 2, 4, 6, 7, 8,
 -- 14, 15, 16, 17, 19, 20, 21, 22. Fixed by migration 018 and moved to fixes_018_test.sql: OBS-12.
+-- Fixed by a re-run guard in 010 and 011 and checked in run.sh: OBS-36 (found in the QA re-run INSP-3, 8 Nov 2026).
 -- =====================================================================
 \set ON_ERROR_STOP 1
 set client_min_messages = warning;
@@ -23,7 +24,9 @@ grant execute on all functions in schema t to anon, authenticated;
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000c', 'customer@test.local');
 update public.inventory set unlimited = true;
 
--- (no open database defects: OBS-12 was fixed by migration 018 and moved to fixes_018_test.sql)
+-- (OBS-12 was fixed by migration 018 and moved to fixes_018_test.sql)
+
+-- (no open database defects: OBS-36 was fixed by a re-run guard in migrations 010 and 011; tests/db/run.sh checks it)
 
 -- ---------------------------------------------------------------- report (never fails the build)
 \o

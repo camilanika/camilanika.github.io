@@ -14,6 +14,8 @@ const PHONE = { width: 390, height: 844 };
 const DESK = { width: 1280, height: 900 };
 
 async function contrastProblems(page) {
+  // let colour transitions finish first: right after a light/dark switch a button is still between its two colours
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
   await page.addScriptTag({ path: AXE });
   const v = await page.evaluate(async () => (await axe.run({ exclude: [[".brand b"]] }, { runOnly: ["color-contrast"] })).violations);
   return v.flatMap((x) => x.nodes.map((n) => {
