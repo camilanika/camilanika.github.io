@@ -31,3 +31,6 @@ UNTIL=018 bash tests/db/build.sh cn_test >/dev/null
 mid=$(psql -X -q -At -U postgres -d cn_test -v ON_ERROR_STOP=1 -c "insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000a', 'admin@test.local'); update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-00000000000a';" -c "begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated; select count(classification_note) >= 0 and jsonb_typeof(public.admin_list_orders()) = 'array' from public.orders; commit;" 2>&1 | grep -E '^(t|f)$|ERROR' || true)
 if [[ "$mid" == "t" ]]; then echo "PASS   | after 018 alone, the old admin page's select(\"*\") and admin_list_orders both work"
 else echo "FAIL   | after 018 alone the live admin page would break: $mid"; exit 1; fi
+# loyalty programme (migrations 012, 013): milestones, repeats, refunds, recurring tiers, ongkir, permissions
+bash tests/db/build.sh cn_test >/dev/null
+psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/loyalty_test.sql
