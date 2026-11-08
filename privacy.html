@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" href="img/logo-192.png">
+<title>Kebijakan Privasi · CamilaNika</title>
+<meta name="description" content="Data apa yang dikumpulkan CamilaNika, untuk apa, berapa lama disimpan, dan hak kamu atas data pribadimu.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Same paper palette and type as the shop (index.html); a single reading column */
+:root{
+  --bg:#FBF3EA; --paper:#FFFAF4; --fg:#4A2A1C; --muted:#7D5F52; --line:#EBD7C8;
+  --rose:#D9586F; --rose-soft:#FBE1E6; --caramel:#B9763A; --wa:#1F9D55;
+  --f-display:"Baloo 2","Nunito",system-ui,sans-serif;
+  --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body)}
+a{color:var(--rose);font-weight:700}
+a:focus-visible{outline:3px solid var(--caramel);outline-offset:2px;border-radius:4px}
+.wrap{max-width:46rem;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{border-bottom:1px solid var(--line);background:var(--paper)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-block:.8rem}
+.brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--fg);font:800 1.3rem/1 var(--f-display)}
+.brand img{width:36px;height:36px;border-radius:50%}
+.brand b{color:var(--rose)}
+.back{font-size:.95rem}
+main{padding-block:2rem 4rem}
+h1{font:800 clamp(1.9rem,5vw,2.5rem)/1.15 var(--f-display);margin:0 0 .4rem;text-wrap:balance}
+h2{font:700 1.35rem/1.25 var(--f-display);margin:2.4rem 0 .6rem;text-wrap:balance}
+h3{font:700 1.05rem/1.3 var(--f-body);margin:1.4rem 0 .3rem}
+p,ul{margin:.5rem 0}
+ul{padding-left:1.25rem}
+li{margin:.25rem 0}
+.meta{color:var(--muted);font-size:.95rem}
+.summary{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1rem 1.2rem;margin-top:1.4rem}
+.summary ul{margin:.3rem 0 0}
+.tbl{overflow-x:auto;margin:.8rem 0;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;min-width:34rem;font-size:.93rem}
+th,td{text-align:left;vertical-align:top;padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-weight:800;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.contact{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;background:var(--rose-soft);border-radius:14px;padding:1rem 1.2rem;margin-top:.8rem}
+.contact code{font:800 1.1rem var(--f-body);background:var(--paper);padding:.2rem .5rem;border-radius:8px}
+.btn-wa{display:inline-flex;align-items:center;gap:.4rem;background:var(--wa);color:#fff;text-decoration:none;padding:.5rem .9rem;border-radius:999px}
+@media (max-width:40rem){
+  .tbl{overflow:visible;border:0;background:none}
+  table{min-width:0}
+  thead{display:none}
+  table,tbody,tr,td{display:block}
+  tr{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:.4rem .2rem;margin-bottom:.7rem}
+  td{border:0;padding:.3rem .75rem}
+  td::before{content:attr(data-label);display:block;font-weight:800;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+}
+footer{border-top:1px solid var(--line);padding-block:1.5rem 3rem;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="img/logo.jpg" alt=""><span>Camila<b>Nika</b></span></a>
+    <a class="back" href="./">← Kembali ke toko</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Kebijakan Privasi</h1>
+  <p class="meta">Berlaku sejak 8 November 2026 · Mengikuti Undang-Undang Nomor 27 Tahun 2022 tentang Pelindungan Data Pribadi (UU PDP)</p>
+
+  <div class="summary">
+    <b>Singkatnya</b>
+    <ul>
+      <li>Kami memakai data kamu untuk membuat, mengantar, dan mencatat pesanan, serta untuk akun, voucher, dan poin loyalti.</li>
+      <li>Kami tidak menjual data kamu dan tidak memakai iklan atau pelacak (tracker) di situs ini.</li>
+      <li>Data disimpan di server Supabase di Mumbai, India. Pembayaran online diproses oleh iPaymu.</li>
+      <li>Kamu bisa minta melihat, membetulkan, atau menghapus data kamu lewat WhatsApp kapan saja.</li>
+    </ul>
+  </div>
+
+  <h2 id="siapa">Siapa yang mengelola data kamu</h2>
+  <p><b>CamilaNika</b> (Coffee &amp; Drinks · Cireng Isi), Bukit Cimanggu City, Bogor, adalah pengendali data pribadi untuk situs <b>camilanika.github.io</b>, pemesanan online, dan akun pelanggan.</p>
+  <div class="contact" id="kontak">
+    <span>Pertanyaan atau permintaan soal data pribadi:</span>
+    <code>0813-6897-6966</code>
+    <a class="btn-wa" href="https://wa.me/6281368976966?text=Halo%20CamilaNika%2C%20saya%20mau%20mengajukan%20permintaan%20soal%20data%20pribadi%20saya." target="_blank" rel="noopener">WhatsApp</a>
+  </div>
+
+  <h2 id="data">Data yang kami kumpulkan dan untuk apa</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Data</th><th>Kapan</th><th>Untuk apa</th><th>Dasar pemrosesan</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Data">Nama, nomor WhatsApp, alamat, catatan pesanan, email (opsional)</td><td data-label="Kapan">Saat memesan</td><td data-label="Untuk apa">Membuat, membayar, menyiapkan, dan mengantar pesanan; menghubungi kamu soal pesanan</td><td data-label="Dasar pemrosesan">Pelaksanaan perjanjian (pesanan kamu)</td></tr>
+      <tr><td data-label="Data">Isi pesanan, harga, diskon, cara bayar, status dan waktu pembayaran</td><td data-label="Kapan">Saat memesan dan membayar</td><td data-label="Untuk apa">Menjalankan pesanan, pembukuan, dan pelaporan pajak</td><td data-label="Dasar pemrosesan">Perjanjian; kewajiban hukum (pembukuan)</td></tr>
+      <tr><td data-label="Data">Titik lokasi pengantaran di peta dan jaraknya</td><td data-label="Kapan">Saat memilih lokasi antar</td><td data-label="Untuk apa">Menghitung ongkir dan mengantar ke tempat yang benar</td><td data-label="Dasar pemrosesan">Perjanjian. Lokasi otomatis dari perangkat (tombol lokasi) hanya dipakai jika kamu mengizinkannya.</td></tr>
+      <tr><td data-label="Data">Nama, nomor WhatsApp, password (disimpan dalam bentuk terenkripsi/hash), alamat</td><td data-label="Kapan">Saat membuat akun</td><td data-label="Untuk apa">Masuk ke akun, riwayat pesanan, isi otomatis data pengiriman</td><td data-label="Dasar pemrosesan">Perjanjian (layanan akun)</td></tr>
+      <tr><td data-label="Data">Voucher, poin dan tingkat loyalti, lencana, notifikasi</td><td data-label="Kapan">Selama kamu punya akun</td><td data-label="Untuk apa">Memberi dan mencatat promo, voucher, dan hadiah loyalti</td><td data-label="Dasar pemrosesan">Perjanjian</td></tr>
+      <tr><td data-label="Data">Kode referral yang kamu pakai</td><td data-label="Kapan">Saat mendaftar dengan kode</td><td data-label="Untuk apa">Memberi hadiah referral sesuai syarat kampanye</td><td data-label="Dasar pemrosesan">Persetujuan (kamu memilih memasukkan kode)</td></tr>
+      <tr><td data-label="Data">Alamat jaringan (IP) dalam bentuk acak satu arah (hash), bukan alamat aslinya</td><td data-label="Kapan">Saat mendaftar dan saat checkout</td><td data-label="Untuk apa">Mencegah penyalahgunaan: batas jumlah pendaftaran dan percobaan pesanan, batas hadiah referral per perangkat</td><td data-label="Dasar pemrosesan">Kepentingan yang sah (keamanan toko)</td></tr>
+    </tbody>
+  </table></div>
+  <p>Kami tidak meminta data sensitif seperti nomor KTP, data kesehatan, atau data keuangan. Data kartu, rekening, atau e-wallet kamu dimasukkan langsung di halaman iPaymu dan tidak pernah kami terima.</p>
+  <p>Jika kamu memesan lewat WhatsApp atau GoFood, data yang kamu kirim di sana juga diatur oleh kebijakan privasi WhatsApp (Meta) atau Gojek.</p>
+
+  <h2 id="pihak-lain">Pihak lain yang ikut memproses data</h2>
+  <p>Kami hanya membagikan data yang diperlukan untuk tiap layanan:</p>
+  <ul>
+    <li><b>Supabase</b>: basis data dan login akun. Semua data di atas disimpan di server Supabase di <b>Mumbai, India</b>.</li>
+    <li><b>iPaymu</b> (Indonesia): pembayaran online. Menerima nama, nomor WhatsApp, email (jika diisi), nomor pesanan, isi pesanan, dan totalnya.</li>
+    <li><b>OpenStreetMap</b>: peta pengantaran. Saat kamu memilih titik di peta, koordinatnya dikirim ke layanan Nominatim OpenStreetMap untuk diubah menjadi nama alamat.</li>
+    <li><b>GitHub Pages</b> (hosting situs), <b>Google Fonts</b> (huruf), dan <b>unpkg</b> (komponen peta): menerima alamat IP perangkatmu saat halaman dimuat, seperti situs web pada umumnya.</li>
+  </ul>
+
+  <h2 id="luar-negeri">Data yang disimpan di luar Indonesia</h2>
+  <p>Karena server Supabase berada di India, data kamu dikirim ke luar wilayah Indonesia (Pasal 56 UU PDP). Kami memakai penyedia yang mengenkripsi data saat dikirim dan disimpan, dan hanya admin toko yang bisa membuka data pelanggan. Dengan membuat akun atau memesan online, kamu menyetujui penyimpanan ini. Jika kamu tidak setuju, kamu tetap bisa memesan lewat WhatsApp.</p>
+
+  <h2 id="perangkat">Yang disimpan di perangkatmu</h2>
+  <p>Situs ini tidak memakai cookie iklan atau pelacak. Browsermu menyimpan beberapa hal secara lokal supaya situs bekerja: isi keranjang, daftar pesanan yang dibuat dari perangkat ini (nomor pesanan dan kode aksesnya), status login, dan kode referral yang sedang dipakai. Kamu bisa menghapusnya kapan saja dengan menghapus data situs di pengaturan browser.</p>
+
+  <h2 id="lama-simpan">Berapa lama data disimpan</h2>
+  <ul>
+    <li><b>Pesanan</b> (termasuk nama, nomor WhatsApp, dan alamat di pesanan itu): disimpan selama diperlukan untuk pembukuan dan pajak sesuai peraturan perundang-undangan, juga setelah akun dihapus.</li>
+    <li><b>Akun</b>, notifikasi, poin loyalti, dan catatan referral: sampai akunmu dihapus.</li>
+    <li><b>Alamat jaringan (hash)</b> untuk batas pendaftaran dan checkout: dihapus otomatis setelah 30 hari.</li>
+  </ul>
+
+  <h2 id="hak">Hak kamu</h2>
+  <p>Sesuai Pasal 5 sampai 13 UU PDP, kamu berhak:</p>
+  <ul>
+    <li>mendapat informasi tentang siapa yang memproses datamu dan untuk apa (halaman ini);</li>
+    <li>melengkapi, memperbarui, atau membetulkan datamu (sebagian bisa langsung di menu Akun);</li>
+    <li>mendapat akses dan salinan datamu, juga dalam format yang bisa dibaca komputer;</li>
+    <li>menghentikan pemrosesan dan meminta datamu dihapus, termasuk menghapus akun;</li>
+    <li>menarik kembali persetujuan yang pernah kamu berikan;</li>
+    <li>menunda atau membatasi pemrosesan datamu;</li>
+    <li>mengajukan keberatan atas keputusan yang hanya dibuat otomatis (kami tidak membuat keputusan seperti itu);</li>
+    <li>menggugat dan mendapat ganti rugi jika datamu diproses dengan melanggar hukum.</li>
+  </ul>
+  <p>Kirim permintaanmu lewat <a href="#kontak">WhatsApp</a> dari nomor yang terdaftar di akun atau pesananmu, supaya kami bisa memastikan itu memang kamu. Kami menanggapi paling lambat 3 x 24 jam setelah permintaan diterima, sesuai UU PDP. Data pesanan yang wajib kami simpan untuk pembukuan tidak bisa dihapus, tetapi tidak lagi terhubung ke akunmu dan tidak dipakai untuk hal lain.</p>
+
+  <h2 id="keamanan">Keamanan</h2>
+  <p>Akses ke data pelanggan dibatasi untuk admin toko. Pelanggan hanya bisa melihat pesanannya sendiri, password disimpan dalam bentuk hash, dan koneksi ke situs selalu terenkripsi (HTTPS). Jika terjadi kebocoran data pribadi, kami akan memberi tahu kamu dan lembaga pelindungan data pribadi secara tertulis paling lambat 3 x 24 jam, sesuai Pasal 46 UU PDP.</p>
+
+  <h2 id="anak">Anak di bawah 18 tahun</h2>
+  <p>Jika kamu belum berusia 18 tahun, minta orang tua atau wali untuk membuat akun atau memesan untukmu (Pasal 25 UU PDP).</p>
+
+  <h2 id="perubahan">Perubahan kebijakan ini</h2>
+  <p>Jika kebijakan ini berubah, kami memberi tahu lewat situs ini dan notifikasi akun sebelum perubahan berlaku. Tanggal berlaku di atas selalu menunjukkan versi terbaru.</p>
+</main>
+
+<footer>
+  <div class="wrap">© 2026 CamilaNika · <a href="./">Kembali ke toko</a></div>
+</footer>
+</body>
+</html>

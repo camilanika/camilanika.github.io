@@ -1249,6 +1249,7 @@
           <input id="a-id" ${acctMode === "signup" ? 'type="tel" inputmode="tel" autocomplete="tel" placeholder="08xxxxxxxxxx"' : 'autocomplete="username" placeholder="08xxxxxxxxxx"'} required></div>
         <div class="field"><label for="a-pass">Password${acctMode === "signup" ? " <small>(minimal 8 karakter)</small>" : ""}</label><input id="a-pass" type="password" minlength="8" autocomplete="${acctMode === "signup" ? "new-password" : "current-password"}" required></div>
         ${acctMode === "signup" ? `<div class="field"><label for="a-ref">Kode referral <small>(opsional)</small></label><input id="a-ref" autocomplete="off" maxlength="24" style="text-transform:uppercase" placeholder="mis. CAMILAJUNI" value="${esc(refCode())}"><p class="ref-hint" id="ref-hint" aria-live="polite"></p></div>` : ""}
+        ${acctMode === "signup" ? `<p class="form-msg" id="privacy-consent">Dengan mendaftar, kamu menyetujui <a href="privacy.html" target="_blank" rel="noopener">Kebijakan Privasi</a> CamilaNika.</p>` : ""}
         <button class="btn btn-rose" type="submit">${acctMode === "signup" ? "Daftar" : "Masuk"}</button>
         ${acctMode === "signup" ? "" : `<button type="button" class="linkish" data-mode="reset">Lupa password?</button>`}
         <p class="form-msg" id="f-msg"></p>
