@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds a fresh test database from the repo's SQL, in the same order as SHOP_SETUP.md.
 # Usage: PGHOST=/tmp/pg PGPORT=5433 tests/db/build.sh <dbname>
+# UNTIL=018 stops after that migration (to test a database halfway through an upgrade).
 set -euo pipefail
 export PGOPTIONS="-c client_min_messages=warning"
 cd "$(dirname "$0")/../.."
@@ -10,5 +11,5 @@ run() { psql -q -X -v ON_ERROR_STOP=1 -U postgres -d "$DB" -f "$1" >/dev/null 2>
 run tests/db/supabase_stub.sql
 run supabase/schema.sql
 run supabase/seed.sql
-for f in supabase/migrations/*.sql; do run "$f"; done
+for f in supabase/migrations/*.sql; do run "$f"; [[ -n "${UNTIL:-}" && "$(basename "$f")" == "${UNTIL}"_* ]] && break; done
 echo "built $DB"

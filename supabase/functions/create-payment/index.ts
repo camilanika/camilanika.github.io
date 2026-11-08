@@ -8,7 +8,11 @@
 //   IPAYMU_IS_PRODUCTION     "false" while testing, "true" when live
 //   ALLOWED_ORIGINS          e.g. "https://camilanika.github.io"
 //   SITE_URL                 e.g. "https://camilanika.github.io/"
+//   SIGNUP_SALT              optional, the same salt phone-signup uses to hash IP addresses
 // SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are provided automatically.
+//
+// Before an order is created, checkout_guard (migration 018) checks shop_settings.online_payment
+// ('off' / 'test' = admins only / 'on') and the per-network and unpaid-order limits (DEF-002).
 //
 // "Verify JWT" can stay ON: the website always sends the public anon key in Authorization.
 
@@ -30,6 +34,16 @@ const NOTIFY_URL = `${SUPABASE_URL}/functions/v1/ipaymu-webhook`;
 const EXPIRES_MINUTES = 60;
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+const SALT = Deno.env.get("SIGNUP_SALT") ?? SERVICE_KEY.slice(-16);
+
+// Same as phone-signup (QA fix OBS-25): the leftmost X-Forwarded-For entry is whatever the caller sent,
+// so prefer the address set by the platform's proxy, then the last X-Forwarded-For entry.
+async function hashIp(req: Request) {
+  const xff = (req.headers.get("x-forwarded-for") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const ip = req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || xff[xff.length - 1] || "unknown";
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(SALT + "|" + ip));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
 
 function cors(origin: string | null) {
   const allow = origin && ALLOWED.includes(origin) ? origin : ALLOWED[0];
@@ -93,6 +107,16 @@ Deno.serve(async (req) => {
 
   const c = body?.customer ?? {};
   const items = Array.isArray(body?.items) ? body.items.slice(0, 50) : [];
+
+  // 0) Online payment switched on, and this network / phone within its limits? (DEF-002)
+  const { data: guard, error: gErr } = await admin.rpc("checkout_guard", {
+    p_ip_hash: await hashIp(req), p_phone: str(c.phone, 30), p_user: userId,
+  });
+  if (gErr) { console.error("checkout_guard", gErr.message); return reply({ error: "ORDER_FAILED" }, 500); }
+  if (!guard?.ok) {
+    const code = String(guard?.error ?? "RATE_LIMITED");
+    return reply({ error: code }, code === "ONLINE_PAYMENT_OFF" ? 403 : 429);
+  }
 
   // 1) Create the order + reserve stock (all price/promo/stock checks happen in the database)
   const { data: order, error } = await admin.rpc("create_order", {

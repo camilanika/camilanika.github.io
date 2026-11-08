@@ -9,6 +9,7 @@ Not part of the website: nothing in this folder is loaded by the shop or admin p
 | `db/backfill_test.sh` | Migration 014 on a database that already has orders, and running it twice | (part of `test:db`) |
 | `db/security_test.sql` | Permissions and money rules: RLS on every table, internal functions closed to API users, every admin RPC refuses customers, server-side prices, idempotent payment | (part of `test:db`) |
 | `db/qa_fixes_test.sql` | Regression tests for the defects fixed by migration 017 (QA inspection, 8 Nov 2026), plus a check that migration 014 refuses to re-run on its own | (part of `test:db`) |
+| `db/fixes_018_test.sql` | Migrations 018 and 019: customers can't read admin-only order fields (OBS-12), the admin reads orders through `admin_list_orders`, and `checkout_guard` enforces the online-payment switch and checkout limits (DEF-002); both run twice without errors, and after 018 alone the admin page that is live now still works | (part of `test:db`) |
 | `db/known_defects_test.sql` | Executable bug reports for defects that are still open; reports STILL PRESENT / FIXED and never fails | `npm run test:known-defects` |
 | `ui/` | Chromium drives the shop and `admin.html` against a real local database (Cashflow, checkout and payment return, admin forms, accessibility checks, phone layout) | `npm run test:ui` |
 

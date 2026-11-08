@@ -540,11 +540,12 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   }
   async function loadOrders() {
     const groups = { todo: ["paid", "processing", "ready", "shipping"], pending: ["pending"], completed: ["completed"], closed: ["cancelled", "expired", "failed"] };
-    let q = sb.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(100);
-    if (orderFocus) q = q.eq("order_number", orderFocus);   // opened from Cashflow Summary (#orders/CN-...)
-    else if (groups[orderFilter]) q = q.in("status", groups[orderFilter]);
+    // admin-only order fields are read through admin_list_orders (migration 018, OBS-12): customers can't select them
+    const args = { p_limit: 100 };
+    if (orderFocus) args.p_order_number = orderFocus;   // opened from Cashflow Summary (#orders/CN-...)
+    else if (groups[orderFilter]) args.p_statuses = groups[orderFilter];
     const seq = (loadOrders.seq = (loadOrders.seq || 0) + 1);  // a slower, older response never replaces a newer list (QA fix OBS-30)
-    const { data, error } = await q;
+    const { data, error } = await sb.rpc("admin_list_orders", args);
     if (seq !== loadOrders.seq) return;
     const el = $("olist"); if (!el) return;
     if (error) { el.innerHTML = `<p class="msg err">${esc(err(error))}</p>`; return; }
@@ -632,7 +633,8 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   }
   async function chatCustomer(orderId) {
     openModal(`<div class="modal-head"><h2>Chat Customer</h2><button class="x" data-close aria-label="Tutup">×</button></div><p class="muted" id="cc-load">Memuat pesanan…</p>`);
-    const { data: o, error } = await sb.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle();
+    const { data: list, error } = await sb.rpc("admin_list_orders", { p_order_id: orderId, p_limit: 1 });
+    const o = list?.[0] || null;
     if ($("modal").hidden) return;
     if (error || !o) {
       $("modal-box").innerHTML = `<div class="modal-head"><h2>Chat Customer</h2><button class="x" data-close aria-label="Tutup">×</button></div>

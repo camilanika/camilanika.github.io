@@ -225,6 +225,7 @@ const ENUMS=[
  ["Voucher event","created, assigned, reserved, released, used, revoked, activated","voucher_events, admin_voucher_history"],
  ["Stock movement reason","restock, adjustment, sale, waste","stock_movements, admin_adjust_stock"],
  ["Notification kind","product, promo, order, voucher, account","notifications.kind"],
+ ["Online payment switch","off, test (admins only), on","shop_settings.online_payment, create-payment"],
  ["Payments mode","sandbox, production","shop_settings.payments_mode, cashflow_set_payments_mode"],
  ["Classification source","auto, admin, migration","orders.classification_source"],
  ["Audit entity","order, offline_order, expense, expense_category, settings","cashflow_history p_entity"],
@@ -251,7 +252,7 @@ const G=[
  ["POST","rpc/get_order_status","public","Guest order status","Track an order without logging in, using the access token returned at checkout.",[["p_order_number","text",""],["p_access_token","text","From create-payment response"]]],
 ]},
 {id:"checkout",name:"Checkout & signup",blurb:"Edge Functions. Send anon key as Bearer, user JWT (if any) as x-user-token.",eps:[
- ["POST","functions/v1/create-payment","public","Create order & payment","Creates the order and starts payment. Works for guests; pass x-user-token to attach it to the account. Response includes order_number, access_token and a free flag for zero-total orders; errors come back as { error, detail } (e.g. PAYMENT_GATEWAY_ERROR).",null,`{
+ ["POST","functions/v1/create-payment","public","Create order & payment","Creates the order and starts payment. Works for guests; pass x-user-token to attach it to the account. First checks shop_settings.online_payment (off / test = admins only / on) and the checkout limits: 403 ONLINE_PAYMENT_OFF, 429 RATE_LIMITED (per network) or 429 TOO_MANY_PENDING (unpaid orders per phone). Response includes order_number, access_token and a free flag for zero-total orders; errors come back as { error, detail } (e.g. PAYMENT_GATEWAY_ERROR).",null,`{
   "items": [ { "variant_id": 12, "quantity": 2, "addon": false, "choices": {} } ],
   "promo_code": "HEMAT10",          // or null
   "customer": {
@@ -269,7 +270,7 @@ const G=[
 {id:"account",name:"Customer account",blurb:"Signed-in shopper. RLS limits rows to the current user.",eps:[
  ["GET","profiles?select=full_name,phone,address,role","customer","Read own profile",""],
  ["PATCH","profiles","customer","Update own profile","Client sends the changed fields (name, phone, address)."],
- ["GET","orders?select=order_number,status,total,…","customer","My orders","Columns: order_number, status, total, subtotal, discount, shipping_discount, promo_code, gifts, created_at, paid_at, expires_at, payment_method, customer_name, phone, address, notes, delivery_fee, delivery_km, …"],
+ ["GET","orders?select=order_number,status,total,…","customer","My orders","Readable columns (migration 019): id, order_number, user_id, status, subtotal, discount, shipping_discount, total, promo_code, gifts, customer_name, phone, email, address, notes, payment_method, paid_at, expires_at, created_at, updated_at, completed_at, delivery_lat, delivery_lng, delivery_km, delivery_fee, snap_redirect_url. Asking for any other column (or select=*) returns permission denied."],
  ["POST","rpc/my_loyalty","customer","Loyalty progress","Current tier progress and spend."],
  ["POST","rpc/my_vouchers","customer","My vouchers",""],
  ["POST","rpc/my_badges","customer","My badges",""],
@@ -279,14 +280,14 @@ const G=[
  ["POST","rpc/is_admin","public","Am I admin?","true when the caller's profile role is admin. Callable by anon (returns false)."],
 ]},
 {id:"orders",name:"Admin · Orders",blurb:"Order list and status changes.",eps:[
- ["GET","orders?select=*,order_items(*)","admin","List orders with items",""],
+ ["POST","rpc/admin_list_orders","admin","List orders with items","Full order rows, including admin-only fields, each with an order_items array, newest first. Used by Pesanan and Chat Customer. Customers can't select the admin-only columns from the orders table directly (migrations 018 and 019, OBS-12).",[["p_statuses","text[] | null","Filter by status"],["p_order_number","text | null","One order by number"],["p_order_id","uuid | null","One order by id"],["p_limit","int","Default 100, max 500"]]],
  ["GET","profiles?select=phone","admin","Customer phone lookup","Used when opening a customer's orders."],
  ["POST","rpc/admin_set_order_status","admin","Set order status","",[["p_order_id","uuid / id",""],["p_status","Order status","See enums"]]],
  ["POST","rpc/cashflow_set_order_classification","admin","Mark order real / mock","Excludes test orders from cashflow figures.",[["p_order_id","id",""],["p_classification","real | mock",""],["p_note","text | null",""]]],
 ]},
 {id:"shop",name:"Admin · Shop settings",blurb:"Single-row shop_settings table.",eps:[
  ["GET","shop_settings?select=*","admin","Read settings",""],
- ["PATCH","shop_settings","admin","Update settings","Any subset of the fields below.",[["is_closed","bool","Manual close"],["schedule_enabled","bool",""],["open_time / close_time","time",""],["closed_message","text",""],["delivery_fee_enabled","bool",""],["free_radius_km","number",""],["max_radius_km","number","Default 25"],["fee_tiers","json","[{ km, fee }]"],["origin_lat / origin_lng","number","Shop location"],["signup_limit_hour / signup_limit_day","int","Signup rate limits"],["loyalty_include_shipping","bool","Count delivery fee toward loyalty"]]],
+ ["PATCH","shop_settings","admin","Update settings","Any subset of the fields below.",[["is_closed","bool","Manual close"],["schedule_enabled","bool",""],["open_time / close_time","time",""],["closed_message","text",""],["delivery_fee_enabled","bool",""],["free_radius_km","number",""],["max_radius_km","number","Default 25"],["fee_tiers","json","[{ km, fee }]"],["origin_lat / origin_lng","number","Shop location"],["signup_limit_hour / signup_limit_day","int","Signup rate limits"],["online_payment","off | test | on","Who can pay online; keep in step with ONLINE_PAYMENT in js/config.js"],["checkout_limit_hour / checkout_limit_day","int","Checkout attempts per network (default 10 / 30)"],["checkout_max_pending","int","Unpaid orders per phone at once (default 3)"],["payments_mode","sandbox | production","Fallback payment environment for Cashflow"],["loyalty_include_shipping","bool","Count delivery fee toward loyalty"]]],
 ]},
 {id:"stock",name:"Admin · Stock",blurb:"Inventory per product variant.",eps:[
  ["GET","products?select=id,name,is_active,sort_order,product_variants(…,inventory(stock,reserved,low_stock_threshold,unlimited))","admin","Stock overview",""],
@@ -391,7 +392,7 @@ const G=[
 /* Real signatures from pg_proc: name -> [args, returns] */
 const SIG={get_menu:["","jsonb"],shop_status:["","jsonb"],delivery_settings:["","jsonb"],delivery_quote:["p_lat double precision, p_lng double precision","jsonb"],quote_cart:["p_items jsonb, p_promo_code text","jsonb"],public_promotions:["","jsonb"],promo_details:["p_id bigint","jsonb"],referral_preview:["p_code text","jsonb"],get_order_status:["p_order_number text, p_access_token uuid","jsonb"],
 my_loyalty:["","jsonb"],my_vouchers:["","jsonb"],my_badges:["","jsonb"],my_notifications:["p_limit integer","jsonb"],mark_notifications_read:["p_ids bigint[]","integer"],unread_notifications:["","integer"],is_admin:["","boolean"],
-admin_set_order_status:["p_order_id uuid, p_status text","text"],cashflow_set_order_classification:["p_order_id uuid, p_classification text, p_note text","jsonb"],
+admin_set_order_status:["p_order_id uuid, p_status text","text"],admin_list_orders:["p_statuses text[], p_order_number text, p_order_id uuid, p_limit integer","jsonb"],cashflow_set_order_classification:["p_order_id uuid, p_classification text, p_note text","jsonb"],
 admin_set_stock:["p_variant_id bigint, p_available integer","jsonb"],admin_adjust_stock:["p_variant_id bigint, p_change integer, p_reason text, p_note text","integer"],
 admin_list_customers:["p_search text","TABLE(id uuid, email text, full_name text, phone text, address text, role text, created_at timestamptz, confirmed boolean, last_sign_in_at timestamptz, orders_count bigint, paid_count bigint, total_spent bigint, last_order_at timestamptz)"],admin_find_customers:["p_search text","TABLE(id uuid, full_name text, phone text, email text, created_at timestamptz)"],admin_set_role:["p_user_id uuid, p_role text","text"],
 admin_campaign_stats:["","jsonb"],admin_campaign_registrations:["p_campaign_id bigint","jsonb"],

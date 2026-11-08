@@ -122,7 +122,7 @@ begin
   s := public.cashflow_summary('2026-08-01', '2026-08-31');
   perform t.eq((s->>'real_order_income')::bigint, 57500::bigint, '#5 real -> mock removes it from income');
   perform t.eq((s->>'total_income')::bigint, 57500::bigint, '#5 and total income drops back');
-  perform t.eq((select classification_source from public.orders where id = t.id('o_mock1')::uuid), 'admin', 'admin choice is remembered');
+  perform t.eq((select x->>'classification_source' from jsonb_array_elements(public.admin_list_orders(p_order_id => t.id('o_mock1')::uuid)) x), 'admin', 'admin choice is remembered');  -- admins read internal fields through admin_list_orders (migration 018)
   perform t.ok((select count(*) = 3 from public.cashflow_audit where entity = 'order' and entity_id = t.id('o_mock1')), 'classification changes are audited');
 end $$;
 
