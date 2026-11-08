@@ -268,3 +268,7 @@ The QA inspection's findings and the tests that cover them are in `docs/test-cas
   Change it in Supabase → Table Editor → `shop_settings` (the row with id 1). New installs start at `test`.
 - **DEF-002, limits:** per network, at most `checkout_limit_hour` (default 10) checkout attempts an hour and `checkout_limit_day` (default 30) a day; per phone number, at most `checkout_max_pending` (default 3) unpaid orders at once. Admins are never limited. Customers who hit a limit see a message telling them to wait or order on WhatsApp.
 
+
+## Privacy notice (OBS-35)
+`privacy.html` is the shop's privacy notice under UU PDP (UU 27/2022). It is linked from the footer, under **Bayar online**, and on the sign-up form.
+Update it, and change its *Berlaku sejak* date, **before** the shop starts collecting new personal data or uses a new service that receives it (Pasal 21 ayat 2). Examples: a new form field, an analytics or chat tool, moving the Supabase project to another region, or a new payment or delivery partner.

@@ -201,3 +201,33 @@ test("A11Y: sideways-scrolling rows can be focused with the keyboard (OBS-34)", 
   assert.ok(rows.length >= 1 && rows.every((t) => t === 0), "tabIndex of scroll rows: " + JSON.stringify(rows));
   await page.context().close();
 });
+
+test("OBS-35: the privacy notice reads well on a phone and is linked where customers sign up and pay", async () => {
+  // the notice itself
+  const notice = await H.open("", { uid: null, viewport: PHONE, file: "privacy.html" });
+  await notice.locator("h1").waitFor();
+  assert.equal(await notice.locator("h1").innerText(), "Kebijakan Privasi");
+  for (const id of ["siapa", "data", "pihak-lain", "luar-negeri", "lama-simpan", "hak", "keamanan", "anak", "perubahan"]) {
+    assert.equal(await notice.locator(`h2#${id}`).count(), 1, `section #${id}`);
+  }
+  assert.match(await notice.locator("#kontak a").getAttribute("href"), /^https:\/\/wa\.me\/6281368976966\?/);
+  assert.ok(await notice.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "no sideways scrolling on a phone");
+  assert.deepEqual(notice.__errors || [], []);
+  await notice.context().close();
+
+  // the shop links to it: footer, checkout, sign-up form
+  const page = await openShop();
+  assert.equal(await page.locator("footer a[href='privacy.html']").count(), 1, "footer link");
+  await page.locator("[data-pick]").first().click();
+  await page.locator("[data-add]:visible").first().click();
+  await page.locator("[data-open-cart]:visible").first().click();
+  if (await page.locator("#to-checkout").isVisible()) await page.locator("#to-checkout").click();
+  await page.locator("#privacy-note a[href='privacy.html']").waitFor({ state: "visible" });
+  await page.evaluate(() => document.querySelector("[data-open-account]").click());
+  await page.locator("[data-mode='signup']").click();
+  await page.locator("#privacy-consent a[href='privacy.html']").waitFor({ state: "visible" });
+  await page.locator("[data-mode='login']").click();
+  assert.equal(await page.locator("#privacy-consent").count(), 0, "the sign-up note is not shown on the login form");
+  assert.deepEqual(page.__errors || [], []);
+  await page.context().close();
+});
