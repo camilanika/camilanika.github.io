@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Migration 011: referral campaigns, one-time vouchers, account badges
--- Safe to run on the live database (and safe to run twice).
+-- Safe to run on the live database (and safe to run twice, until migration 017 is applied).
 --
 -- referral_campaigns       admin-made codes shared on WhatsApp / Instagram ("JUNI2026")
 -- referral_registrations   one row per account that signed up with a code (unique per account)
@@ -16,6 +16,16 @@
 -- expires, fails or is cancelled.
 -- =====================================================================
 begin;
+-- QA fix OBS-36 (8 Nov 2026): migration 017 changed functions this file defines (voucher grace period,
+-- promo codes, notification text). Running this file again on its own would bring back the old versions,
+-- so it stops instead: inside the transaction, the error rolls back the whole file, whatever client runs it.
+do $$ begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'orders' and column_name = 'payment_issue')
+     and coalesce(current_setting('cn.rerun_old', true), '') <> 'on' then
+    raise exception 'Migration 017 is already applied, so running 011 again on its own would undo its fixes. To re-run the migrations on purpose, first run: set cn.rerun_old = ''on''; then run every migration from 011 onwards, in order.';
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------- settings / small changes
 alter table public.notifications drop constraint if exists notifications_kind_check;

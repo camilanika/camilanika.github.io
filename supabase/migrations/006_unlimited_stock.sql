@@ -1,6 +1,7 @@
 -- =====================================================================
 -- Migration 006: unlimited stock + simpler stock editing
--- Safe to run on the live database (and safe to run twice).
+-- Safe to run on the live database. Run once: running it again after later migrations stops with an
+-- error and changes nothing (QA re-check OBS-36, 8 Nov 2026).
 --
 -- inventory.unlimited = true  -> always available, no counting
 -- admin_set_stock(variant, n) -> n = exact number available now; null = unlimited

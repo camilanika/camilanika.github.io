@@ -1,6 +1,7 @@
 -- =====================================================================
 -- Migration 007: open / close the shop, with optional daily opening hours (WIB, GMT+7)
--- Safe to run on the live database (and safe to run twice).
+-- Safe to run on the live database. Run once: running it again after later migrations stops with an
+-- error and changes nothing (QA re-check OBS-36, 8 Nov 2026).
 --
 -- shop_settings (one row)
 --   is_closed         true  = closed until an admin opens it again (ignores the schedule)

@@ -19,6 +19,16 @@ if [[ "$rerun" == *"Migration 016 is already applied"* ]]; then
 else
   echo "FAIL   | OBS-7 migration 014 did not refuse to run again on its own"; exit 1
 fi
+# OBS-36: re-running 010 or 011 after 017 must refuse and change nothing (qa_fixes_test.sql below then checks
+# OBS-2, 8, 15 and 17 on this same database)
+for m in 010_notifications 011_referral_vouchers; do
+  rerun=$(psql -X -q -U postgres -d cn_test -f "supabase/migrations/$m.sql" 2>&1 || true)
+  if [[ "$rerun" == *"Migration 017 is already applied"* ]]; then
+    echo "PASS   | OBS-36 migration ${m%%_*} refuses to run again after 017"
+  else
+    echo "FAIL   | OBS-36 migration ${m%%_*} did not refuse to run again after 017"; exit 1
+  fi
+done
 psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/qa_fixes_test.sql
 # regression tests for migrations 018/019 (OBS-12 order privacy, DEF-002 checkout guard); both must be safe to run twice
 bash tests/db/build.sh cn_test >/dev/null
