@@ -793,7 +793,7 @@ body.sheet-open{overflow:hidden}
   <div class="sheet-body" id="opt-body"></div>
 </section>
 <div class="drawer-bg" id="drawer-bg" hidden></div>
-<aside class="drawer" id="drawer" aria-label="Keranjang pesanan" aria-hidden="true" inert>
+<aside class="drawer" role="dialog" aria-modal="true" id="drawer" aria-label="Keranjang pesanan" aria-hidden="true" inert>
   <div class="drawer-head">
     <h3>Pesanan kamu</h3>
     <button class="icon-btn" type="button" id="close-cart" aria-label="Tutup keranjang">×</button>
@@ -843,7 +843,7 @@ body.sheet-open{overflow:hidden}
   </div>
 </aside>
 
-<aside class="drawer" id="notif" aria-label="Notifikasi" aria-hidden="true" inert>
+<aside class="drawer" role="dialog" aria-modal="true" id="notif" aria-label="Notifikasi" aria-hidden="true" inert>
   <div class="drawer-head">
     <h3 id="notif-title">Notifikasi</h3>
     <button class="icon-btn" type="button" data-close-notif aria-label="Tutup">×</button>
@@ -853,7 +853,7 @@ body.sheet-open{overflow:hidden}
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<aside class="drawer" id="account" aria-label="Akun" aria-hidden="true" inert>
+<aside class="drawer" role="dialog" aria-modal="true" id="account" aria-label="Akun" aria-hidden="true" inert>
   <div class="drawer-head">
     <h3 id="acct-title">Akun</h3>
     <button class="icon-btn" type="button" data-close-account aria-label="Tutup">×</button>
@@ -889,7 +889,7 @@ body.sheet-open{overflow:hidden}
 
 <script src="js/config.js?v=202611051022"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202611081930"></script>
+<script src="js/shop.js?v=202611082030"></script>
 
 </body>
 </html>
