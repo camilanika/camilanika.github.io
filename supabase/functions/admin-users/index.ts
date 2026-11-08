@@ -54,6 +54,11 @@ Deno.serve(async (req) => {
     const password = String(b.password ?? "");
     if (!/^[0-9a-f-]{36}$/i.test(userId)) return reply({ error: "BAD_USER" }, 400);
     if (password.length < 8) return reply({ error: "PASSWORD_TOO_SHORT" }, 400);
+    // like delete_user: an admin can't set another admin's (or the owner's) password (QA fix OBS-23)
+    if (userId !== caller.user.id) {
+      const { data: target } = await admin.from("profiles").select("role").eq("id", userId).maybeSingle();
+      if (target?.role === "admin") return reply({ error: "REMOVE_ADMIN_FIRST" }, 400);
+    }
     const { error } = await admin.auth.admin.updateUserById(userId, { password });
     if (error) { console.error("reset failed", error.message); return reply({ error: "RESET_FAILED" }, 400); }
     return reply({ ok: true });

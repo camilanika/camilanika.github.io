@@ -3,7 +3,8 @@
 # existing orders must become MOCK + "needs review", completed ones get an estimated completion date,
 # and running the migration a second time must not touch orders created in between.
 set -euo pipefail
-export PGOPTIONS="-c client_min_messages=warning"
+# this test re-runs the whole Cashflow sequence on purpose (see the guard at the top of 014–016)
+export PGOPTIONS="-c client_min_messages=warning -c cn.rerun_cashflow=on"
 cd "$(dirname "$0")/../.."
 DB=cn_backfill
 psql -q -U postgres -d postgres -c "drop database if exists $DB" -c "create database $DB" 2>/dev/null

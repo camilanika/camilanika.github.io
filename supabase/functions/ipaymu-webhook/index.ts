@@ -78,7 +78,9 @@ Deno.serve(async (req) => {
   if (!order) return json({ ok: true, ignored: "unknown order" }); // e.g. a test notification
 
   const status = Number(t.Status ?? t.status);
-  const paidAmount = Math.round(Number(t.Amount ?? t.amount ?? t.Total ?? t.total ?? n.amount));
+  // the amount comes only from iPaymu's verified answer, never from the notification body (QA fix OBS-29);
+  // no amount there = NaN = treated as a mismatch below
+  const paidAmount = Math.round(Number(t.Amount ?? t.amount ?? t.Total ?? t.total));
   const via = String(n.via ?? t.Via ?? t.PaymentMethod ?? "").toLowerCase();
   const method = METHOD[via] ?? (via || null);
 

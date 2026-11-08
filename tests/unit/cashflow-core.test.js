@@ -126,3 +126,13 @@ test("form tokens are unique UUIDs", () => {
   assert.match(a, /^[0-9a-f-]{36}$/);
   assert.notEqual(a, b);
 });
+
+// Regression for OBS-13 (docs/test-cases-and-automation.docx): quantity used to be read with Number(), so "1.000"
+// meant one thousand as a price but one as a quantity, and "1e3" / "0x10" were accepted. Now parseQty().
+test("offline sale: a quantity typed as \"1.000\" or \"1e3\" is not silently read as 1 or 1000", () => {
+  for (const q of ["1.000", "1e3", "0x10"]) {
+    const p = C.offlinePreview([{ variant_id: 1, quantity: q, unit_price: "13.000" }], "", "");
+    // right: refused, or read like a price ("1.000" = 1000). Wrong: a line total of 13.000 for "1.000" with no error.
+    assert.ok(p.errors.length > 0 || p.lines[0].line_total === C.parseRupiah(q) * 13000, `quantity "${q}" gave line total ${p.lines?.[0]?.line_total} with no error`);
+  }
+});

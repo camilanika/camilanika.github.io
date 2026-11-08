@@ -39,7 +39,11 @@ function normalizePhone(raw: string) {
 
 const SALT = Deno.env.get("SIGNUP_SALT") ?? (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").slice(-16);
 async function hashIp(req: Request) {
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("cf-connecting-ip") || "unknown";
+  // The leftmost X-Forwarded-For entry is whatever the caller sent, so it can't be trusted for limits.
+  // Prefer the address set by the platform's proxy; the last X-Forwarded-For entry is the one the
+  // nearest proxy appended. (QA fix OBS-25)
+  const xff = (req.headers.get("x-forwarded-for") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const ip = req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || xff[xff.length - 1] || "unknown";
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(SALT + "|" + ip));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }

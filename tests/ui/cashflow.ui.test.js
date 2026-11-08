@@ -244,10 +244,32 @@ test("transaction filters and search (#27)", async () => {
   await page.waitForFunction(() => [...document.querySelectorAll("#cf-list tbody tr")].every((r) => /Offline ·/.test(r.textContent)));
   await page.click("#cf-reset");
   await page.fill("#cf-q", "matcha");
-  await page.waitForFunction(() => document.querySelectorAll("#cf-list tbody tr").length === 1);
+  // wait for the search result itself: "one row" alone is already true while the old offline-only list is still shown
+  await page.waitForFunction(() => { const r = document.querySelectorAll("#cf-list tbody tr"); return r.length === 1 && /Sari/.test(r[0].textContent); });
   assert.match(await text(page, "#cf-list tbody"), /Sari/);
   await page.click("#cf-reset");
   await page.waitForFunction((n) => (document.querySelector(".cf-pager .muted")?.textContent || "").startsWith(n + " "), total);
+  await page.context().close();
+});
+
+// Regression for OBS-3 (docs/test-cases-and-automation.docx): a slow older list response used to be drawn over a
+// newer one. loadList() now only draws its newest request. The offline-filter request is made slow here.
+test("CASH: a slow older list response doesn't replace a newer search result", async () => {
+  const page = await openCashflow("transactions");
+  await page.locator("#cf-list .cf-table").waitFor();
+  await page.route("**/__rpc", async (route) => {
+    const b = JSON.parse(route.request().postData() || "{}");
+    const p = b.args?.p || {};
+    if (b.fn === "cashflow_transactions" && p.source === "offline" && !p.q) await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  await page.selectOption("#cf-f-source", "offline");   // request A (slow)
+  await page.click("#cf-reset");                         // request B (all)
+  await page.fill("#cf-q", "matcha");                    // request C (search), answered before A
+  await page.waitForFunction(() => /Sari/.test(document.querySelector("#cf-list tbody")?.textContent || ""));
+  await page.waitForTimeout(2000);                       // A arrives
+  assert.equal(await page.inputValue("#cf-q"), "matcha");
+  assert.match(await text(page, "#cf-list"), /Sari/, "the list still shows the result for the search that is in the box");
   await page.context().close();
 });
 

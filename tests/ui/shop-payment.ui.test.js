@@ -112,3 +112,62 @@ test("choosing a new delivery location replaces the address; the same spot keeps
   assert.doesNotMatch(await page.inputValue("#cust-addr"), /Pertama/);
   await page.context().close();
 });
+
+// ---------------------------------------------------------------- regressions for QA findings (docs/test-cases-and-automation.docx §4)
+test("PAY: pressing 'Bayar online' again while the first request runs doesn't create a second order", async () => {
+  const page = await openShop();
+  await page.route(/\/functions\/v1\/create-payment$/, async (r) => { await new Promise((s) => setTimeout(s, 1500)); r.fallback(); });
+  const before = (await H.sql("select count(*)::int n from public.orders"))[0].n;
+  await page.locator("[data-pick]").first().click();
+  await page.locator("[data-add]:visible").first().click();
+  await page.locator("[data-open-cart]:visible").first().click();
+  if (await page.locator("#to-checkout").isVisible()) await page.locator("#to-checkout").click();
+  await page.fill("#cust-name", "Dobel");
+  await page.fill("#cust-phone", "081234567890");
+  await page.locator("#pay-btn").click();
+  await page.locator("#cust-addr").type("x");                 // any typing redraws the cart
+  await page.locator("#pay-btn").click({ timeout: 1000 }).catch(() => {});
+  await page.waitForTimeout(3500);
+  const after = (await H.sql("select count(*)::int n from public.orders"))[0].n;
+  assert.equal(after - before, 1, "orders created by one checkout");
+  await page.context().close().catch(() => {});
+});
+
+test("SHOP: a malformed order link still loads the menu", async () => {
+  const page = await H.open("#pesanan/%E0", { uid: null, viewport: PHONE, file: "" });
+  await page.waitForTimeout(2500);
+  assert.ok(await page.locator("[data-pick]").count() > 0, "menu cards shown; page errors: " + JSON.stringify(page.__errors || []));
+  await page.context().close();
+});
+
+test("AUTH: logging out clears the customer's details from the checkout form", async () => {
+  await H.sql("update public.profiles set full_name = 'Rina Pelanggan', phone = '081299998888', address = 'Jl. Rahasia No. 7' where id = $1", [H.CUSTOMER]);
+  const page = await H.open("", { uid: H.CUSTOMER, viewport: PHONE, file: "" });
+  await page.locator("[data-pick]").first().waitFor();
+  await page.waitForFunction(() => document.getElementById("cust-name").value === "Rina Pelanggan");
+  await page.locator("#acct-btn").click();
+  await page.locator("#logout").click();
+  await page.waitForTimeout(800);
+  const left = await page.evaluate(() => ["cust-name", "cust-phone", "cust-addr"].map((id) => document.getElementById(id).value).filter(Boolean));
+  assert.deepEqual(left, [], "details still in the form after logout");
+  await page.context().close();
+});
+
+test("A11Y: closed drawers can't be reached with the keyboard; an open one can (OBS-32)", async () => {
+  const page = await openShop("");
+  const inert = () => page.evaluate(() => [...document.querySelectorAll(".drawer")].map((d) => [d.id, d.inert]));
+  assert.deepEqual(await inert(), [["drawer", true], ["notif", true], ["account", true]]);
+  await page.locator("[data-pick]").first().click();
+  await page.locator("[data-add]:visible").first().click();
+  await page.locator("[data-open-cart]:visible").first().click();
+  await page.waitForFunction(() => document.getElementById("drawer").classList.contains("open"));
+  assert.deepEqual(await inert(), [["drawer", false], ["notif", true], ["account", true]]);
+  await page.context().close();
+});
+
+test("A11Y: sideways-scrolling rows can be focused with the keyboard (OBS-34)", async () => {
+  const page = await openShop("");
+  const rows = await page.evaluate(() => [...document.querySelectorAll(".perks ul, .bottle-row")].map((r) => r.tabIndex));
+  assert.ok(rows.length >= 1 && rows.every((t) => t === 0), "tabIndex of scroll rows: " + JSON.stringify(rows));
+  await page.context().close();
+});

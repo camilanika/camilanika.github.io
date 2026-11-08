@@ -122,7 +122,11 @@ Deno.serve(async (req) => {
 
   // Free order (100% discount): nothing to pay
   if (order.total <= 0) {
-    await admin.rpc("mark_order_paid", { p_order_number: order.order_number, p_payment_ref: null, p_payment_method: "free" });
+    const { error: freeErr } = await admin.rpc("mark_order_paid", { p_order_number: order.order_number, p_payment_ref: null, p_payment_method: "free" });
+    if (freeErr) {   // don't tell the customer it's paid when it isn't (QA review)
+      console.error("free order not marked paid", order.order_number, freeErr.message);
+      return reply({ error: "ORDER_FAILED", detail: "FREE_ORDER_NOT_CONFIRMED" }, 500);
+    }
     return reply({ free: true, order_number: order.order_number, access_token: order.access_token, total: 0 });
   }
 

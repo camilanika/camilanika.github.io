@@ -60,6 +60,15 @@
     return (v < 0 ? "−Rp" : "Rp") + Math.abs(v).toLocaleString("id-ID");
   };
   // Accepts "12500", "12.500", "Rp 12.500". Rejects decimals ("12,5"), negatives and text: returns NaN.
+  // Quantities: whole numbers only, plain ("1000") or Indonesian thousands ("1.000"), like prices.
+  // "1e3", "0x10", "1,5" and decimals are NaN, so the form shows its "jumlah" error. (QA fix OBS-13)
+  function parseQty(input) {
+    if (typeof input === "number") return Number.isInteger(input) ? input : NaN;
+    const s = String(input ?? "").trim();
+    if (/^\d+$/.test(s)) return Number(s);
+    if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ""));
+    return NaN;
+  }
   function parseRupiah(input) {
     if (typeof input === "number") return Number.isInteger(input) && input >= 0 ? input : NaN;
     const s = String(input ?? "").replace(/^\s*rp\.?\s*/i, "").replace(/\s+/g, "");
@@ -85,7 +94,7 @@
     const errors = [];
     let subtotal = 0, itemDiscount = 0;
     const lines = (items || []).map((it, i) => {
-      const q = Number(it.quantity), price = parseRupiah(it.unit_price), disc = it.discount === "" || it.discount == null ? 0 : parseRupiah(it.discount);
+      const q = parseQty(it.quantity), price = parseRupiah(it.unit_price), disc = it.discount === "" || it.discount == null ? 0 : parseRupiah(it.discount);
       const row = i + 1;
       if (!it.variant_id && !it.product_id && !String(it.product_name || "").trim()) errors.push(`Baris ${row}: pilih menu atau isi nama item.`);
       if (!Number.isInteger(q) || q < 1 || q > 10000) errors.push(`Baris ${row}: jumlah harus angka bulat 1–10.000.`);
@@ -182,5 +191,5 @@
   return { TZ, PRESETS, jakartaDate, addDays, isYmd, presetRange, validateRange, rangeLabel, dayLabel,
     wibInputToIso, isoToWibInput, nowWibInput, fmtWib, formatRp, parseRupiah, MAX_AMOUNT,
     SOURCE, PAYMENT, TX_SOURCE, CLASS, paymentLabel, offlinePreview, validateOfflineHeader, validateExpense,
-    ERRORS, errorText, newToken };
+    ERRORS, errorText, newToken, parseQty };
 });

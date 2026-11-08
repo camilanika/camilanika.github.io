@@ -27,11 +27,17 @@ async function asUser(pool, uid, fn) {
   } catch (e) { await c.query("rollback").catch(() => {}); throw e; } finally { c.release(); }
 }
 
+const returnsSet = new Map();   // function name -> returns a set of rows (like supabase-js, those come back as an array)
 async function handleRpc(pool, { fn, args, uid }) {
   const names = Object.keys(args);
-  const sql = `select ${ident("public")}.${ident(fn)}(${names.map((n, i) => `${ident(n)} => $${i + 1}`).join(", ")}) as r`;
+  const call = `${ident("public")}.${ident(fn)}(${names.map((n, i) => `${ident(n)} => $${i + 1}`).join(", ")})`;
   const vals = names.map((n) => (args[n] !== null && typeof args[n] === "object" ? JSON.stringify(args[n]) : args[n]));
-  return asUser(pool, uid, async (c) => (await c.query(sql, vals)).rows[0].r);
+  if (!returnsSet.has(fn)) {
+    const { rows } = await pool.query("select bool_or(proretset) s from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = $1", [fn]);
+    returnsSet.set(fn, !!rows[0].s);
+  }
+  if (returnsSet.get(fn)) return asUser(pool, uid, async (c) => (await c.query(`select * from ${call}`, vals)).rows);
+  return asUser(pool, uid, async (c) => (await c.query(`select ${call} as r`, vals)).rows[0].r);
 }
 
 async function handleSelect(pool, { q, uid }) {
