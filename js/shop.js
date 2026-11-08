@@ -1638,7 +1638,7 @@
   if (ONLINE && CFG.ONLINE_PAYMENT === "test") {
     const b = document.createElement("div");
     b.textContent = "MODE TES · pembayaran online (Sandbox) aktif · buka ?test=0 untuk keluar";
-    b.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9999;background:#b45309;color:#fff;font:600 12px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:8px;opacity:.92;pointer-events:none";
+    b.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9999;background:#b45309;color:#fff;font:600 12px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:8px;pointer-events:none";
     document.body.appendChild(b);
   }
   if (!ONLINE) {

@@ -19,10 +19,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&family=Pacifico&display=swap">
 <style>
+/* Colours (OBS-33): --rose, --caramel and --wa are dark enough for WCAG AA text (4.5:1) on the cream and paper
+   backgrounds and under white button text; --rose-bright is the original brand rose: the logo (exempt) and large text on the dark brown promo band (3:1 is enough there). */
 /* Layout: warm label-paper storefront — photo-led hero, menu as bottle labels, sticky cart that writes the WhatsApp order */
 :root{
   --bg:#FBF3EA; --paper:#FFFAF4; --fg:#4A2A1C; --muted:#7D5F52; --line:#EBD7C8;
-  --rose:#D9586F; --rose-ink:#FFFFFF; --rose-soft:#FBE1E6; --caramel:#B9763A; --wa:#1F9D55; --go:#D9232B;
+  --rose:#B63853; --rose-bright:#D9586F; --rose-ink:#FFFFFF; --rose-soft:#FBE1E6; --caramel:#A05F20; --wa:#187A42; --go:#D9232B;
   --matcha:#6E9A3E; --berry:#8E4EA8; --ocean:#2F7FA8; --charcoal:#5B4A42;
   --shadow:0 10px 30px -12px rgba(74,42,28,.28);
   --f-display:"Baloo 2","Nunito",system-ui,sans-serif;
@@ -78,7 +80,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:co
 .brand{display:flex;align-items:center;gap:.6rem;text-decoration:none}
 .brand img{width:46px;height:46px;border-radius:50%;object-fit:cover}
 .brand span{font-family:var(--f-script);font-size:1.35rem;line-height:1}
-.brand b{color:var(--rose);font-weight:400}
+.brand b{color:var(--rose-bright);font-weight:400}
 .nav nav{display:flex;gap:1.3rem;margin-left:auto;font-weight:700}
 .nav nav a{text-decoration:none}
 .nav nav a:hover{color:var(--rose)}
@@ -222,7 +224,7 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 
 /* promo */
 .promo{display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:center;background:var(--fg);color:var(--bg);border-radius:28px;padding:clamp(1.4rem,3vw,2.2rem)}
-.promo .big{font-family:var(--f-display);font-weight:800;font-size:clamp(2.4rem,6vw,3.6rem);line-height:1;color:var(--rose)}
+.promo .big{font-family:var(--f-display);font-weight:800;font-size:clamp(2.4rem,6vw,3.6rem);line-height:1;color:var(--rose-bright)}
 .promo p{opacity:.85;max-width:52ch}
 .promo h3{font-size:1.6rem;margin-bottom:.35rem}
 @media (max-width:760px){.promo{grid-template-columns:1fr}}
@@ -889,7 +891,7 @@ body.sheet-open{overflow:hidden}
 
 <script src="js/config.js?v=202611051022"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202611082030"></script>
+<script src="js/shop.js?v=202611082130"></script>
 
 </body>
 </html>
