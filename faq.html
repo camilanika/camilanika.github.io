@@ -65,9 +65,18 @@ footer{border-top:1px solid var(--line);padding-block:1.5rem 3rem;color:var(--mu
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1rem 1.2rem}
 .card h3{margin:0 0 .3rem}
 .card p{margin:.2rem 0}
-.policy-nav{display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin-bottom:.6rem}
+.foot-bottom{display:grid;grid-template-columns:auto auto 1fr;gap:1.5rem 3rem;align-items:start}
+.foot-label{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.foot-links{display:grid;gap:.5rem;align-content:start}
+.foot-links ul{list-style:none;margin:0;padding:0;display:grid;gap:.35rem}
+.foot-links a{color:var(--fg);text-decoration:none}
+.foot-links a:hover{color:var(--rose);text-decoration:underline}
+.foot-links a[aria-current]{color:var(--rose)}
+.foot-legal{justify-self:end;text-align:right;display:grid;gap:.5rem}
+.foot-legal p{margin:0}
+.foot-legal a{color:var(--muted);overflow-wrap:anywhere}
+@media (max-width:40rem){.foot-bottom{grid-template-columns:1fr 1fr}.foot-legal{grid-column:1/-1;justify-self:stretch;text-align:left;border-top:1px solid var(--line);padding-top:1rem}}
 .contact a[href^="mailto"],.card a[href^="mailto"]{overflow-wrap:anywhere}
-.policy-nav a[aria-current]{color:var(--fg);text-decoration:none}
 </style>
 </head>
 <body>
@@ -176,9 +185,13 @@ footer{border-top:1px solid var(--line);padding-block:1.5rem 3rem;color:var(--mu
 </main>
 
 <footer>
-  <div class="wrap">
-    <nav class="policy-nav" aria-label="Informasi toko"><a href="faq.html" aria-current="page">FAQ</a> <a href="refund.html">Kebijakan Pengembalian</a> <a href="terms.html">Syarat &amp; Ketentuan</a> <a href="privacy.html">Kebijakan Privasi</a> <a href="contact.html">Kontak</a></nav>
-    © 2026 CamilaNika · <a href="./">Kembali ke toko</a>
+  <div class="wrap foot-bottom">
+    <nav class="foot-links" aria-label="Bantuan"><span class="foot-label">Bantuan</span><ul><li><a href="faq.html" aria-current="page">FAQ</a></li><li><a href="./#cara-order">Cara order</a></li><li><a href="contact.html">Hubungi kami</a></li></ul></nav>
+    <nav class="foot-links" aria-label="Kebijakan"><span class="foot-label">Kebijakan</span><ul><li><a href="refund.html">Pengembalian dana</a></li><li><a href="terms.html">Syarat &amp; ketentuan</a></li><li><a href="privacy.html">Privasi</a></li></ul></nav>
+    <div class="foot-legal">
+      <p>Buka setiap hari · 10.00–20.00 WIB<br><a href="mailto:camilanika.shop@gmail.com">camilanika.shop@gmail.com</a></p>
+      <p>© 2026 CamilaNika Foods &amp; Drinks</p>
+    </div>
   </div>
 </footer>
 </body>

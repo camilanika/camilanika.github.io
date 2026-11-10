@@ -283,7 +283,27 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
 .tile-go{font-size:1.5rem;font-weight:800;color:var(--muted);line-height:1}
 .t-wa{--tile:var(--wa)} .t-go{--tile:var(--go)} .t-map{--tile:var(--rose)} .t-ig{--tile:#C13584}
 @media (prefers-reduced-motion:reduce){.tile{transition:none}.tile:hover{transform:none}}
-.foot-copy{margin-top:2rem;color:var(--muted);font-size:.85rem;font-weight:700}
+.foot-facts{list-style:none;margin:.2rem 0 0;padding:0;display:grid;gap:.45rem;color:var(--muted);font-weight:700;font-size:.92rem}
+.foot-facts li{display:flex;align-items:center;gap:.55rem;min-width:0}
+.foot-facts svg{width:18px;height:18px;flex:none;color:var(--rose)}
+.foot-facts a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;overflow-wrap:anywhere}
+.foot-facts a:hover{color:var(--rose)}
+.foot-bottom{display:grid;grid-template-columns:auto auto 1fr;gap:1.5rem 4rem;align-items:start;margin-top:2.5rem;padding-top:2rem;border-top:1px solid var(--line)}
+.foot-links{display:grid;gap:.6rem;align-content:start}
+.foot-links ul{list-style:none;margin:0;padding:0;display:grid;gap:.45rem}
+.foot-links a{color:var(--fg);font-weight:700;font-size:.95rem;text-decoration:none}
+.foot-links a:hover{color:var(--rose);text-decoration:underline;text-underline-offset:3px}
+.foot-links a:focus-visible,.foot-facts a:focus-visible{outline:3px solid var(--rose);outline-offset:2px;border-radius:4px}
+.foot-legal{justify-self:end;text-align:right;display:grid;gap:.5rem;align-content:start}
+.foot-legal p{margin:0}
+.foot-pay{display:inline-flex;align-items:center;justify-content:flex-end;gap:.4rem;color:var(--muted);font-size:.85rem;font-weight:700}
+.foot-pay svg{width:16px;height:16px;flex:none}
+.foot-copy{color:var(--muted);font-size:.85rem;font-weight:700;line-height:1.5}
+@media (max-width:760px){
+  .foot-bottom{grid-template-columns:1fr 1fr;gap:1.6rem 1.5rem}
+  .foot-legal{grid-column:1/-1;justify-self:stretch;text-align:left;padding-top:1.2rem;border-top:1px solid var(--line)}
+  .foot-pay{justify-content:flex-start}
+}
 .foot-copy a,.pay-note a,.form-msg a{color:var(--rose);text-decoration:underline;text-underline-offset:2px}
 .foot .tagline{font-family:var(--f-script);font-size:1.6rem;color:var(--rose)}
 .phone{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
@@ -768,6 +788,10 @@ body.sheet-open{overflow:hidden}
       <a class="brand" href="#top"><img src="img/logo.jpg" alt=""><span>Camila<b>Nika</b></span></a>
       <p class="tagline">Cinta rasa Nika untuk kita</p>
       <span class="promo-msg">Free delivery area Bukit Cimanggu City</span>
+      <ul class="foot-facts">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Buka setiap hari · 10.00–20.00 WIB</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><a href="mailto:camilanika.shop@gmail.com">camilanika.shop@gmail.com</a></li>
+      </ul>
       <div class="phone"><code id="phone">0813-6897-6966</code><button class="copy" type="button" id="copy-phone">Salin nomor</button></div>
     </div>
     <div class="foot-col">
@@ -781,7 +805,20 @@ body.sheet-open{overflow:hidden}
       <a class="tile t-ig" href="https://www.instagram.com/camilanika.food" target="_blank" rel="noopener"><span class="tile-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></span><span class="tile-tx"><b>@camilanika.food</b><small>Ikuti kami di Instagram</small></span><span class="tile-go" aria-hidden="true">›</span></a>
     </div>
   </div>
-  <p class="wrap foot-copy">© <span id="foot-year">2026</span> CamilaNika Foods &amp; Drinks · <a href="faq.html">FAQ</a> · <a href="refund.html">Kebijakan Pengembalian</a> · <a href="terms.html">Syarat &amp; Ketentuan</a> · <a href="privacy.html">Kebijakan Privasi</a> · <a href="contact.html">Kontak</a></p>
+  <div class="wrap foot-bottom">
+    <nav class="foot-links" aria-label="Bantuan">
+      <span class="opt-label">Bantuan</span>
+      <ul><li><a href="faq.html">FAQ</a></li><li><a href="#cara-order">Cara order</a></li><li><a href="contact.html">Hubungi kami</a></li></ul>
+    </nav>
+    <nav class="foot-links" aria-label="Kebijakan">
+      <span class="opt-label">Kebijakan</span>
+      <ul><li><a href="refund.html">Pengembalian dana</a></li><li><a href="terms.html">Syarat &amp; ketentuan</a></li><li><a href="privacy.html">Privasi</a></li></ul>
+    </nav>
+    <div class="foot-legal">
+      <p class="foot-pay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Pembayaran aman via iPaymu · QRIS, e-wallet, VA</p>
+      <p class="foot-copy">© <span id="foot-year">2026</span> CamilaNika Foods &amp; Drinks<br>Bukit Cimanggu City, Kota Bogor</p>
+    </div>
+  </div>
 </footer>
 
 <!-- shows only while the cart has items -->
