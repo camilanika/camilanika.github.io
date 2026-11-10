@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" href="img/logo-192.png">
+<title>Kebijakan Pengembalian · CamilaNika</title>
+<meta name="description" content="Ketentuan pembatalan pesanan, keluhan produk, dan pengembalian dana di CamilaNika.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Same paper palette and type as the shop (index.html); a single reading column */
+:root{
+  --bg:#FBF3EA; --paper:#FFFAF4; --fg:#4A2A1C; --muted:#7D5F52; --line:#EBD7C8;
+  --rose:#B63853; --rose-bright:#D9586F; --rose-soft:#FBE1E6; --caramel:#A05F20; --wa:#187A42;
+  --f-display:"Baloo 2","Nunito",system-ui,sans-serif;
+  --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body)}
+a{color:var(--rose);font-weight:700}
+a:focus-visible{outline:3px solid var(--caramel);outline-offset:2px;border-radius:4px}
+.wrap{max-width:46rem;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{border-bottom:1px solid var(--line);background:var(--paper)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-block:.8rem}
+.brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--fg);font:800 1.3rem/1 var(--f-display)}
+.brand img{width:36px;height:36px;border-radius:50%}
+.brand b{color:var(--rose-bright)}
+.back{font-size:.95rem}
+main{padding-block:2rem 4rem}
+h1{font:800 clamp(1.9rem,5vw,2.5rem)/1.15 var(--f-display);margin:0 0 .4rem;text-wrap:balance}
+h2{font:700 1.35rem/1.25 var(--f-display);margin:2.4rem 0 .6rem;text-wrap:balance}
+h3{font:700 1.05rem/1.3 var(--f-body);margin:1.4rem 0 .3rem}
+p,ul{margin:.5rem 0}
+ul{padding-left:1.25rem}
+li{margin:.25rem 0}
+.meta{color:var(--muted);font-size:.95rem}
+.summary{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1rem 1.2rem;margin-top:1.4rem}
+.summary ul{margin:.3rem 0 0}
+.tbl{overflow-x:auto;margin:.8rem 0;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;min-width:34rem;font-size:.93rem}
+th,td{text-align:left;vertical-align:top;padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-weight:800;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.contact{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;background:var(--rose-soft);border-radius:14px;padding:1rem 1.2rem;margin-top:.8rem}
+.contact code{font:800 1.1rem var(--f-body);background:var(--paper);padding:.2rem .5rem;border-radius:8px}
+.btn-wa{display:inline-flex;align-items:center;gap:.4rem;background:var(--wa);color:#fff;text-decoration:none;padding:.5rem .9rem;border-radius:999px}
+@media (max-width:40rem){
+  .tbl{overflow:visible;border:0;background:none}
+  table{min-width:0}
+  thead{display:none}
+  table,tbody,tr,td{display:block}
+  tr{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:.4rem .2rem;margin-bottom:.7rem}
+  td{border:0;padding:.3rem .75rem}
+  td::before{content:attr(data-label);display:block;font-weight:800;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+}
+footer{border-top:1px solid var(--line);padding-block:1.5rem 3rem;color:var(--muted);font-size:.9rem}
+
+.faq details{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:.2rem 1rem;margin:.6rem 0}
+.faq summary{cursor:pointer;font-weight:800;padding:.7rem 0;list-style-position:inside}
+.faq details[open] summary{border-bottom:1px solid var(--line);margin-bottom:.4rem}
+.faq details > :last-child{margin-bottom:.8rem}
+.cards{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));margin-top:1.2rem}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1rem 1.2rem}
+.card h3{margin:0 0 .3rem}
+.card p{margin:.2rem 0}
+.policy-nav{display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin-bottom:.6rem}
+.policy-nav a[aria-current]{color:var(--fg);text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="img/logo.jpg" alt=""><span>Camila<b>Nika</b></span></a>
+    <a class="back" href="./">← Kembali ke toko</a>
+  </div>
+</header>
+
+<main class="wrap">
+<h1>Kebijakan Pengembalian Dana</h1>
+  <p class="meta">Berlaku sejak 10 November 2026 · Berlaku untuk pesanan di camilanika.github.io dan via WhatsApp</p>
+
+  <div class="summary">
+    <b>Singkatnya</b>
+    <ul>
+      <li>Belum bayar? Tidak ada yang ditagih. Pesanan batal otomatis setelah 60 menit.</li>
+      <li>Sudah bayar tapi belum disiapkan? Bisa dibatalkan dan uang kembali 100%.</li>
+      <li>Produk salah, kurang, rusak, atau tidak layak? Lapor maksimal 24 jam setelah diterima, sertakan foto, dan kami ganti atau kembalikan dana.</li>
+      <li>Dana dikembalikan paling lambat 7 hari kerja setelah pengembalian disetujui.</li>
+    </ul>
+  </div>
+
+  <h2 id="batal">Pembatalan pesanan</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Status pesanan</th><th>Bisa dibatalkan?</th><th>Pengembalian dana</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Status pesanan">Menunggu pembayaran</td><td data-label="Bisa dibatalkan?">Ya, cukup tidak dibayar. Batal otomatis setelah 60 menit.</td><td data-label="Pengembalian dana">Tidak ada dana yang ditagih</td></tr>
+      <tr><td data-label="Status pesanan">Sudah dibayar (belum disiapkan)</td><td data-label="Bisa dibatalkan?">Ya, lewat WhatsApp</td><td data-label="Pengembalian dana">100% dari total yang dibayar</td></tr>
+      <tr><td data-label="Status pesanan">Sedang disiapkan, siap diantar, atau sedang diantar</td><td data-label="Bisa dibatalkan?">Tidak, karena produk dibuat fresh khusus untuk pesananmu</td><td data-label="Pengembalian dana">Tidak ada, kecuali karena kesalahan kami (lihat di bawah)</td></tr>
+      <tr><td data-label="Status pesanan">Selesai</td><td data-label="Bisa dibatalkan?">Tidak</td><td data-label="Pengembalian dana">Hanya untuk keluhan produk yang memenuhi syarat</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="kami-batalkan">Jika kami yang membatalkan</h2>
+  <p>Kami mengembalikan <b>100% dana</b> yang sudah kamu bayar, termasuk ongkir, jika pesanan tidak bisa kami penuhi, misalnya karena produk habis, toko tutup mendadak, atau lokasi ternyata di luar jangkauan antar. Kami akan menghubungimu lewat WhatsApp untuk menawarkan pengganti atau mengembalikan dana.</p>
+
+  <h2 id="keluhan">Keluhan produk</h2>
+  <p>Kami mengganti produk atau mengembalikan dana jika:</p>
+  <ul>
+    <li>produk yang diterima tidak sesuai pesanan (rasa, ukuran, atau isian salah);</li>
+    <li>jumlah produk kurang;</li>
+    <li>kemasan bocor, tumpah, atau rusak saat diterima;</li>
+    <li>produk basi atau tidak layak konsumsi saat diterima.</li>
+  </ul>
+  <p>Syaratnya:</p>
+  <ul>
+    <li>lapor lewat WhatsApp paling lambat <b>24 jam</b> setelah pesanan diterima;</li>
+    <li>sebutkan nomor pesanan (CN-…) dan sertakan foto atau video produk serta kemasannya;</li>
+    <li>produk sudah disimpan sesuai petunjuk (minuman: suhu ruang maksimal 24 jam atau di kulkas; cireng frozen: di freezer).</li>
+  </ul>
+  <p>Pengembalian tidak berlaku untuk perubahan selera, produk yang rusak karena penyimpanan yang tidak sesuai setelah diterima, atau keterlambatan karena alamat atau nomor WhatsApp yang diisi tidak lengkap atau salah.</p>
+
+  <h2 id="proses">Cara dan lama pengembalian dana</h2>
+  <ol>
+    <li>Hubungi kami lewat WhatsApp dengan nomor pesanan dan alasan pengembalian.</li>
+    <li>Kami memeriksa dan memberi jawaban paling lambat 1 x 24 jam.</li>
+    <li>Jika disetujui, kamu bisa memilih <b>produk pengganti</b> atau <b>pengembalian dana</b>.</li>
+    <li>Dana dikembalikan lewat transfer bank atau e-wallet atas nama pemesan, paling lambat <b>7 hari kerja</b> setelah disetujui. Untuk sebagian kasus, dana bisa dikembalikan melalui iPaymu ke metode pembayaran awal.</li>
+  </ol>
+  <p>Biaya transfer pengembalian ditanggung CamilaNika. Pengembalian sebagian (untuk sebagian item) dihitung sesuai harga item setelah diskon.</p>
+
+  <h2 id="voucher">Promo, voucher, dan poin</h2>
+  <p>Jika pesanan yang memakai voucher dibatalkan sebelum disiapkan, vouchernya dikembalikan ke akunmu selama masih berlaku. Poin loyalti dari pesanan yang dibatalkan atau dikembalikan dananya akan dikurangi. Produk gratis dari promo tidak bisa ditukar dengan uang.</p>
+
+  <h2 id="gofood">Pesanan lewat GoFood</h2>
+  <p>Pembatalan dan pengembalian dana untuk pesanan GoFood mengikuti ketentuan Gojek dan diajukan lewat aplikasi Gojek. Kami tetap senang membantu jika kamu menghubungi kami.</p>
+
+  <h2 id="kontak">Ajukan pengembalian</h2>
+  <div class="contact">
+    <span>WhatsApp CamilaNika:</span>
+    <code>0813-6897-6966</code>
+    <a class="btn-wa" href="https://wa.me/6281368976966?text=Halo%20CamilaNika%2C%20saya%20mau%20tanya" target="_blank" rel="noopener">WhatsApp</a>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav class="policy-nav" aria-label="Informasi toko"><a href="faq.html">FAQ</a> <a href="refund.html" aria-current="page">Kebijakan Pengembalian</a> <a href="terms.html">Syarat &amp; Ketentuan</a> <a href="privacy.html">Kebijakan Privasi</a> <a href="contact.html">Kontak</a></nav>
+    © 2026 CamilaNika · <a href="./">Kembali ke toko</a>
+  </div>
+</footer>
+</body>
+</html>
