@@ -119,9 +119,9 @@ update public.shop_settings set
   menu_highlights = array['Tanpa pengawet, dibuat fresh setiap hari', 'Free delivery area Bukit Cimanggu City']
  where id = 1 and menu_intro is null;
 
--- gallery: the photos of the old per-menu showcases, in menu order (only if the gallery is still empty)
+-- gallery: the photos of the old per-menu showcases, drinks first, then cireng (only if the gallery is still empty)
 update public.shop_settings set gallery = coalesce((
-    select jsonb_agg(jsonb_strip_nulls(jsonb_build_object('url', i->>'url', 'caption', i->>'caption', 'alt', coalesce(i->>'alt', i->>'caption'))) order by c.sort_order, c.id, o.n)
+    select jsonb_agg(jsonb_strip_nulls(jsonb_build_object('url', i->>'url', 'caption', i->>'caption', 'alt', coalesce(i->>'alt', i->>'caption'))) order by (c.slug = 'minuman') desc, c.sort_order, c.id, o.n)
       from public.menu_categories c, jsonb_array_elements(c.showcase_images) with ordinality o(i, n)
      where coalesce(i->>'url', '') <> ''), '[]'::jsonb)
  where id = 1 and gallery = '[]'::jsonb;
