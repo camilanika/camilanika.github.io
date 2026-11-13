@@ -85,7 +85,8 @@
   let menu = { products: [], promotions: [] };
   // storefront sections (migration 020, get_storefront): pakets, testimonials, best sellers. Empty when not available,
   // so the shop works the same as before without them.
-  const NO_FRONT = { bundles: [], testimonials: [], best_sellers: [], testi: {}, paket: {} };
+  const NO_FRONT = { bundles: [], testimonials: [], best_sellers: [], testi: {}, paket: {}, series: [], menu: {}, gallery: [] };
+  const seriesOf = (id) => front.series.find((x) => x.id === +id);
   let front = NO_FRONT;
   const bundleOf = (id) => front.bundles.find((b) => b.id === +id);
   let size = "M";
@@ -155,7 +156,7 @@
   let menuFilter = "all";
   const shortName = (s) => s.name.replace(/ Series$/, "");
   function menuHTML(cats) {
-    const secs = cats.flatMap((c) => c.sections.map((s) => ({ ...s, cat: c })));
+    const secs = seriesList(cats);
     const tabs = [`<button type="button" class="mf" data-filter="all" aria-pressed="true">Semua</button>`,
       ...secs.map((s) => `<button type="button" class="mf" data-filter="${esc(s.slug)}" aria-pressed="false">${s.icon ? esc(s.icon) + " " : ""}${esc(shortName(s))}</button>`)];
     const cards = secs.flatMap((s) => s.products.map((p) => cardHTML(p).replace('<article class="pcard"',
@@ -180,13 +181,24 @@
     const sec = id.startsWith("sub-") && cats.some((c) => c.sections.some((s) => s.slug === id.slice(4))) ? id.slice(4) : null;
     return sec || (cats.some((c) => c.slug === id) ? id : null);
   };
+  // the menu is grouped by series only (migration 021): one list in the order set in Admin → Series
+  const seriesList = (cats) => cats.flatMap((c) => c.sections.map((s) => ({ ...s, cat: c, ...(seriesOf(s.id) ? { order: seriesOf(s.id).sort_order } : {}) })))
+    .map((s, i) => ({ ...s, order: s.order ?? 1e6 + i })).sort((a, b) => a.order - b.order);
+  // the text under the tabs: the "Semua" description, or the chosen series' description, info lines and labels
   function filterInfo(f) {
     const cats = renderMenu.cats || [];
-    const cat = cats.find((c) => c.slug === f || c.sections.some((s) => s.slug === f));
-    if (!cat || f === "all") return "";
-    const sec = cat.sections.find((s) => s.slug === f);
-    const lead = sec ? sec.tagline : cat.description;
-    return `<div><b>${esc(sec ? shortName(sec) : cat.name)}</b>${lead ? ` <span>${esc(lead)}</span>` : ""}</div>${infoHTML(cat)}`;
+    if (f === "all") {
+      const m = front.menu || {};
+      return m.intro || (m.highlights || []).length ? `<div><b>Semua menu</b>${m.intro ? ` <span>${esc(m.intro)}</span>` : ""}</div>${infoHTML(m)}` : "";
+    }
+    const sec = seriesList(cats).find((s) => s.slug === f);
+    if (sec) {
+      const d = seriesOf(sec.id) || {};
+      const lead = d.description || sec.tagline;
+      return `<div><b>${esc(shortName(sec))}</b>${lead ? ` <span>${esc(lead)}</span>` : ""}</div>${infoHTML(d)}`;
+    }
+    const cat = cats.find((c) => c.slug === f);   // old links like #minuman
+    return cat ? `<div><b>${esc(cat.name)}</b>${cat.description ? ` <span>${esc(cat.description)}</span>` : ""}</div>` : "";
   }
   function applyFilter(f, scroll) {
     if ($("sb-search") && !$("sb-search").hidden) closeSearch(true);
@@ -281,7 +293,7 @@
     const keep = cats.some((c) => c.slug === menuFilter || c.sections.some((s) => s.slug === menuFilter)) ? menuFilter : "all";
     root.innerHTML = menuHTML(cats);
     indexSearch();
-    $("nav-menus").innerHTML = (front.bundles.length ? '<a href="#paket-hemat">Paket</a>' : "") + cats.map((c) => `<a href="#${esc(c.slug)}">${esc(c.name)}</a>`).join("");
+    $("nav-menus").innerHTML = (front.bundles.length ? '<a href="#paket-hemat">Paket</a>' : "") + '<a href="#menu-lengkap">Menu</a>';
     $("see-menu").href = "#menu-lengkap";
     navLinks = [];
     refreshCards();
@@ -298,18 +310,17 @@
 
   const productById = (id) => menu.products.find((p) => p.id === +id);
 
-  // ---- storefront sections: category shortcuts, best sellers, Paket Hemat, Testimoni (all hidden when empty)
-  const SOURCES = { instagram: "Instagram", whatsapp: "WhatsApp", gofood: "GoFood", google: "Google", lainnya: "" };
+  // ---- storefront sections: photo gallery, best sellers, Paket Hemat, Testimoni (all hidden when empty)
+  const SOURCES = { instagram: "Instagram", whatsapp: "WhatsApp", google: "Google", lainnya: "" };
   const safeUrl = (u) => (/^https:\/\//i.test(String(u || "")) || /^img\//.test(String(u || "")) ? String(u) : "");
   function renderStorefront() {
-    const cats = renderMenu.cats || [];
-    // category shortcuts: one round photo per submenu (its first product with a photo), Paket first
-    const pills = [];
     const bundles = front.bundles.filter((b) => productById(b.id));
-    if (bundles.length) pills.push({ href: "#paket-hemat", name: "Paket", img: bundles.find((b) => b.image_url)?.image_url });
-    cats.forEach((c) => c.sections.forEach((s) => pills.push({ href: "#sub-" + s.slug, name: s.name.replace(/ Series$/, ""), img: s.products.find((p) => p.image_url)?.image_url })));
-    $("cp-row").innerHTML = pills.map((x) => `<a class="cp" href="${esc(x.href)}"><i aria-hidden="true">${safeUrl(x.img) ? `<img src="${esc(safeUrl(x.img))}" alt="" loading="lazy" onerror="this.remove()">` : esc(x.name.charAt(0))}</i>${esc(x.name)}</a>`).join("");
-    $("cat-pills").hidden = pills.length < 2;
+    // photo gallery (Admin → Series → Galeri foto): scrolls by itself; the second copy only makes the loop seamless
+    const pics = (Array.isArray(front.gallery) ? front.gallery : []).filter((g) => safeUrl(g?.url));
+    const fig = (g, copy) => `<figure class="gal-item"${copy ? ' aria-hidden="true"' : ""}><img src="${esc(safeUrl(g.url))}" alt="${copy ? "" : esc(g.alt || g.caption || "Foto CamilaNika")}" loading="lazy" onerror="this.closest('figure').remove()">${g.caption ? `<figcaption>${esc(g.caption)}</figcaption>` : ""}</figure>`;
+    $("gallery").hidden = pics.length < 2;
+    $("gal-track").style.setProperty("--gal-time", Math.max(20, pics.length * 5) + "s");
+    $("gal-track").innerHTML = pics.length < 2 ? "" : pics.map((g) => fig(g, false)).join("") + pics.map((g) => fig(g, true)).join("");
 
     // best sellers (most sold in the last 30 days, real paid orders): shown once there are at least 2
     const best = (front.best_sellers || []).map((id) => productById(id)).filter(Boolean);
@@ -1798,7 +1809,7 @@
     renderMenu(); renderStorefront(); renderPromo(); renderCart();
   }
 
-  // Online payment can be switched off in config.js (WhatsApp / GoFood ordering still works)
+  // Online payment can be switched off in config.js (WhatsApp ordering still works)
   if (ONLINE && CFG.ONLINE_PAYMENT === "test") {
     const b = document.createElement("div");
     b.textContent = "MODE TES · pembayaran online (Sandbox) aktif · buka ?test=0 untuk keluar";
