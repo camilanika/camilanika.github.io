@@ -44,3 +44,12 @@ else echo "FAIL   | after 018 alone the live admin page would break: $mid"; exit
 # loyalty programme (migrations 012, 013): milestones, repeats, refunds, recurring tiers, ongkir, permissions
 bash tests/db/build.sh cn_test >/dev/null
 psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/loyalty_test.sql
+# voucher policy (OBS-39, QA run INSP-5): the database keeps a used voucher when a paid order is cancelled, and
+# refund.html says so (it used to promise the voucher back)
+if grep -q "tidak dikembalikan, termasuk jika pesanan itu dibatalkan" refund.html; then
+  echo "PASS   | OBS-39 refund.html says a voucher used on a paid order is not returned"
+else
+  echo "FAIL   | OBS-39 refund.html no longer says what the database does with vouchers of cancelled orders"; exit 1
+fi
+bash tests/db/build.sh cn_test >/dev/null
+psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/voucher_policy_test.sql

@@ -8,6 +8,20 @@ RewriteCond %{HTTP_HOST} ^www\. [NC]
 RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
 RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
 
+# Security headers (QA fix OBS-41, OWASP HTTP Headers Cheat Sheet). Hostinger's CDN adds its own
+# "Content-Security-Policy: upgrade-insecure-requests"; browsers apply both policies.
+#   HSTS: HTTPS only for a year (no includeSubDomains, so other subdomains aren't affected)
+#   frame-ancestors / X-Frame-Options: only this site may frame its pages (clickjacking; the bill prints from a same-origin frame)
+#   nosniff: scripts and styles are only used with their real type (so .js is declared as text/javascript below)
+AddType text/javascript .js
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Content-Security-Policy "frame-ancestors 'self'"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
 # Repo-only files: not part of the public website
 RedirectMatch 404 ^/(\.git|supabase|tests|docs)(/|$)
 RedirectMatch 404 \.(md|sql|ts)$

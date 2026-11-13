@@ -38,7 +38,7 @@ The website is hosted on Hostinger at https://camilanika.store (deployed from th
    - `IPAYMU_VA`: your iPaymu **VA** number (the Sandbox one while testing)
    - `IPAYMU_API_KEY`: your iPaymu **API Key** (the Sandbox one while testing)
    - `IPAYMU_IS_PRODUCTION`: `false` (change to `true` when you go live)
-   - `ALLOWED_ORIGINS`: `https://camilanika.store`
+   - `ALLOWED_ORIGINS`: `https://camilanika.store` (only this one: the old camilanika.github.io site is gone, so remove it if it is still listed)
    - `SITE_URL`: `https://camilanika.store/`
    The old `MIDTRANS_*` secrets and the **midtrans-webhook** function are no longer used and can be deleted once no Midtrans orders are pending.
 
@@ -63,6 +63,7 @@ Open `https://camilanika.store/admin.html`.
 2. Put the **Live** VA and API Key in the secrets and set `IPAYMU_IS_PRODUCTION=true`.
 3. Set the Live callback URL in the iPaymu dashboard to the same webhook address.
 4. iPaymu Production only accepts API calls from a **registered IP**, and Supabase Edge Functions don't have a fixed one. So the functions send their signed iPaymu requests through `api/ipaymu.php` on Hostinger: add the secret `IPAYMU_RELAY_URL` = `https://camilanika.store/api/ipaymu.php`, and register Hostinger's outgoing IP in iPaymu → Integrasi → Kelola IP (open `https://camilanika.store/api/ipaymu.php?ip=1` to see it; currently `195.35.62.161`). The relay holds no keys and only forwards to iPaymu's payment and transaction APIs.
+   So that only the shop's own iPaymu account can use the relay, create the file `ipaymu-relay.php` in the Hostinger home folder, one level **above** `public_html` (Hostinger → File Manager), with your VA numbers: `<?php return ['va' => ['<Live VA>', '<Sandbox VA>']];`. It stays out of the public repo. Until the file exists, the relay forwards every account and adds an `X-Relay-Warning` header to its answers.
 5. Upgrade Supabase to Pro, which gives you backups and stops the project from being paused.
 
 ## How things work

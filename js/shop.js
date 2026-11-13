@@ -714,14 +714,22 @@
 
   const showErr = (msg) => { $("cart-err").hidden = !msg; $("cart-err").textContent = msg || ""; };
 
-  let quoteTimer = null;
+  let quoteTimer = null, quoteSeq = 0;
   function scheduleQuote() { clearTimeout(quoteTimer); quoteTimer = setTimeout(runQuote, 350); }
+  // Only the newest answer may change the cart (QA fix OBS-40): a newer quote, the automatic voucher choice,
+  // another code or a changed cart make an older answer stale, so a slow quote can't overwrite the total.
   async function runQuote(strictCode = false) {
+    const seq = ++quoteSeq;
     if (!cart.length) { quote = null; showErr(""); renderCart(); return; }
-    let { data, error } = await sb.rpc("quote_cart", { p_items: cartItems(), p_promo_code: promoCode || null });
+    const items = cartItems(), itemsKey = JSON.stringify(items);
+    let code = promoCode || null;
+    const stale = () => seq !== quoteSeq || (promoCode || null) !== code || JSON.stringify(cartItems()) !== itemsKey;
+    let { data, error } = await sb.rpc("quote_cart", { p_items: items, p_promo_code: code });
+    if (stale()) return { data: null, error: null, stale: true };
     if (error && /PROMO_NOT_APPLICABLE|VOUCHER_/.test(error.message) && !strictCode) {
-      promoCode = ""; $("promo-code").value = "";
-      ({ data, error } = await sb.rpc("quote_cart", { p_items: cartItems(), p_promo_code: null }));
+      promoCode = ""; $("promo-code").value = ""; code = null;
+      ({ data, error } = await sb.rpc("quote_cart", { p_items: items, p_promo_code: null }));
+      if (stale()) return { data: null, error: null, stale: true };
     }
     if (error) {
       quote = null;
@@ -800,6 +808,7 @@
     const ask = (code) => sb.rpc("quote_cart", { p_items: items, p_promo_code: code }).then((r) => ({ code, r }), () => ({ code, r: { error: true } }));
     const [base, ...tries] = await Promise.all([ask(null), ...c.codes.slice(0, 12).map(ask)]);
     if (run !== autoRun || autoOff || (promoCode && promoCode !== autoCode)) return;
+    if (JSON.stringify(cartItems()) !== JSON.stringify(items) || deliveryState().fee !== fee) return;   // cart changed meanwhile: the next run decides (OBS-40)
     const worth = (q) => (q?.discount || 0) + shipDiscount(q, fee);
     const baseWorth = base.r.error ? 0 : worth(base.r.data), baseGifts = base.r.data?.gifts?.length || 0;
     let best = null;
@@ -815,6 +824,7 @@
     }
     promoCode = autoCode = best.code; autoSave = best.w - baseWorth;
     $("promo-code").value = best.code;
+    quoteSeq++;   // a quote still on its way is now stale (OBS-40)
     quote = best.q; showErr("");
     autoKey = JSON.stringify([items, fee, session?.user?.id || "", promoCode]);
     renderCart();
