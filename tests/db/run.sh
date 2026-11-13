@@ -53,3 +53,6 @@ else
 fi
 bash tests/db/build.sh cn_test >/dev/null
 psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/voucher_policy_test.sql
+# Paket Hemat, Testimoni pelanggan and the storefront call (migration 020)
+bash tests/db/build.sh cn_test >/dev/null
+psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/paket_testimoni_test.sql
