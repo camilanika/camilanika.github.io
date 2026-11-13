@@ -83,7 +83,7 @@ Open `https://camilanika.store/admin.html`.
 - The same page holds the **Semua** tab's description and info lines, and the **Galeri foto** (the photo strip that moves by itself under the hero): upload photos, add captions, reorder or remove them, then **Simpan galeri**. It shows once there are at least 2 photos.
 - Empty or hidden series disappear from the shop by themselves. Deleting a series never deletes products or orders; its products are hidden until you move them to another series.
 - Main menus (Minuman, Camilan) are no longer used or shown. They stay in the database only because older database functions join through them; a new series is put in one automatically (migration 021).
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`, `018_order_privacy_checkout_guard.sql`, `019_order_columns_private.sql`, `020_paket_testimoni.sql`, `021_series_gallery.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`, `018_order_privacy_checkout_guard.sql`, `019_order_columns_private.sql`, `020_paket_testimoni.sql`, `021_series_gallery.sql`, `022_shop_days.sql`.
 
 ## Storefront redesign (Nov 2026): Paket Hemat, Best Seller, Testimoni
 **Install once:** run `supabase/migrations/020_paket_testimoni.sql` in the SQL Editor. Until it runs, the shop looks the same as before minus the new sections, and the two new admin pages say the migration is needed.
@@ -133,9 +133,11 @@ Browsers can keep scripts for up to 10 minutes. When `js/shop.js` or `js/config.
 
 ## Opening hours
 - Admin page → **Toko**: **Tutup toko** closes the shop until you press **Buka toko** (ignores the schedule).
-- **Jadwal buka**: tick "Buka & tutup otomatis setiap hari" and set the opening and closing time (WIB, GMT+7). A closing time earlier than the opening time means open past midnight.
+- **Jadwal buka**: tick "Buka & tutup otomatis sesuai jadwal", pick the **Hari buka** (days; every day by default) and set the opening and closing time (WIB, GMT+7). A closing time earlier than the opening time means open past midnight; the hours after midnight belong to the day it opened (Friday 17:00–02:00 is still open at 01:00 on Saturday). The line under the times shows what the shop pages will say. Needs migration `022_shop_days.sql` for the days.
+- Without a schedule the shop is open every day, all day.
 - Optional message for customers while closed (e.g. holidays).
 - While closed, customers still see the menu, but can't add to cart, pay or send a WhatsApp order; a banner explains why. The server also refuses new orders, so nothing slips through. The badge next to "CamilaNika Admin" shows whether the shop is open right now.
+- Every page (footer, FAQ, contact, terms) writes the hours from this setting: "Buka Senin–Sabtu · 10.00–20.00 WIB", or "Buka setiap hari" without a schedule.
 
 ## Delivery location and fee
 - At checkout customers press **Pilih di peta** and drop a pin (or use their phone's location). The map is OpenStreetMap, which is free; no Google key is needed. The pin fills the address if it's empty, and is saved with the order.

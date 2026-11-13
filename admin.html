@@ -355,6 +355,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 
 <script src="js/config.js?v=202611131545"></script>
 <script src="js/vendor/supabase.js"></script>
+<script src="js/hours.js?v=202611142100"></script>
 <script src="js/nota.js?v=202610291300"></script>
 <script src="js/cashflow-core.js?v=202611081800"></script>
 <script src="js/cashflow.js?v=202611081800"></script>
@@ -1773,9 +1774,14 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     const box = $("shopbox"); if (!box) return;
     if (error || !cfg) { box.innerHTML = `<p class="msg err">${esc(err(error || "Pengaturan toko belum ada. Jalankan migration 007."))}</p>`; return; }
     refreshShopPill();
+    const H = window.CN_HOURS, hasDays = "open_days" in cfg;
+    const offToday = hasDays && cfg.schedule_enabled && st && !(cfg.open_days || []).includes(st.today);
     const statusText = st?.open
-      ? (cfg.schedule_enabled ? `Buka sekarang. Tutup otomatis pukul ${st.close_time} WIB.` : "Buka sekarang, tanpa jadwal (buka terus).")
-      : cfg.is_closed ? "Tutup sampai kamu buka lagi." : `Tutup sesuai jadwal. Buka lagi pukul ${st.open_time} WIB.`;
+      ? (cfg.schedule_enabled ? `Buka sekarang. Tutup otomatis pukul ${st.close_time} WIB.` : "Buka sekarang, tanpa jadwal (buka setiap hari).")
+      : cfg.is_closed ? "Tutup sampai kamu buka lagi."
+      : offToday ? `Tutup hari ini sesuai jadwal (buka ${H ? H.days(cfg.open_days) : ""}).` : `Tutup sesuai jadwal. Buka lagi pukul ${st.open_time} WIB.`;
+    const DAY_NAMES = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+    const openDays = (cfg.open_days || [1, 2, 3, 4, 5, 6, 7]).map(Number);
     box.innerHTML = `
       <div class="card" style="display:grid;gap:.8rem">
         <div style="display:flex;flex-wrap:wrap;gap:.8rem;align-items:center">
@@ -1792,11 +1798,17 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       </div>
       <div class="card" style="display:grid;gap:.8rem">
         <h3>Jadwal buka (WIB, GMT+7)</h3>
-        <label class="chk"><input type="checkbox" id="sh-sched" ${cfg.schedule_enabled ? "checked" : ""}> Buka & tutup otomatis setiap hari</label>
+        <label class="chk"><input type="checkbox" id="sh-sched" ${cfg.schedule_enabled ? "checked" : ""}> Buka & tutup otomatis sesuai jadwal</label>
+        <fieldset id="sh-days" style="border:0;margin:0;padding:0;display:grid;gap:.4rem" ${hasDays ? "" : "disabled"}>
+          <legend style="font-weight:800;font-size:.9rem;padding:0;margin-bottom:.35rem">Hari buka</legend>
+          <div style="display:flex;flex-wrap:wrap;gap:.4rem .9rem">${DAY_NAMES.map((n, i) => `<label class="chk"><input type="checkbox" data-day="${i + 1}" ${openDays.includes(i + 1) ? "checked" : ""}> ${n}</label>`).join("")}</div>
+          ${hasDays ? "" : `<p class="msg err" style="margin:0">Jalankan <b>supabase/migrations/022_shop_days.sql</b> di Supabase supaya hari buka bisa dipilih.</p>`}
+        </fieldset>
         <div class="grid3">
           <label class="f">Jam buka<input type="time" id="sh-ot" value="${esc(String(cfg.open_time).slice(0, 5))}"></label>
           <label class="f">Jam tutup<input type="time" id="sh-ct" value="${esc(String(cfg.close_time).slice(0, 5))}"></label>
         </div>
+        <p style="margin:0;font-weight:700" id="sh-preview" aria-live="polite"></p>
         <p class="muted" style="margin:0;font-size:.85rem">Jam tutup lebih awal dari jam buka berarti buka sampai lewat tengah malam (mis. 17:00–02:00). Tombol <b>Tutup toko</b> di atas tetap berlaku di luar jadwal.</p>
         <label class="f">Pesan untuk pembeli saat tutup (opsional)<input id="sh-msg" value="${esc(cfg.closed_message || "")}" placeholder="mis. Lagi libur Lebaran, buka lagi 15 April ya!"></label>
         <div><button class="btn btn-rose" id="sh-save">Simpan jadwal</button></div>
@@ -1831,8 +1843,25 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     $("sh-save").onclick = () => {
       const ot = $("sh-ot").value, ct = $("sh-ct").value;
       if ($("sh-sched").checked && (!ot || !ct)) { $("sh-m").textContent = "Isi jam buka dan jam tutup."; $("sh-m").className = "msg err"; return; }
-      save({ schedule_enabled: $("sh-sched").checked, open_time: ot || "08:00", close_time: ct || "21:00", closed_message: $("sh-msg").value.trim() || null }, "Jadwal tersimpan");
+      const patch = { schedule_enabled: $("sh-sched").checked, open_time: ot || "08:00", close_time: ct || "21:00", closed_message: $("sh-msg").value.trim() || null };
+      if (hasDays) {
+        patch.open_days = readDays();
+        if (!patch.open_days.length) { $("sh-m").textContent = "Pilih minimal satu hari buka."; $("sh-m").className = "msg err"; return; }
+      }
+      save(patch, "Jadwal tersimpan");
     };
+
+    // what the shop pages will say ("Buka Senin–Sabtu · 10.00–20.00 WIB", or "Buka setiap hari" without a schedule)
+    const readDays = () => [...document.querySelectorAll("#sh-days [data-day]")].filter((c) => c.checked).map((c) => +c.dataset.day);
+    const preview = () => {
+      const on = $("sh-sched").checked;
+      $("sh-days").style.opacity = on ? "" : ".55";
+      if (!H) return;
+      $("sh-preview").textContent = "Di toko tertulis: " + H.format({ schedule_enabled: on, open_days: readDays(), open_time: $("sh-ot").value, close_time: $("sh-ct").value });
+    };
+    ["sh-sched", "sh-ot", "sh-ct"].forEach((id) => $(id).addEventListener("input", preview));
+    $("sh-days").addEventListener("change", preview);
+    preview();
 
     // delivery: tiers editor + origin pin
     let tiers = (Array.isArray(cfg.fee_tiers) ? cfg.fee_tiers : []).map((t) => ({ ...t }));
