@@ -49,6 +49,7 @@ curl_setopt_array($ch, [
   CURLOPT_RETURNTRANSFER => true,
   CURLOPT_TIMEOUT => 25,
   CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json', "va: $va", "signature: $sig", "timestamp: $ts"],
+  CURLOPT_REFERER => 'https://camilanika.store/',
 ]);
 $out = curl_exec($ch);
 $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
