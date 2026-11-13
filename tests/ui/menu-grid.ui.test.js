@@ -11,7 +11,7 @@ test.after(async () => { await H?.close(); });
 
 const shop = async (hash = "") => {
   const page = await H.open("?test=1" + hash, { uid: null, viewport: { width: 1280, height: 900 }, file: "" });
-  await page.locator("#menu-grid [data-pick]").first().waitFor();
+  await page.locator("#menu-grid [data-pick]:visible").first().waitFor();
   return page;
 };
 const visible = (page) => page.locator("#menu-grid [data-card]:visible").count();
@@ -34,16 +34,35 @@ test("MENU: 'Semua' shows every product in one grid, a tab shows only its submen
   await page.context().close();
 });
 
-test("MENU: a header link and a link from outside (#camilan) open the menu on that main menu", async () => {
-  const cats = await H.sql(`select c.slug, count(*)::int k from public.menu_categories c join public.menu_sections s on s.category_id = c.id
-                             join public.products p on p.section_id = s.id where public.product_on_sale(p.id) and not p.is_bundle group by c.slug, c.sort_order order by c.sort_order`);
+test("MENU: the Semua tab and each series show their own description (migration 021)", async () => {
   const page = await shop();
-  await page.locator(`#nav-menus a[href="#${cats[1].slug}"]`).click();
-  assert.equal(await visible(page), cats[1].k, "header link filters");
+  assert.match(await page.locator("#mf-info").innerText(), /Semua menu/);
+  const [{ slug, description }] = await H.sql("select slug, description from public.menu_sections where description is not null and slug <> 'paket-hemat' order by sort_order limit 1");
+  await page.locator(`#shopbar .mf[data-filter="${slug}"]`).click();
+  assert.match(await page.locator("#mf-info").innerText(), new RegExp(description.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   await page.context().close();
-  const deep = await shop("#" + cats[0].slug);
-  assert.equal(await visible(deep), cats[0].k, "deep link filters");
-  await deep.context().close();
+});
+
+test("MENU: a series link from outside (#sub-…) and an old main-menu link (#camilan) open the grid on that filter", async () => {
+  const [{ slug, k }] = await H.sql(`select s.slug, count(*)::int k from public.menu_sections s join public.products p on p.section_id = s.id
+                                      where public.product_on_sale(p.id) and not p.is_bundle group by s.slug, s.sort_order order by s.sort_order limit 1`);
+  const page = await shop("#sub-" + slug);
+  assert.equal(await visible(page), k, "series link filters");
+  await page.context().close();
+  const [{ c, n }] = await H.sql(`select c.slug c, count(*)::int n from public.menu_categories c join public.menu_sections s on s.category_id = c.id
+                                   join public.products p on p.section_id = s.id where public.product_on_sale(p.id) and not p.is_bundle group by c.slug order by c.slug limit 1`);
+  const old = await shop("#" + c);
+  assert.equal(await visible(old), n, "old main-menu link still filters");
+  await old.context().close();
+});
+
+test("SHOP: the photo gallery shows and moves by itself; GoFood is gone", async () => {
+  const page = await shop();
+  await page.locator("#gallery:not([hidden])").waitFor();
+  assert.ok(await page.locator("#gal-track .gal-item:not([aria-hidden])").count() >= 2);
+  assert.notEqual(await page.locator("#gal-track").evaluate((e) => getComputedStyle(e).animationName), "none");
+  assert.doesNotMatch(await page.content(), /gofood/i);
+  await page.context().close();
 });
 
 test("MENU: search looks through every product; closing it brings back the chosen tab", async () => {

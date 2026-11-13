@@ -8,7 +8,7 @@ let H;
 test.before(async () => {
   H = await start({ seedSql: `
     update public.inventory set unlimited = true;
-    insert into public.testimonials (quote, author, source, sort_order) values ('Latte-nya enak', 'Rina', 'gofood', 1);
+    insert into public.testimonials (quote, author, source, sort_order) values ('Latte-nya enak', 'Rina', 'google', 1);
     insert into public.testimonials (quote, author, source, is_visible, sort_order) values ('Belum boleh tampil', 'Budi', 'whatsapp', false, 2);` });
 });
 test.after(async () => { await H?.close(); });
@@ -22,7 +22,6 @@ const shop = async (vp = { width: 1280, height: 900 }) => {
 test("SHOP: without pakets, Paket Hemat stays hidden and the menu works as before", async () => {
   const page = await shop();
   assert.equal(await page.locator("#paket-hemat").isHidden(), true, "Paket Hemat hidden");
-  assert.equal(await page.locator("#cat-pills").isVisible(), true, "category shortcuts shown");
   await page.context().close();
 });
 
