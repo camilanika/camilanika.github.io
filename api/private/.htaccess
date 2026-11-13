@@ -1,0 +1,2 @@
+# Never served directly: api/docs.php reads these files for admins (QA fix OBS-9)
+Require all denied

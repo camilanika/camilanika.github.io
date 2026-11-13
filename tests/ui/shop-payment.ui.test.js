@@ -273,3 +273,50 @@ test("A11Y: drawers are modal dialogs: Tab stays inside, and closing returns foc
   assert.deepEqual(page.__errors || [], []);
   await page.context().close();
 });
+
+// Email and address of the last order on this device are filled in next time (added 13 Nov 2026, AUTH-06/07)
+test("AUTH-06: a guest's email and address from the last order are filled in at the next checkout", async () => {
+  const page = await openShop();
+  await page.locator("[data-pick]").first().click();
+  await page.locator("[data-add]:visible").first().click();
+  await page.locator("[data-open-cart]:visible").first().click();
+  if (await page.locator("#to-checkout").isVisible()) await page.locator("#to-checkout").click();
+  await page.fill("#cust-name", "Pembeli Ingat");
+  await page.fill("#cust-phone", "081234567802");
+  await page.fill("#cust-email", "ingat@example.com");
+  await page.fill("#cust-addr", "Cluster Sherwood KB2/21, pagar hijau");
+  await Promise.all([page.waitForURL(PAY), page.locator("#pay-btn").click()]);
+  await backToShop(page, "?test=1");                                        // next visit, same device
+  await page.locator("[data-pick]").first().waitFor();
+  const vals = await page.evaluate(() => ["cust-name", "cust-phone", "cust-email", "cust-addr"].map((id) => document.getElementById(id).value));
+  assert.deepEqual(vals, ["", "", "ingat@example.com", "Cluster Sherwood KB2/21, pagar hijau"], "only email and address are filled in");
+  // the form shows them at checkout, and what the customer types instead is kept
+  await page.locator("[data-pick]").first().click();
+  await page.locator("[data-add]:visible").first().click();
+  await page.locator("[data-open-cart]:visible").first().click();
+  if (await page.locator("#to-checkout").isVisible()) await page.locator("#to-checkout").click();
+  assert.equal(await page.inputValue("#cust-email"), "ingat@example.com");
+  await page.fill("#cust-addr", "Alamat baru");
+  await page.locator("#cust-addr").type(" 2");                 // typing redraws the cart
+  assert.equal(await page.inputValue("#cust-addr"), "Alamat baru 2");
+  await page.context().close();
+});
+
+test("AUTH-07: a logged-in customer gets the account's address first and the saved email; logging out forgets both", async () => {
+  await H.sql("update public.profiles set full_name = 'Rina Pelanggan', phone = '081299998888', address = 'Jl. Akun No. 1' where id = $1", [H.CUSTOMER]);
+  const page = await H.open("", { uid: H.CUSTOMER, viewport: PHONE, file: "" });
+  // a WhatsApp account: its login email is a placeholder, never shown or used as the customer's email
+  await page.addInitScript(() => { window.__TEST_EMAIL = "6281299998888@phone.camilanika.invalid"; });
+  await page.evaluate(() => localStorage.setItem("cn-cust", JSON.stringify({ email: "rina@example.com", address: "Alamat pesanan terakhir" })));
+  await page.reload();
+  await page.locator("[data-pick]").first().waitFor();
+  await page.waitForFunction(() => document.getElementById("cust-name").value === "Rina Pelanggan");
+  assert.equal(await page.inputValue("#cust-addr"), "Jl. Akun No. 1", "the account's address wins");
+  assert.equal(await page.inputValue("#cust-email"), "rina@example.com", "the email comes from this device");
+  await page.locator("#acct-btn").click();
+  await page.locator("#logout").click();
+  await page.waitForTimeout(800);
+  assert.equal(await page.evaluate(() => localStorage.getItem("cn-cust")), null, "forgotten on logout");
+  assert.equal(await page.inputValue("#cust-email"), "");
+  await page.context().close();
+});

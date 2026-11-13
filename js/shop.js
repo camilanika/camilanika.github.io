@@ -23,7 +23,17 @@
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} },
   };
+  // Email and delivery address of the last order made on this device, filled into an empty checkout form the next
+  // time. Saved only once an order is created (never half-typed text), and forgotten on logout (like QA fix OBS-11).
+  const CUST_KEY = "cn-cust";
+  const rememberCustomer = (email, address) => store.set(CUST_KEY, { email, address });
+  function fillFromDevice() {
+    const c = store.get(CUST_KEY, null), set = (id, v) => { if (typeof v === "string" && v && !$(id).value) $(id).value = v; };
+    if (!c) return;
+    set("cust-email", c.email); set("cust-addr", c.address);
+  }
 
   const SIZES = { S: "250 ml", M: "500 ml", L: "1000 ml" };
   const SIZE_ATTR = "Ukuran";
@@ -925,6 +935,7 @@
         showErr(errMsg(out.detail || out.error)); return;
       }
       rememberOrder(out);
+      rememberCustomer($("cust-email").value.trim(), $("cust-addr").value.trim());
       // the order exists now: empty the cart, so cancelling the payment and ordering again can't double it.
       // An unpaid order is paid from its page in "Pesanan saya" (Lanjutkan pembayaran).
       clearCart();
@@ -1530,6 +1541,7 @@
     if (signedOut) {
       // logging out leaves no personal details behind on a shared device (QA fix OBS-11)
       ["cust-name", "cust-phone", "cust-addr", "cust-email"].forEach((id) => { if ($(id)) $(id).value = ""; });
+      store.del(CUST_KEY);
       store.set("cn-orders", store.get("cn-orders", []).filter((x) => !x.user));
       renderCart();
     }
@@ -1537,8 +1549,10 @@
       const { data } = await sb.from("profiles").select("full_name,phone,address,role").eq("id", s.user.id).maybeSingle();
       profile = data;
       prefill(false);
+      fillFromDevice();   // after the profile, so the account's own address comes first; the email isn't in the profile
     } else {
       $("guest-note").hidden = false;
+      fillFromDevice();
     }
     $("acct-label").textContent = s ? (profile?.full_name?.split(" ")[0] || "Akun") : "Masuk";
     if (acct.classList.contains("open") && acctMode !== "recovery") renderAccount();

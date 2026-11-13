@@ -26,3 +26,5 @@ AddType text/javascript .js
 RedirectMatch 404 ^/(\.git|supabase|tests|docs)(/|$)
 RedirectMatch 404 \.(md|sql|ts)$
 RedirectMatch 404 /\.(gitignore|nojekyll)$
+# Admin-only API reference: only api/docs.php may read it, after an admin check (QA fix OBS-9)
+RedirectMatch 404 ^/api/private(/|$)

@@ -18,7 +18,7 @@
     delete() { return this.insert(); }
     then(ok, bad) { return post("/__select", { q: this.q }).then(ok, bad); }
   }
-  const user = () => ({ id: window.__TEST_UID, email: "admin@test.local" });
+  const user = () => ({ id: window.__TEST_UID, email: window.__TEST_EMAIL || "admin@test.local" });   // __TEST_EMAIL: e.g. a phone account's placeholder
   window.supabase = {
     createClient() {
       const listeners = [];
@@ -33,7 +33,8 @@
             if (window.__DOUBLE_AUTH && window.__TEST_UID) setTimeout(() => cb("INITIAL_SESSION", { user: user() }), 5);
             return { data: { subscription: { unsubscribe() {} } } };
           },
-          getSession: async () => ({ data: { session: window.__TEST_UID ? { user: user() } : null } }),
+          // access_token: a stand-in token that tells the test server who is asking (docs.ui.test.js)
+          getSession: async () => ({ data: { session: window.__TEST_UID ? { user: user(), access_token: "test-token." + window.__TEST_UID + ".sig" } : null } }),
           getUser: async () => ({ data: { user: user() } }),
           signOut: async () => { window.__TEST_UID = null; listeners.forEach((cb) => cb("SIGNED_OUT", null)); return {}; },
           signInWithPassword: async () => ({ error: { message: "not in tests" } }),
