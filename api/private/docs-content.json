@@ -121,6 +121,11 @@
    "Section accent",
    "caramel, rose, matcha, berry, ocean, charcoal",
    "menu_sections.accent"
+  ],
+  [
+   "Testimonial source",
+   "instagram, whatsapp, gofood, google, lainnya",
+   "testimonials.source"
   ]
  ],
  "groups": [
@@ -135,6 +140,13 @@
      "public",
      "Get menu",
      "Full public menu: categories, sections, products and variants with prices."
+    ],
+    [
+     "POST",
+     "rpc/get_storefront",
+     "public",
+     "Storefront sections",
+     "Paket Hemat (with items, normal price and availability), visible testimonials with the section settings, and best-seller product ids (most sold in real paid orders over 30 days). Migration 020."
     ],
     [
      "POST",
@@ -540,6 +552,26 @@
        "loyalty_include_shipping",
        "bool",
        "Count delivery fee toward loyalty"
+      ],
+      [
+       "testi_enabled / testi_title / testi_subtitle",
+       "bool / text",
+       "Testimoni section (migration 020)"
+      ],
+      [
+       "testi_limit",
+       "int",
+       "How many testimonials the shop shows (1–24)"
+      ],
+      [
+       "testi_instagram",
+       "text",
+       "Instagram account linked in the Testimoni section"
+      ],
+      [
+       "paket_title / paket_subtitle",
+       "text",
+       "Paket Hemat section heading"
       ]
      ]
     ]
@@ -854,6 +886,173 @@
      "admin",
      "Upload product image",
      "upload(path, file, { upsert:false }) then getPublicUrl(path). Bucket is public."
+    ]
+   ]
+  },
+  {
+   "id": "paket",
+   "name": "Admin · Paket Hemat & Testimoni",
+   "blurb": "Bundles sold as one product, and customer testimonials (migration 020).",
+   "eps": [
+    [
+     "POST",
+     "rpc/admin_list_bundles",
+     "admin",
+     "List pakets",
+     "Every paket with its items (hidden ones too), plus every variant that can go in a paket (options)."
+    ],
+    [
+     "POST",
+     "rpc/admin_save_bundle",
+     "admin",
+     "Create or update a paket",
+     "Creates the paket product and its single variant in the Paket Hemat menu, or updates it; replaces its items. Returns the product id. Errors: BUNDLE_NAME_REQUIRED, BUNDLE_PRICE_INVALID, BUNDLE_ITEMS_REQUIRED, BUNDLE_ITEM_INVALID, BUNDLE_ITEM_DUPLICATE, BUNDLE_NOT_FOUND.",
+     [
+      [
+       "p_id",
+       "bigint | null",
+       "null = new paket"
+      ],
+      [
+       "p_name",
+       "text",
+       ""
+      ],
+      [
+       "p_subtitle",
+       "text | null",
+       ""
+      ],
+      [
+       "p_image_url",
+       "text | null",
+       ""
+      ],
+      [
+       "p_price",
+       "int",
+       "Paket price"
+      ],
+      [
+       "p_badge",
+       "text | null",
+       "Label on the photo"
+      ],
+      [
+       "p_items",
+       "BundleItem[]",
+       "See body below"
+      ],
+      [
+       "p_active",
+       "bool",
+       "Shown in the shop"
+      ],
+      [
+       "p_sort_order",
+       "int | null",
+       "null keeps / appends"
+      ]
+     ],
+     "BundleItem = {\n  \"variant_id\": 12,\n  \"quantity\": 2   // 1–20\n}"
+    ],
+    [
+     "POST",
+     "rpc/admin_move_bundle",
+     "admin",
+     "Reorder a paket",
+     "Swaps the paket with its neighbour.",
+     [
+      [
+       "p_id",
+       "bigint",
+       ""
+      ],
+      [
+       "p_dir",
+       "int",
+       "-1 up, 1 down"
+      ]
+     ]
+    ],
+    [
+     "POST",
+     "rpc/admin_delete_bundle",
+     "admin",
+     "Delete a paket",
+     "Deletes the paket product; past orders keep their snapshot.",
+     [
+      [
+       "p_id",
+       "bigint",
+       ""
+      ]
+     ]
+    ],
+    [
+     "GET",
+     "testimonials?select=*",
+     "admin",
+     "List testimonials",
+     "Admins see all; guests only is_visible rows."
+    ],
+    [
+     "POST",
+     "testimonials",
+     "admin",
+     "Add testimonial",
+     "",
+     [
+      [
+       "image_url",
+       "text | null",
+       "Photo or screenshot (https or img/)"
+      ],
+      [
+       "quote",
+       "text | null",
+       "Customer's words; image_url or quote required"
+      ],
+      [
+       "author",
+       "text | null",
+       ""
+      ],
+      [
+       "source",
+       "instagram | whatsapp | gofood | google | lainnya",
+       ""
+      ],
+      [
+       "link_url",
+       "text | null",
+       "https only"
+      ],
+      [
+       "is_visible",
+       "bool",
+       ""
+      ],
+      [
+       "sort_order",
+       "int",
+       ""
+      ]
+     ]
+    ],
+    [
+     "PATCH",
+     "testimonials?id=eq.{id}",
+     "admin",
+     "Update testimonial",
+     "Any subset of the fields above."
+    ],
+    [
+     "DELETE",
+     "testimonials?id=eq.{id}",
+     "admin",
+     "Delete testimonial",
+     ""
     ]
    ]
   },
@@ -1832,6 +2031,26 @@
   "cashflow_set_payments_mode": [
    "p_mode text",
    "text"
+  ],
+  "get_storefront": [
+   "",
+   "jsonb"
+  ],
+  "admin_list_bundles": [
+   "",
+   "jsonb"
+  ],
+  "admin_save_bundle": [
+   "p_id bigint, p_name text, p_subtitle text, p_image_url text, p_price integer, p_badge text, p_items jsonb, p_active boolean, p_sort_order integer DEFAULT NULL::integer",
+   "bigint"
+  ],
+  "admin_move_bundle": [
+   "p_id bigint, p_dir integer",
+   "boolean"
+  ],
+  "admin_delete_bundle": [
+   "p_id bigint",
+   "boolean"
   ]
  }
 }
