@@ -261,7 +261,7 @@
     navLinks = [...root.querySelectorAll(".sb-chips a")];
     refreshCards();
     setOffsets(); setActive();
-    // jump to an anchor from the URL once the menu exists (e.g. camilanika.github.io/#camilan)
+    // jump to an anchor from the URL once the menu exists (e.g. camilanika.store/#camilan)
     if (location.hash && !renderMenu.jumped) { renderMenu.jumped = true; document.getElementById(location.hash.slice(1))?.scrollIntoView(); }
   }
 
@@ -1473,7 +1473,7 @@
     if (refOpen) { refOpen = false; if (!s) { renderAccount("signup"); openDrawer(acct); } }
     if (NF.classList.contains("open")) renderNotifs();
   }
-  // referral link: camilanika.github.io/?ref=CODE opens sign-up with the code filled in
+  // referral link: camilanika.store/?ref=CODE opens sign-up with the code filled in
   {
     const ref = new URLSearchParams(location.search).get("ref");
     if (ref && /^[A-Za-z0-9-]{4,24}$/.test(ref)) {
