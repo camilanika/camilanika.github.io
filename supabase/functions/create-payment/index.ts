@@ -35,7 +35,9 @@ const IPAYMU_BASE = IS_PROD ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.
 const RELAY = (Deno.env.get("IPAYMU_RELAY_URL") ?? "").trim();
 const ipaymuUrl = (path: string) =>
   RELAY ? `${RELAY}?env=${IS_PROD ? "prod" : "sandbox"}&path=${encodeURIComponent(path)}` : `${IPAYMU_BASE}${path}`;
-const NOTIFY_URL = `${SUPABASE_URL}/functions/v1/ipaymu-webhook`;
+// iPaymu Production only accepts notifyUrl on a registered domain. IPAYMU_NOTIFY_URL (e.g.
+// https://camilanika.store/api/ipaymu-notify.php) forwards the notification to ipaymu-webhook.
+const NOTIFY_URL = (Deno.env.get("IPAYMU_NOTIFY_URL") ?? "").trim() || `${SUPABASE_URL}/functions/v1/ipaymu-webhook`;
 // iPaymu counts expiry in whole hours, so the order is held for the same 60 minutes
 const EXPIRES_MINUTES = 60;
 
