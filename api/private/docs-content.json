@@ -124,7 +124,7 @@
   ],
   [
    "Testimonial source",
-   "instagram, whatsapp, gofood, google, lainnya",
+   "instagram, whatsapp, google, lainnya",
    "testimonials.source"
   ]
  ],
@@ -572,6 +572,16 @@
        "paket_title / paket_subtitle",
        "text",
        "Paket Hemat section heading"
+      ],
+      [
+       "menu_intro / menu_highlights",
+       "text / text[]",
+       "Semua tab description and info lines (migration 021)"
+      ],
+      [
+       "gallery",
+       "json",
+       "[{ url, caption?, alt? }] photo strip under the hero"
       ]
      ]
     ]
@@ -656,7 +666,7 @@
   {
    "id": "menu",
    "name": "Admin · Menu & products",
-   "blurb": "Catalog structure: categories → sections → products → variants.",
+   "blurb": "Catalog structure: series (menu_sections) → products → variants. Main menus (menu_categories) are internal since migration 021.",
    "eps": [
     [
      "GET",
@@ -1020,7 +1030,7 @@
       ],
       [
        "source",
-       "instagram | whatsapp | gofood | google | lainnya",
+       "instagram | whatsapp | google | lainnya",
        ""
       ],
       [

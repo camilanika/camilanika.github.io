@@ -15,7 +15,10 @@ const DESK = { width: 1280, height: 900 };
 
 async function contrastProblems(page) {
   // let colour transitions finish first: right after a light/dark switch a button is still between its two colours
-  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
+  // (endless animations such as the photo gallery never finish, so they are not waited for)
+  // (and a panel that opens on the next frame has not started its transition yet, so wait two frames first)
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => {}))));
   await page.addScriptTag({ path: AXE });
   const v = await page.evaluate(async () => (await axe.run({ exclude: [[".brand b"]] }, { runOnly: ["color-contrast"] })).violations);
   return v.flatMap((x) => x.nodes.map((n) => {

@@ -75,23 +75,23 @@ Open `https://camilanika.store/admin.html`.
   - A typed code replaces any automatic discount.
 - **Cancelling a paid order** in the admin page doesn't refund it. Do the refund in the iPaymu dashboard, and adjust stock in the Stok tab if the items go back on sale.
 - **Guests** can check out without an account. Their order status is saved on that device. Logged-in customers see their full history under Akun.
-- WhatsApp and GoFood ordering still work as before.
+- Ordering through WhatsApp still works as before. GoFood is no longer used and has been removed from the site.
 
 ## Menu structure
-- **Main menus** (Minuman, Camilan) each become a section of the page and a link in the header. **Submenus** (Coffee Series, Cireng Isi Frozen…) group products inside them.
-- Manage both in the admin page's **Menu** tab: add, rename, hide, delete, and reorder with ↑ ↓. Pick each product's submenu in the **Produk** tab.
-- The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
-- Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
-- Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`, `018_order_privacy_checkout_guard.sql`, `019_order_columns_private.sql`, `020_paket_testimoni.sql`.
+- The menu is grouped by **series** only (Coffee Series, Chocolate Series, Cireng Isi Frozen…). In the shop it is one grid with a tab **Semua** plus one tab per series.
+- Manage series in the admin page's **Series** tab: add, rename, hide, delete, and reorder with ↑ ↓ (the order here is the order of the tabs). Each series has a description, short info lines and round labels, shown under its tab. Pick each product's series in the **Produk** tab.
+- The same page holds the **Semua** tab's description and info lines, and the **Galeri foto** (the photo strip that moves by itself under the hero): upload photos, add captions, reorder or remove them, then **Simpan galeri**. It shows once there are at least 2 photos.
+- Empty or hidden series disappear from the shop by themselves. Deleting a series never deletes products or orders; its products are hidden until you move them to another series.
+- Main menus (Minuman, Camilan) are no longer used or shown. They stay in the database only because older database functions join through them; a new series is put in one automatically (migration 021).
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`, `018_order_privacy_checkout_guard.sql`, `019_order_columns_private.sql`, `020_paket_testimoni.sql`, `021_series_gallery.sql`.
 
 ## Storefront redesign (Nov 2026): Paket Hemat, Best Seller, Testimoni
 **Install once:** run `supabase/migrations/020_paket_testimoni.sql` in the SQL Editor. Until it runs, the shop looks the same as before minus the new sections, and the two new admin pages say the migration is needed.
 
 - **Look:** cream page, white cards, one brand pink (`#B8325A`, dark enough for white text and for pink text on the blush bands) for buttons, caramel badges, dark espresso footer. The shop always shows the light theme (`<html data-theme="light">` in `index.html`); remove that attribute to follow the visitor's light/dark setting again.
-- **Order of the page:** promo line above the header (the main automatic promo) → hero with one main button (**Pesan sekarang**) → category shortcuts (round photos, one per submenu) → **Best Seller** → **Paket Hemat** → menu → **Testimoni** → promo, GoFood, Cara order → footer.
-- **Menu = one grid** ("Mau yang mana hari ini?"): every product in one grid, with tabs **Semua** + one per submenu. A tab shows only that submenu plus its info lines (tagline, the main menu's info lines and round labels from **Menu → Ubah**). Header links (Minuman, Camilan), the category shortcuts and outside links like `camilanika.store/#camilan` or `#sub-coffee-series` open the grid on that filter. Search looks through every product; closing it brings the chosen tab back.
-- The per-main-menu **photo showcase** (swipeable row / mosaic) is no longer shown in the shop; its settings stay saved in **Menu → Ubah** in case you want them back.
+- **Order of the page:** promo line above the header (the main automatic promo) → hero with one main button (**Pesan sekarang**) → photo gallery (moves by itself; pauses on hover or touch; still for visitors who turn off motion) → **Best Seller** → **Paket Hemat** → menu → **Testimoni** → promo, Cara order → footer.
+- **Menu = one grid** ("Mau yang mana hari ini?"): every product in one grid, with tabs **Semua** + one per submenu. **Semua** shows its own description; a series tab shows only that series plus its description, info lines and round labels (all set in **Series**). Links like `camilanika.store/#sub-coffee-series` (and old ones like `#camilan`) open the grid on that filter. Search looks through every product; closing it brings the chosen tab back.
+- Migration 021 filled the series texts, the Semua text and the gallery (from the old per-menu photo showcases) once; edit them any time in **Series**.
 - **Best Seller** is automatic: the 4 products sold most in the last 30 days, counting only real paid orders (test/Sandbox orders don't count). It shows once at least 2 products have sales.
 
 ### Paket Hemat (Admin → 🎁 Paket Hemat)
@@ -104,7 +104,7 @@ Open `https://camilanika.store/admin.html`.
 - **Judul bagian di toko** sets the section's heading and line under it.
 
 ### Testimoni (Admin → 💬 Testimoni)
-- **+ Testimoni**: a customer photo or review screenshot and/or the customer's own words, their name or @account (only with their permission), where it came from (Instagram, WhatsApp, GoFood, Google Maps, other) and an optional https link to the post. Photos go to the `product-images` storage (folder `testimoni/`).
+- **+ Testimoni**: a customer photo or review screenshot and/or the customer's own words, their name or @account (only with their permission), where it came from (Instagram, WhatsApp, Google Maps, other) and an optional https link to the post. Photos go to the `product-images` storage (folder `testimoni/`).
 - **Sembunyikan / Tampilkan**, ↑ ↓ to reorder, **Ubah**, **Hapus**.
 - **Pengaturan bagian di toko**: section on/off, heading, line under it, how many to show (1–24), and the Instagram account linked next to the heading.
 - The section only appears when at least one testimonial is shown. Use real customer content only.
@@ -299,4 +299,4 @@ The QA inspection's findings and the tests that cover them are in `docs/test-cas
 Update it, and change its *Berlaku sejak* date, **before** the shop starts collecting new personal data or uses a new service that receives it (Pasal 21 ayat 2). Examples: a new form field, an analytics or chat tool, moving the Supabase project to another region, or a new payment or delivery partner.
 
 ## Colours and contrast (OBS-33)
-Text and button colours meet WCAG AA contrast (4.5:1) on the cream backgrounds. `--rose` (#B63853), `--caramel` (#A05F20) and `--wa` (#187A42) are slightly darker than the original brand colours for that reason; `--rose-bright` (#D9586F, the original rose) is kept for the logo, which is exempt, and for large text on the dark brown promo band. In dark mode, text on the light green, the pastel section colours and GoFood red uses `--wa-ink`, `--on-accent` and `--go-text`. `tests/ui/contrast.ui.test.js` checks the shop, the privacy notice and the admin page (light and dark) with axe-core, so a colour change that makes text hard to read fails the tests.
+Text and button colours meet WCAG AA contrast (4.5:1) on the cream backgrounds. `--rose` (#B8325A since the Nov 2026 redesign), `--caramel` (#A05F20) and `--wa` (#187A42) are slightly darker than the original brand colours for that reason; `--rose-bright` (#D9586F, the original rose) is kept for the logo, which is exempt, and for large text on the dark brown promo band. In dark mode, text on the light green, and the pastel section colours uses `--wa-ink` and `--on-accent`. `tests/ui/contrast.ui.test.js` checks the shop, the privacy notice and the admin page (light and dark) with axe-core, so a colour change that makes text hard to read fails the tests.

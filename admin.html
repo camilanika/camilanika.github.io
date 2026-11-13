@@ -328,7 +328,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       <button type="button" data-tab="cashflow" aria-pressed="false"><span aria-hidden="true">💰</span>Cashflow Summary</button>
       <button type="button" data-tab="shop" aria-pressed="false"><span aria-hidden="true">🏪</span>Toko</button>
       <button type="button" data-tab="stock" aria-pressed="false"><span aria-hidden="true">📊</span>Stok</button>
-      <button type="button" data-tab="menu" aria-pressed="false"><span aria-hidden="true">🗂️</span>Menu</button>
+      <button type="button" data-tab="menu" aria-pressed="false"><span aria-hidden="true">🗂️</span>Series</button>
       <button type="button" data-tab="products" aria-pressed="false"><span aria-hidden="true">☕</span>Produk</button>
       <button type="button" data-tab="paket" aria-pressed="false"><span aria-hidden="true">🎁</span>Paket Hemat</button>
       <button type="button" data-tab="testi" aria-pressed="false"><span aria-hidden="true">💬</span>Testimoni</button>
@@ -391,8 +391,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   }
   const secLabel = (sid) => {
     const s = tree.secs.find((x) => x.id === sid); if (!s) return null;
-    const c = tree.cats.find((x) => x.id === s.category_id);
-    return `${c ? c.name + " › " : ""}${s.name}`;
+    return s.name;
   };
   const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   // accounts made with a WhatsApp number log in with <62number>@phone.camilanika.invalid (see phone-signup function)
@@ -440,7 +439,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   $("logout").onclick = $("logout2").onclick = () => sb.auth.signOut();
 
   // ---------------------------------------------------------------- layout: sidebar / drawer
-  const TAB_NAME = { orders: "Pesanan", cashflow: "Cashflow Summary", shop: "Toko", stock: "Stok", menu: "Menu", products: "Produk", paket: "Paket Hemat", testi: "Testimoni", promos: "Promo", customers: "Pelanggan", vouchers: "Voucher & Loyalty" };
+  const TAB_NAME = { orders: "Pesanan", cashflow: "Cashflow Summary", shop: "Toko", stock: "Stok", menu: "Series", products: "Produk", paket: "Paket Hemat", testi: "Testimoni", promos: "Promo", customers: "Pelanggan", vouchers: "Voucher & Loyalty" };
   const SUB_NAME = { campaigns: "Kampanye referral", vouchers: "Voucher", loyalty: "Loyalty", settings: "Batas pendaftaran" };
   const setChrome = (on) => { $("topbar").hidden = !on; $("sidenav").hidden = !on; if (!on) closeNav(); };
   const isDrawer = () => matchMedia("(max-width:1023px)").matches;
@@ -731,58 +730,89 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   }
 
   // ---------------------------------------------------------------- MENU (main menus + seriess)
+  // ---------------------------------------------------------------- SERIES (migration 021)
+  // The shop's menu is one grid with a tab per series. Main menus are no longer used (they stay in the database only
+  // because older functions join through them; a new series is put in one automatically).
+  const PAKET_SLUG = "paket-hemat";   // the Paket Hemat series is managed on its own page
+  const lines = (v) => String(v || "").split("\n").map((x) => x.trim()).filter(Boolean);
+  const commas = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
   async function renderMenuTab() {
-    app.innerHTML = `<div class="bar"><h2>Menu</h2><button class="btn btn-rose" id="newcat">+ Menu utama</button></div>
-      <p class="muted" style="margin:-.4rem 0 1rem">Menu utama tampil sebagai bagian besar di toko dan di link atas. Series mengelompokkan produk di dalamnya. Urutan di sini = urutan di toko.</p>
+    app.innerHTML = `<div class="bar"><h2>Series</h2><button class="btn btn-rose" id="newsec">+ Series</button></div>
+      <p class="muted" style="margin:-.4rem 0 1rem">Menu di toko tampil sebagai satu daftar dengan tab <b>Semua</b> + satu tab per series, dengan urutan seperti di bawah. Deskripsi, info singkat dan label bulat tampil di bawah tab saat dipilih. Produk dimasukkan ke series di tab <b>Produk</b>.</p>
       <div class="list" id="mlist"><p class="muted">Memuat…</p></div>`;
-    $("newcat").onclick = () => editCategory(null);
+    $("newsec").onclick = () => editSection(null, loadMenuTab.counts || {});
     await loadMenuTab();
   }
   async function loadMenuTab() {
     const el = $("mlist"); if (!el) return;
-    let counts = {};
+    let counts = {}, cfg = null;
     try {
       await loadTree();
-      const { data, error } = await sb.from("products").select("id,section_id,is_active");
-      if (error) throw error;
-      data.forEach((p) => { counts[p.section_id] = (counts[p.section_id] || 0) + 1; });
+      const [pr, st] = await Promise.all([sb.from("products").select("id,section_id,is_active"), sb.from("shop_settings").select("*").eq("id", 1).maybeSingle()]);
+      if (pr.error) throw pr.error;
+      pr.data.forEach((p) => { counts[p.section_id] = (counts[p.section_id] || 0) + 1; });
+      cfg = st.data;
     } catch (e) { el.innerHTML = `<p class="msg err">${esc(err(e))}</p>`; return; }
-    if (!tree.cats.length) { el.innerHTML = `<div class="card"><p class="muted" style="margin:0">Belum ada menu utama. Tambahkan, misalnya <b>Minuman</b>.</p></div>`; return; }
-    el.innerHTML = tree.cats.map((c, ci) => {
-      const secs = tree.secs.filter((s) => s.category_id === c.id);
-      return `<div class="card" style="display:grid;gap:.8rem">
-        <div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center">
-          <h3 style="font-size:1.35rem">${esc(c.name)}</h3>
-          <span class="badge ${c.is_active ? "on" : "off"}">${c.is_active ? "Tampil" : "Disembunyikan"}</span>
-          <span class="muted" style="font-size:.85rem">#${esc(c.slug)}</span>
-          <span style="margin-left:auto;display:flex;gap:.35rem;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" data-cmove="${c.id}" data-dir="-1" ${ci === 0 ? "disabled" : ""} aria-label="Naikkan ${esc(c.name)}">↑</button>
-            <button class="btn btn-ghost btn-sm" data-cmove="${c.id}" data-dir="1" ${ci === tree.cats.length - 1 ? "disabled" : ""} aria-label="Turunkan ${esc(c.name)}">↓</button>
-            <button class="btn btn-ghost btn-sm" data-cedit="${c.id}">Ubah</button>
-            <button class="btn btn-rose btn-sm" data-snew="${c.id}">+ Series</button>
-          </span>
-        </div>
-        ${secs.length ? `<div class="tbl-wrap"><table><thead><tr><th>Series</th><th>Keterangan</th><th class="num">Produk</th><th>Status</th><th></th></tr></thead><tbody>
-          ${secs.map((s, si) => `<tr>
-            <td><span style="display:inline-flex;gap:.45rem;align-items:center"><i style="width:12px;height:12px;border-radius:50%;background:${ACCENTS[s.accent]?.[1] || "#999"};display:inline-block"></i>${s.icon ? esc(s.icon) + " " : ""}<b>${esc(s.name)}</b></span></td>
-            <td class="muted" style="font-size:.88rem">${esc(s.tagline || "")}</td>
-            <td class="num">${counts[s.id] || 0}</td>
-            <td><span class="badge ${s.is_active ? "on" : "off"}">${s.is_active ? "Tampil" : "Disembunyikan"}</span></td>
-            <td><div class="adj">
-              <button class="btn btn-ghost btn-sm" data-smove="${s.id}" data-dir="-1" ${si === 0 ? "disabled" : ""} aria-label="Naikkan ${esc(s.name)}">↑</button>
-              <button class="btn btn-ghost btn-sm" data-smove="${s.id}" data-dir="1" ${si === secs.length - 1 ? "disabled" : ""} aria-label="Turunkan ${esc(s.name)}">↓</button>
-              <button class="btn btn-ghost btn-sm" data-sedit="${s.id}">Ubah</button></div></td></tr>`).join("")}
-        </tbody></table></div>` : `<p class="muted" style="margin:0">Belum ada series. Menu utama tanpa series berisi produk tidak tampil di toko.</p>`}
-      </div>`;
-    }).join("") + (counts.null ? `<p class="msg">${counts.null} produk belum punya series dan tidak tampil di toko. Atur di tab Produk.</p>` : "");
-    el.querySelectorAll("[data-cedit]").forEach((b) => b.onclick = () => editCategory(tree.cats.find((c) => c.id === +b.dataset.cedit)));
-    el.querySelectorAll("[data-snew]").forEach((b) => b.onclick = () => editSection(null, +b.dataset.snew, counts));
-    el.querySelectorAll("[data-sedit]").forEach((b) => b.onclick = () => editSection(tree.secs.find((s) => s.id === +b.dataset.sedit), null, counts));
-    el.querySelectorAll("[data-cmove]").forEach((b) => b.onclick = () => move("menu_categories", tree.cats, +b.dataset.cmove, +b.dataset.dir));
-    el.querySelectorAll("[data-smove]").forEach((b) => b.onclick = () => {
-      const s = tree.secs.find((x) => x.id === +b.dataset.smove);
-      move("menu_sections", tree.secs.filter((x) => x.category_id === s.category_id), s.id, +b.dataset.dir);
-    });
+    loadMenuTab.counts = counts;
+    const secs = tree.secs.filter((x) => x.slug !== PAKET_SLUG);
+    const ready = cfg && "menu_intro" in cfg && "description" in (tree.secs[0] || { description: 1 });
+    const gallery = (Array.isArray(cfg?.gallery) ? cfg.gallery : []).map((g) => ({ ...g }));
+    el.innerHTML = (ready ? "" : `<p class="msg err">Jalankan <b>supabase/migrations/021_series_gallery.sql</b> di Supabase → SQL Editor supaya deskripsi series, tab Semua dan galeri bisa disimpan.</p>`) + `
+      <div class="card" style="display:grid;gap:.6rem"><h3>Tab "Semua"</h3>
+        <label class="f">Deskripsi<textarea id="mi" rows="2" maxlength="300">${esc(cfg?.menu_intro || "")}</textarea></label>
+        <label class="f">Info singkat (satu per baris)<textarea id="mhl" rows="2">${esc((cfg?.menu_highlights || []).join("\n"))}</textarea></label>
+        <div><button class="btn btn-ghost btn-sm" id="msave" ${ready ? "" : "disabled"}>Simpan tab Semua</button></div></div>
+      <div class="card" style="display:grid;gap:.7rem"><h3>Galeri foto <span class="muted" style="font-size:.85rem;font-weight:600">(deretan foto yang bergerak sendiri di bawah bagian atas toko; minimal 2 foto)</span></h3>
+        <div id="gal" style="display:grid;gap:.5rem"></div>
+        <label class="f">Tambah foto (bisa pilih beberapa, maks 3 MB per foto; foto tegak 3:4 paling bagus)<input type="file" id="gfile" accept="image/*" multiple ${ready ? "" : "disabled"}></label>
+        <div><button class="btn btn-rose btn-sm" id="gsave" ${ready ? "" : "disabled"}>Simpan galeri</button></div></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Series</th><th>Deskripsi</th><th class="num">Produk</th><th>Status</th><th></th></tr></thead><tbody>
+        ${secs.map((x, i) => `<tr>
+          <td><span style="display:inline-flex;gap:.45rem;align-items:center"><i style="width:12px;height:12px;border-radius:50%;background:${ACCENTS[x.accent]?.[1] || "#999"};display:inline-block"></i>${x.icon ? esc(x.icon) + " " : ""}<b>${esc(x.name)}</b></span></td>
+          <td class="muted" style="font-size:.88rem;max-width:420px">${esc(x.description || x.tagline || "")}${(x.highlights || []).length ? `<br><span style="font-size:.8rem">${x.highlights.length} info singkat</span>` : ""}</td>
+          <td class="num">${counts[x.id] || 0}</td>
+          <td><span class="badge ${x.is_active ? "on" : "off"}">${x.is_active ? "Tampil" : "Disembunyikan"}</span></td>
+          <td><div class="adj">
+            <button class="btn btn-ghost btn-sm" data-smove="${x.id}" data-dir="-1" ${i === 0 ? "disabled" : ""} aria-label="Naikkan ${esc(x.name)}">↑</button>
+            <button class="btn btn-ghost btn-sm" data-smove="${x.id}" data-dir="1" ${i === secs.length - 1 ? "disabled" : ""} aria-label="Turunkan ${esc(x.name)}">↓</button>
+            <button class="btn btn-ghost btn-sm" data-sedit="${x.id}">Ubah</button></div></td></tr>`).join("") || `<tr><td colspan="5" class="muted">Belum ada series. Tambahkan, misalnya <b>Coffee Series</b>.</td></tr>`}
+      </tbody></table></div>` + (counts.null ? `<p class="msg">${counts.null} produk belum punya series dan tidak tampil di toko. Atur di tab Produk.</p>` : "");
+    el.querySelectorAll("[data-sedit]").forEach((b) => b.onclick = () => editSection(tree.secs.find((x) => x.id === +b.dataset.sedit), counts));
+    el.querySelectorAll("[data-smove]").forEach((b) => b.onclick = () => move("menu_sections", secs, +b.dataset.smove, +b.dataset.dir));
+    $("msave").onclick = async () => {
+      const { error } = await sb.from("shop_settings").update({ menu_intro: $("mi").value.trim() || null, menu_highlights: lines($("mhl").value) }).eq("id", 1);
+      toast(error ? err(error) : "Tab Semua tersimpan");
+    };
+    // gallery editor
+    const readGal = () => $("gal").querySelectorAll("[data-g]").forEach((r) => { const g = gallery[+r.dataset.g]; g.url = r.querySelector("[data-u]").value.trim(); g.caption = r.querySelector("[data-c]").value.trim(); });
+    const drawGal = () => {
+      $("gal").innerHTML = gallery.map((g, n) => `<div data-g="${n}" style="display:grid;grid-template-columns:56px minmax(0,2fr) minmax(0,1.4fr) auto;gap:.4rem;align-items:center">
+        <img class="thumb" src="${esc(g.url)}" alt="" style="width:56px;height:56px">
+        <input data-u value="${esc(g.url)}" aria-label="Alamat foto ${n + 1}">
+        <input data-c value="${esc(g.caption || "")}" placeholder="Keterangan (opsional)" aria-label="Keterangan foto ${n + 1}">
+        <span style="display:flex;gap:.25rem"><button class="btn btn-ghost btn-sm" data-up="${n}" ${n ? "" : "disabled"} aria-label="Naikkan">↑</button><button class="btn btn-ghost btn-sm" data-dn="${n}" ${n < gallery.length - 1 ? "" : "disabled"} aria-label="Turunkan">↓</button><button class="btn btn-ghost btn-sm" data-rm="${n}" aria-label="Hapus foto">✕</button></span></div>`).join("")
+        || `<p class="muted" style="margin:0">Belum ada foto. Galeri tidak tampil di toko sampai ada minimal 2 foto.</p>`;
+      const swap = (a, c) => { readGal(); [gallery[a], gallery[c]] = [gallery[c], gallery[a]]; drawGal(); };
+      $("gal").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => swap(+b.dataset.up, +b.dataset.up - 1));
+      $("gal").querySelectorAll("[data-dn]").forEach((b) => b.onclick = () => swap(+b.dataset.dn, +b.dataset.dn + 1));
+      $("gal").querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { readGal(); gallery.splice(+b.dataset.rm, 1); drawGal(); });
+    };
+    drawGal();
+    $("gfile").onchange = async () => {
+      readGal();
+      for (const f of [...$("gfile").files]) {
+        try { toast(`Mengunggah ${f.name}…`); gallery.push({ url: await uploadPhoto(f, "galeri/"), caption: "" }); }
+        catch (e) { toast(`${f.name}: ${e.message}`); }
+      }
+      $("gfile").value = ""; drawGal(); toast("Foto ditambahkan. Jangan lupa Simpan galeri.");
+    };
+    $("gsave").onclick = async () => {
+      readGal();
+      const clean = gallery.filter((g) => g.url);
+      if (clean.some((g) => !/^(https:\/\/|img\/)/i.test(g.url))) return toast("Alamat foto harus diunggah, atau diawali https://");
+      const { error } = await sb.from("shop_settings").update({ gallery: clean.map((g) => ({ url: g.url, ...(g.caption ? { caption: g.caption } : {}), ...(g.alt || g.caption ? { alt: g.alt || g.caption } : {}) })) }).eq("id", 1);
+      toast(error ? err(error) : "Galeri tersimpan");
+    };
   }
   // swap positions with the neighbour; renumber 10, 20, 30… so the order is always clean
   async function move(table, list, id, dir) {
@@ -798,134 +828,37 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     loadMenuTab();
   }
 
-  function editCategory(c) {
-    const isNew = !c;
-    c = c || { name: "", slug: "", eyebrow: "", heading: "", heading_script: "", description: "", is_active: true };
-    let shots = (Array.isArray(c.showcase_images) ? c.showcase_images : []).map((i) => ({ ...i }));
-    openModal(`<div class="modal-head"><h2>${isNew ? "Menu utama baru" : "Ubah " + esc(c.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
-      <div class="grid2">
-        <label class="f">Nama (link di atas halaman)<input id="cn" value="${esc(c.name)}" placeholder="mis. Minuman"></label>
-        <label class="f">Slug (alamat #, unik)<input id="cs" value="${esc(c.slug)}" placeholder="minuman"></label>
-        <label class="f">Label kecil di atas judul (opsional)<input id="ce" value="${esc(c.eyebrow || "")}" placeholder="mis. Our Menu"></label>
-        <label class="f">Judul besar (kosong = pakai nama)<input id="ch" value="${esc(c.heading || "")}" placeholder="mis. Coffee & Drinks"></label>
-        <label class="f">Tulisan tangan setelah judul (opsional)<input id="cscr" value="${esc(c.heading_script || "")}" placeholder="mis. dalam botol"></label>
-        <label class="chk" style="align-self:end"><input type="checkbox" id="ca" ${c.is_active ? "checked" : ""}> Tampilkan di toko</label>
-      </div>
-      <label class="f">Deskripsi<textarea id="cd" rows="3">${esc(c.description || "")}</textarea></label>
-      <div class="grid2">
-        <label class="f">Info singkat di bawah deskripsi (satu per baris)<textarea id="chl" rows="3" placeholder="mis. Simpan di kulkas, tahan hingga 7 hari">${esc((c.highlights || []).join("\n"))}</textarea></label>
-        <label class="f">Label bulat (pisahkan koma, opsional)<textarea id="ctg" rows="3" placeholder="mis. Keju Lumer, Jando Pedas">${esc((c.tags || []).join(", "))}</textarea></label>
-      </div>
-      <div class="card" style="display:grid;gap:.7rem">
-        <h3>Foto showcase</h3>
-        <div class="grid2">
-          <label class="f">Tampilan<select id="cly">
-            <option value="none">Tanpa foto</option>
-            <option value="row">Deretan foto (geser), di atas menu</option>
-            <option value="mosaic">Mosaik foto, di samping menu</option></select></label>
-          <label class="f" id="cnw">Tulisan di bawah mosaik (opsional)<input id="cnote" value="${esc(c.showcase_note || "")}" placeholder="mis. Gurih di luar, nagih di dalam!"></label>
-        </div>
-        <div id="cshots" style="display:grid;gap:.5rem"></div>
-        <label class="f">Tambah foto (bisa pilih beberapa, maks 3 MB per foto)<input type="file" id="cfile" accept="image/*" multiple></label>
-        <p class="muted" style="margin:0;font-size:.85rem">Mosaik: foto pertama tampil besar. Deretan: foto tegak (3:4) paling bagus.</p>
-      </div>
-      <p class="msg" id="cmsg"></p>
-      <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="cdel" style="margin-right:auto">Hapus menu utama</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="csave">Simpan</button></div>`);
-    $("cn").oninput = () => { if (isNew) $("cs").value = slugify($("cn").value); };
-    const fail = (m) => { $("cmsg").textContent = m; $("cmsg").className = "msg err"; };
-    $("cly").value = c.showcase_layout || "none";
-    const readShots = () => $("cshots").querySelectorAll("[data-shot]").forEach((r) => {
-      const i = shots[+r.dataset.shot];
-      i.url = r.querySelector("[data-u]").value.trim(); i.caption = r.querySelector("[data-c]").value.trim();
-      i.tag = r.querySelector("[data-t]").value.trim();
-    });
-    const drawShots = () => {
-      const lay = $("cly").value;
-      $("cnw").hidden = lay !== "mosaic";
-      $("cshots").innerHTML = shots.map((i, n) => `<div data-shot="${n}" style="display:grid;grid-template-columns:56px minmax(0,2fr) minmax(0,1.4fr) ${lay === "row" ? "70px" : ""} auto;gap:.4rem;align-items:center">
-        <img class="thumb" src="${esc(i.url)}" alt="" style="width:56px;height:56px">
-        <input data-u value="${esc(i.url)}" aria-label="Alamat foto ${n + 1}">
-        <input data-c value="${esc(i.caption || "")}" placeholder="Keterangan" aria-label="Keterangan foto ${n + 1}">
-        <input data-t value="${esc(i.tag || "")}" placeholder="mis. L" aria-label="Label kecil foto ${n + 1}" ${lay === "row" ? "" : "hidden"}>
-        <span style="display:flex;gap:.25rem"><button class="btn btn-ghost btn-sm" data-up="${n}" ${n ? "" : "disabled"} aria-label="Naikkan">↑</button><button class="btn btn-ghost btn-sm" data-dn="${n}" ${n < shots.length - 1 ? "" : "disabled"} aria-label="Turunkan">↓</button><button class="btn btn-ghost btn-sm" data-rm="${n}" aria-label="Hapus foto">✕</button></span>
-      </div>`).join("") || `<p class="muted" style="margin:0">Belum ada foto.</p>`;
-      const swap = (a, b) => { readShots(); [shots[a], shots[b]] = [shots[b], shots[a]]; drawShots(); };
-      $("cshots").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => swap(+b.dataset.up, +b.dataset.up - 1));
-      $("cshots").querySelectorAll("[data-dn]").forEach((b) => b.onclick = () => swap(+b.dataset.dn, +b.dataset.dn + 1));
-      $("cshots").querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { readShots(); shots.splice(+b.dataset.rm, 1); drawShots(); });
-      $("cshots").querySelectorAll("[data-u]").forEach((inp) => inp.onchange = () => { inp.parentElement.querySelector("img").src = inp.value; });
-    };
-    $("cly").onchange = () => { readShots(); drawShots(); };
-    drawShots();
-    $("cfile").onchange = async () => {
-      readShots();
-      const files = [...$("cfile").files];
-      for (const f of files) {
-        if (f.size > 3 * 1024 * 1024) { toast(`${f.name}: maks 3 MB`); continue; }
-        const path = `showcase/${Date.now()}-${slugify(f.name.replace(/\.[^.]+$/, ""))}.${(f.name.split(".").pop() || "jpg").toLowerCase()}`;
-        toast(`Mengunggah ${f.name}…`);
-        const { error } = await sb.storage.from("product-images").upload(path, f, { contentType: f.type, upsert: false });
-        if (error) { toast("Gagal unggah: " + error.message); continue; }
-        shots.push({ url: sb.storage.from("product-images").getPublicUrl(path).data.publicUrl, caption: "" });
-      }
-      $("cfile").value = "";
-      if ($("cly").value === "none" && shots.length) $("cly").value = "mosaic";
-      drawShots(); toast("Foto ditambahkan. Jangan lupa Simpan.");
-    };
-    $("csave").onclick = async () => {
-      const row = { name: $("cn").value.trim(), slug: slugify($("cs").value || $("cn").value), eyebrow: $("ce").value.trim() || null,
-        heading: $("ch").value.trim() || null, heading_script: $("cscr").value.trim() || null, description: $("cd").value.trim() || null, is_active: $("ca").checked };
-      readShots();
-      row.showcase_layout = $("cly").value;
-      row.showcase_images = shots.filter((i) => i.url).map((i) => ({ url: i.url, caption: i.caption || undefined, tag: i.tag || undefined, alt: i.alt || i.caption || undefined }));
-      row.showcase_note = $("cnote").value.trim() || null;
-      row.highlights = $("chl").value.split("\n").map((x) => x.trim()).filter(Boolean);
-      row.tags = $("ctg").value.split(",").map((x) => x.trim()).filter(Boolean);
-      if (row.showcase_layout !== "none" && !row.showcase_images.length) return fail("Tambahkan foto, atau pilih Tampilan: Tanpa foto.");
-      if (!row.name || !row.slug) return fail("Nama wajib diisi.");
-      if (isNew) row.sort_order = ((tree.cats.at(-1)?.sort_order) || 0) + 10;
-      $("csave").disabled = true;
-      const { error } = isNew ? await sb.from("menu_categories").insert(row) : await sb.from("menu_categories").update(row).eq("id", c.id);
-      $("csave").disabled = false;
-      if (error) return fail(/duplicate key/i.test(error.message) ? "Slug sudah dipakai menu lain." : "Gagal menyimpan: " + error.message);
-      closeModal(); toast("Menu utama tersimpan"); loadMenuTab();
-    };
-    if (!isNew) $("cdel").onclick = async () => {
-      const secs = tree.secs.filter((s) => s.category_id === c.id);
-      if (!confirm(`Hapus menu utama "${c.name}"?${secs.length ? ` ${secs.length} series di dalamnya ikut terhapus, dan produknya disembunyikan dari toko sampai dipindah ke series lain.` : ""} Produk dan riwayat pesanan tidak dihapus.`)) return;
-      const { error } = await sb.from("menu_categories").delete().eq("id", c.id);
-      if (error) return fail("Gagal menghapus: " + error.message);
-      closeModal(); toast("Menu utama dihapus"); loadMenuTab();
-    };
-  }
-
-  function editSection(s, catId, counts) {
+  function editSection(s, counts) {
     const isNew = !s;
-    s = s || { category_id: catId, name: "", slug: "", tagline: "", icon: "", accent: "caramel", is_active: true };
+    s = s || { name: "", slug: "", description: "", highlights: [], tags: [], icon: "", accent: "caramel", is_active: true };
     openModal(`<div class="modal-head"><h2>${isNew ? "Series baru" : "Ubah " + esc(s.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
       <div class="grid2">
-        <label class="f">Menu utama<select id="sc">${tree.cats.map((c) => `<option value="${c.id}" ${c.id === s.category_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
-        <label class="f">Nama series<input id="sn" value="${esc(s.name)}" placeholder="mis. Coffee Series"></label>
-        <label class="f">Slug (unik)<input id="ss" value="${esc(s.slug)}"></label>
-        <label class="f">Emoji di tombol lompat (opsional)<input id="si" value="${esc(s.icon || "")}" maxlength="4" placeholder="mis. ☕"></label>
+        <label class="f">Nama series (nama tab di toko)<input id="sn" value="${esc(s.name)}" placeholder="mis. Coffee Series"></label>
+        <label class="f">Slug (unik, untuk link #sub-…)<input id="ss" value="${esc(s.slug)}"></label>
+        <label class="f">Emoji di tab (opsional)<input id="si" value="${esc(s.icon || "")}" maxlength="4" placeholder="mis. ☕"></label>
         <label class="f">Warna<select id="sa">${Object.entries(ACCENTS).map(([k, [n]]) => `<option value="${k}" ${k === s.accent ? "selected" : ""}>${n}</option>`).join("")}</select></label>
-        <label class="chk" style="align-self:end"><input type="checkbox" id="sact" ${s.is_active ? "checked" : ""}> Tampilkan di toko</label>
       </div>
-      <label class="f">Keterangan singkat<input id="st" value="${esc(s.tagline || "")}" placeholder="mis. Rasa kopi yang selalu jadi pilihan."></label>
+      <label class="f">Deskripsi (tampil di bawah tab)<textarea id="sd" rows="3" maxlength="400" placeholder="mis. Diseduh dari mesin espresso dengan susu segar…">${esc(s.description ?? s.tagline ?? "")}</textarea></label>
+      <div class="grid2">
+        <label class="f">Info singkat (satu per baris)<textarea id="shl" rows="3" placeholder="mis. Simpan di kulkas, tahan hingga 7 hari">${esc((s.highlights || []).join("\n"))}</textarea></label>
+        <label class="f">Label bulat (pisahkan koma, opsional)<textarea id="stg" rows="3" placeholder="mis. Keju Lumer, Jando Pedas">${esc((s.tags || []).join(", "))}</textarea></label>
+      </div>
+      <label class="chk"><input type="checkbox" id="sact" ${s.is_active ? "checked" : ""}> Tampilkan di toko</label>
       <p class="muted" style="margin:0;font-size:.85rem">Series tanpa produk aktif tidak tampil di toko. Pindahkan produk ke series ini dari tab <b>Produk</b>.</p>
       <p class="msg" id="smsg"></p>
       <div class="row-actions">${isNew ? "" : '<button class="btn btn-ghost" id="sdel" style="margin-right:auto">Hapus series</button>'}<button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="ssave">Simpan</button></div>`);
     $("sn").oninput = () => { if (isNew) $("ss").value = slugify($("sn").value); };
     const fail = (m) => { $("smsg").textContent = m; $("smsg").className = "msg err"; };
     $("ssave").onclick = async () => {
-      const row = { category_id: +$("sc").value, name: $("sn").value.trim(), slug: slugify($("ss").value || $("sn").value),
-        tagline: $("st").value.trim() || null, icon: $("si").value.trim() || null, accent: $("sa").value, is_active: $("sact").checked };
+      const row = { name: $("sn").value.trim(), slug: slugify($("ss").value || $("sn").value), description: $("sd").value.trim() || null,
+        highlights: lines($("shl").value), tags: commas($("stg").value), icon: $("si").value.trim() || null, accent: $("sa").value, is_active: $("sact").checked };
       if (!row.name || !row.slug) return fail("Nama series wajib diisi.");
-      if (isNew || row.category_id !== s.category_id) row.sort_order = (Math.max(0, ...tree.secs.filter((x) => x.category_id === row.category_id).map((x) => x.sort_order))) + 10;
+      if (row.slug === PAKET_SLUG && s.slug !== PAKET_SLUG) return fail("Slug ini dipakai Paket Hemat. Pilih slug lain.");
+      if (isNew) row.sort_order = Math.max(0, ...tree.secs.map((x) => x.sort_order)) + 10;   // main menu is filled in by the database
       $("ssave").disabled = true;
       const { error } = isNew ? await sb.from("menu_sections").insert(row) : await sb.from("menu_sections").update(row).eq("id", s.id);
       $("ssave").disabled = false;
-      if (error) return fail(/duplicate key/i.test(error.message) ? "Slug sudah dipakai series lain." : "Gagal menyimpan: " + error.message);
+      if (error) return fail(/duplicate key/i.test(error.message) ? "Slug sudah dipakai series lain." : /description|highlights|tags/.test(error.message) ? "Jalankan migration 021 dulu." : "Gagal menyimpan: " + error.message);
       closeModal(); toast("Series tersimpan"); loadMenuTab();
     };
     if (!isNew) $("sdel").onclick = async () => {
@@ -953,8 +886,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     try { await loadTree(); } catch (e) { tb.innerHTML = `<tr><td colspan="8" class="msg err">${esc(err(e))}</td></tr>`; return; }
     products = data;
     // order: by main menu, then series, then product; products without a series last
-    const secOrder = [];
-    tree.cats.forEach((c) => tree.secs.filter((s) => s.category_id === c.id).forEach((s) => secOrder.push(s.id)));
+    const secOrder = tree.secs.map((s) => s.id);   // series in their shop order (loadTree sorts by sort_order)
     const rank = (p) => { const i = secOrder.indexOf(p.section_id); return i < 0 ? 1e6 : i; };
     const sorted = [...data].sort((a, b) => rank(a) - rank(b) || a.sort_order - b.sort_order || a.id - b.id);
     let lastGroup;
@@ -982,8 +914,8 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     p = p ? structuredClone(p) : { name: "", slug: "", section_id: tree.secs[0]?.id ?? null, subtitle: "", note: "", image_url: "", attr_names: ["Ukuran"], choices: [], addon_label: "", is_active: true, sort_order: (products.at(-1)?.sort_order || 0) + 10, product_variants: [] };
     let variants = p.product_variants.sort((a, b) => a.sort_order - b.sort_order || a.id - b.id).map((v) => ({ ...v }));
     let attrs = [...p.attr_names];
-    const secOpts = tree.cats.map((c) => `<optgroup label="${esc(c.name)}">${tree.secs.filter((s) => s.category_id === c.id)
-      .map((s) => `<option value="${s.id}" ${s.id === p.section_id ? "selected" : ""}>${esc(s.name)}${s.is_active ? "" : " (nonaktif)"}</option>`).join("")}</optgroup>`).join("");
+    const secOpts = tree.secs.filter((x) => x.slug !== PAKET_SLUG)
+      .map((x) => `<option value="${x.id}" ${x.id === p.section_id ? "selected" : ""}>${esc(x.name)}${x.is_active ? "" : " (nonaktif)"}</option>`).join("");
 
     openModal(`<div class="modal-head"><h2>${isNew ? "Produk baru" : "Ubah " + esc(p.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
       <div class="grid3">
@@ -2101,7 +2033,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 
   // ---------------------------------------------------------------- TESTIMONI (migration 020)
   // Real customer photos, review screenshots and words, shown in the shop's "Kata mereka" section.
-  const T_SOURCES = { instagram: "Instagram", whatsapp: "WhatsApp", gofood: "GoFood", google: "Google Maps", lainnya: "Lainnya" };
+  const T_SOURCES = { instagram: "Instagram", whatsapp: "WhatsApp", google: "Google Maps", lainnya: "Lainnya" };
   let testiList = [];
   async function renderTesti() {
     app.innerHTML = `<div class="bar"><h2>Testimoni</h2><button class="btn btn-rose" id="newts">+ Testimoni</button></div>
