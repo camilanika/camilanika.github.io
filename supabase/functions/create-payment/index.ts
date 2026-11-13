@@ -29,6 +29,12 @@ const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://camilanika.store")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
 const IPAYMU_BASE = IS_PROD ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.com";
+// iPaymu Production only accepts calls from registered IPs, and Edge Functions have no fixed IP.
+// When IPAYMU_RELAY_URL is set (e.g. https://camilanika.store/api/ipaymu.php), the signed request goes
+// through that relay on the Hostinger server instead, whose IP is registered in the iPaymu dashboard.
+const RELAY = (Deno.env.get("IPAYMU_RELAY_URL") ?? "").trim();
+const ipaymuUrl = (path: string) =>
+  RELAY ? `${RELAY}?env=${IS_PROD ? "prod" : "sandbox"}&path=${encodeURIComponent(path)}` : `${IPAYMU_BASE}${path}`;
 const NOTIFY_URL = `${SUPABASE_URL}/functions/v1/ipaymu-webhook`;
 // iPaymu counts expiry in whole hours, so the order is held for the same 60 minutes
 const EXPIRES_MINUTES = 60;
@@ -72,7 +78,7 @@ function stamp() {
 async function ipaymuPost(path: string, payload: unknown) {
   const body = JSON.stringify(payload);
   const signature = await hmacSha256(`POST:${VA}:${await sha256(body)}:${API_KEY}`, API_KEY);
-  const res = await fetch(`${IPAYMU_BASE}${path}`, {
+  const res = await fetch(ipaymuUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json", va: VA, signature, timestamp: stamp() },
     body,
