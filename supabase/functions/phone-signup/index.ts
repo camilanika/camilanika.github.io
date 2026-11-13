@@ -18,7 +18,7 @@ const PHONE_DOMAIN = "phone.camilanika.invalid";
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://camilanika.github.io").split(",").map((s) => s.trim()).filter(Boolean);
+const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://camilanika.store").split(",").map((s) => s.trim()).filter(Boolean);
 
 function cors(origin: string | null) {
   return {
