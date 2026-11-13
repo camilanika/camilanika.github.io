@@ -6,8 +6,8 @@
 //   IPAYMU_VA                iPaymu VA number (Sandbox VA while testing)
 //   IPAYMU_API_KEY           iPaymu API Key (Sandbox key while testing)
 //   IPAYMU_IS_PRODUCTION     "false" while testing, "true" when live
-//   ALLOWED_ORIGINS          e.g. "https://camilanika.github.io"
-//   SITE_URL                 e.g. "https://camilanika.github.io/"
+//   ALLOWED_ORIGINS          e.g. "https://camilanika.store"
+//   SITE_URL                 e.g. "https://camilanika.store/"
 //   SIGNUP_SALT              optional, the same salt phone-signup uses to hash IP addresses
 // SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are provided automatically.
 //
@@ -24,8 +24,8 @@ const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const VA = Deno.env.get("IPAYMU_VA") ?? "";
 const API_KEY = Deno.env.get("IPAYMU_API_KEY") ?? "";
 const IS_PROD = Deno.env.get("IPAYMU_IS_PRODUCTION") === "true";
-const SITE_URL = Deno.env.get("SITE_URL") ?? "https://camilanika.github.io/";
-const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://camilanika.github.io")
+const SITE_URL = Deno.env.get("SITE_URL") ?? "https://camilanika.store/";
+const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://camilanika.store")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
 const IPAYMU_BASE = IS_PROD ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.com";
