@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -21,10 +21,13 @@
 <style>
 /* Colours (OBS-33): --rose, --caramel and --wa are dark enough for WCAG AA text (4.5:1) on the cream and paper
    backgrounds and under white button text; --rose-bright is the original brand rose: the logo (exempt) and large text on the dark brown promo band (3:1 is enough there). */
-/* Layout: warm label-paper storefront — photo-led hero, menu as bottle labels, sticky cart that writes the WhatsApp order */
+/* Layout: "Strawberry Latte" storefront (Nov 2026 redesign) — cream page, white cards, one brand pink for actions,
+   caramel only for badges. The shop always shows the light theme (<html data-theme="light">): food photos sell better
+   on a light, warm page. Remove that attribute to follow the visitor's light/dark setting again. */
 :root{
-  --bg:#FBF3EA; --paper:#FFFAF4; --fg:#4A2A1C; --muted:#7D5F52; --line:#EBD7C8;
-  --rose:#B63853; --rose-bright:#D9586F; --rose-ink:#FFFFFF; --rose-soft:#FBE1E6; --caramel:#A05F20; --wa:#187A42; --go:#D9232B;
+  --bg:#FFF8F0; --paper:#FFFFFF; --fg:#3B2218; --muted:#7A5C4E; --line:#F1E2D3;
+  --rose:#B8325A; --rose-bright:#E5577D; --rose-ink:#FFFFFF; --rose-soft:#FCE8EE; --caramel:#A05F20; --wa:#187A42; --go:#D9232B;
+  --badge:#E39B32; --badge-ink:#3B2218; --blush:#FCE8EE;
   --wa-ink:#FFFFFF; --go-text:#D9232B; --on-accent:#FFFFFF;   /* text on --wa, GoFood red as text, text on section accents */
   --matcha:#6E9A3E; --berry:#8E4EA8; --ocean:#2F7FA8; --charcoal:#5B4A42;
   --shadow:0 10px 30px -12px rgba(74,42,28,.28);
@@ -687,10 +690,97 @@ body.sheet-open{overflow:hidden}
 }
 /* Leaflet maps: keep their layers and zoom buttons (z-index up to 1000) inside the map, below headers, menus and popups */
 .leaflet-container{position:relative;z-index:0;isolation:isolate}
+
+/* ================= Nov 2026 redesign: calmer menu, filled actions, new storefront sections ================= */
+/* promo announcement above the header */
+.announce{background:var(--rose);color:var(--rose-ink);text-align:center;font-weight:800;font-size:.9rem;line-height:1.35;padding:.55rem max(16px,env(safe-area-inset-right,0px)) .55rem max(16px,env(safe-area-inset-left,0px))}
+.announce a{color:inherit;text-decoration:underline;text-underline-offset:3px;margin-left:.45rem;white-space:nowrap}
+/* hero: one main action, WhatsApp as a quiet link, trust chips instead of a third button */
+.hero-cta{align-items:center;gap:.5rem 1.2rem}
+.hero-cta .btn-rose{padding:1rem 1.8rem;font-size:1.05rem;box-shadow:0 10px 24px -10px color-mix(in srgb,var(--rose) 70%,transparent)}
+.hero-cta .wa-link{display:inline-flex;align-items:center;gap:.35rem;font-weight:800;color:var(--fg);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px;padding:.6rem .2rem}
+.hero-cta .wa-link:hover{text-decoration-color:var(--rose)}
+.hero-cta .wa-link svg{width:18px;height:18px}
+.trust{display:flex;flex-wrap:wrap;gap:.5rem;list-style:none;margin:0;padding:0}
+.trust li{display:inline-flex;align-items:center;gap:.4rem;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:.4rem .8rem;font-weight:800;font-size:.85rem}
+.trust svg{width:16px;height:16px;color:var(--wa);flex:none}
+.hero-media .photo{border-radius:32px}
+/* category shortcuts: round photos */
+.cat-pills{padding-block:1.4rem .2rem}
+.cp-row{display:flex;gap:1rem;overflow-x:auto;scrollbar-width:none;padding-bottom:.4rem}
+.cp-row::-webkit-scrollbar{display:none}
+.cp{flex:none;display:grid;justify-items:center;gap:.45rem;width:84px;text-decoration:none;color:var(--fg);font-weight:800;font-size:.85rem;text-align:center;line-height:1.2}
+.cp i{width:72px;height:72px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:var(--rose-soft);box-shadow:0 0 0 3px var(--paper),0 0 0 4px var(--line);font:800 1.4rem var(--f-display);font-style:normal;color:var(--rose);transition:transform .15s,box-shadow .15s}
+.cp i img{width:100%;height:100%;object-fit:cover}
+.cp:hover i{transform:translateY(-2px);box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--rose)}
+@media (min-width:900px){.cp-row{justify-content:center}}
+/* bands and section heads used by the new sections */
+.band{background:var(--blush)}
+.sec-top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:.8rem 2rem;margin-bottom:1.6rem}
+.sec-top .sec-head{margin-bottom:0}
+.sec-top > a{font-weight:800;color:var(--rose);text-underline-offset:3px}
+#best,#paket-hemat,#testimoni{scroll-margin-top:calc(env(safe-area-inset-top,0px) + var(--hdr,64px))}
+/* best sellers: same cards as the menu, with a badge */
+.best-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:1.1rem}
+.band .pcard{border-color:transparent}
+.pc-badge,.pk-badge{position:absolute;top:8px;right:8px;background:var(--badge);color:var(--badge-ink);font:800 .74rem/1 var(--f-body);padding:.35rem .6rem;border-radius:999px;box-shadow:0 0 0 2px var(--paper)}
+/* Paket Hemat */
+.pk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:1.1rem}
+.pkcard{position:relative;display:grid;grid-template-columns:132px minmax(0,1fr);gap:1rem;align-items:start;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:1rem;box-shadow:0 8px 20px -14px rgba(60,30,10,.3)}
+.pkcard:first-child{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.pkcard:first-child :is(.pk-items,.pk-price s){color:color-mix(in srgb,var(--bg) 78%,var(--fg))}
+.pk-media{position:relative;aspect-ratio:1/1;border-radius:var(--r-md);overflow:hidden;background:var(--rose-soft)}
+.pk-media img{width:100%;height:100%;object-fit:cover}
+.pk-media .pk-ph{position:absolute;inset:0;display:grid;place-items:center;font:800 2rem var(--f-display);color:var(--rose)}
+.pk-badge{top:6px;right:auto;left:6px;max-width:calc(100% - 12px);line-height:1.15}
+.pk-body{display:grid;gap:.4rem;min-width:0}
+.pk-body h3{font-size:1.3rem}
+.pk-body > p{font-size:.9rem;opacity:.85}
+.pk-items{list-style:none;margin:0;padding:0;display:grid;gap:.1rem;font-size:.9rem;font-weight:700;color:var(--muted)}
+.pk-items li::before{content:"·";margin-right:.4rem;font-weight:800}
+.pk-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .55rem}
+.pk-price .pc-price{font-family:var(--f-display);font-size:1.35rem}
+.pk-price s{font-weight:700;font-size:.88rem;color:var(--muted)}
+.pk-save{background:var(--badge);color:var(--badge-ink);border-radius:999px;padding:.15rem .55rem;font-weight:800;font-size:.76rem}
+.pk-foot{display:grid;gap:.45rem;margin-top:.2rem}
+.pkcard:first-child .pc-add:disabled{background:color-mix(in srgb,var(--bg) 20%,var(--fg));color:var(--bg)}
+@media (max-width:420px){.pkcard{grid-template-columns:96px minmax(0,1fr);gap:.75rem;padding:.8rem}.pk-body h3{font-size:1.15rem}}
+/* Testimoni */
+.t-grid{columns:4 230px;column-gap:1rem}
+.tcard{break-inside:avoid;margin:0 0 1rem;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;display:grid}
+.tcard img{width:100%;height:auto;max-height:420px;object-fit:cover;background:var(--rose-soft)}
+.tcard blockquote{margin:0;padding:1rem 1.1rem 0;font-weight:700;line-height:1.5}
+.tcard figcaption{display:flex;flex-wrap:wrap;align-items:center;gap:.2rem .5rem;padding:.8rem 1.1rem 1rem;font-size:.88rem}
+.tcard figcaption b{font-weight:800}
+.tcard figcaption span{color:var(--muted);font-weight:700}
+.tcard figcaption a{color:var(--rose);font-weight:800}
+/* menu: calmer submenus (no coloured boxes), filled add buttons */
+.series{border:0;background:none;padding:0;margin-top:2.2rem;border-radius:0}
+.series-head{align-items:center;gap:.3rem .9rem;margin-bottom:1rem}
+.series-head h3{background:none;color:var(--fg);padding:0;border-radius:0;display:inline-flex;align-items:center;gap:.55rem;font-size:clamp(1.35rem,2.6vw,1.75rem)}
+.series-head h3::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--accent);flex:none}
+.series-head p{font-style:normal;font-weight:600}
+.cat.alt{background:var(--paper)}
+.pcard{border-color:var(--line);box-shadow:0 8px 22px -16px rgba(60,30,10,.35)}
+.pc-price{font-family:var(--f-display);font-size:1.15rem}
+.pc-add{background:var(--rose);color:var(--rose-ink);border-color:var(--rose);border-radius:999px;min-height:44px}
+.pc-add:hover:not(:disabled){background:color-mix(in srgb,var(--rose) 86%,#000)}
+.pc-add:disabled{background:var(--line);border-color:var(--line);color:var(--muted)}
+.pc-add.added{background:var(--wa);border-color:var(--wa);color:var(--wa-ink)}
+.cart-bar{background:var(--fg);color:var(--bg);border-radius:999px}
+.cart-bar .cb-go{border-radius:999px;background:var(--rose);color:var(--rose-ink)}
+.cart-bar .cb-ic{border-radius:50%}
+.promo{background:var(--fg)}
+footer{background:#2A1A14;color:#F3E6D8;border-top:0;--fg:#F3E6D8;--muted:#CDB7A6;--line:#4A3329;--paper:#3A2820;--bg:#2A1A14;--rose:#F28CA8;--rose-ink:#2A1A14}
+footer .tile-ic{color:#fff}
+@media (max-width:600px){.best-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}.t-grid{columns:2 150px;column-gap:.7rem}.tcard{margin-bottom:.7rem}.tcard blockquote{padding:.8rem .8rem 0;font-size:.9rem}.tcard figcaption{padding:.6rem .8rem .8rem}}
 </style>
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
+
+<!-- the main promo (from the database), shown above the header -->
+<div class="announce" id="announce" role="note" hidden></div>
 
 <header>
   <div class="wrap nav">
@@ -720,11 +810,14 @@ body.sheet-open{overflow:hidden}
         <h1>Lagi pengen ngopi tapi mager keluar?<span class="script">Good coffee, better mood.</span></h1>
         <p class="lead">Kopi botolan enak dan cireng isi gurih. Homemade, dibuat dengan cinta pakai bahan premium. Tinggal chat, kami antar.</p>
         <div class="hero-cta">
-          <a class="btn btn-rose" id="see-menu" href="#minuman">Lihat menu</a>
-          <a class="btn btn-ghost wa-link" href="https://wa.me/6281368976966" target="_blank" rel="noopener">Order via WhatsApp</a>
-          <a class="btn btn-go" href="https://gofood.link/a/UCuoiHJ" target="_blank" rel="noopener">Order di GoFood</a>
+          <a class="btn btn-rose" id="see-menu" href="#minuman">Pesan sekarang</a>
+          <a class="wa-link" href="https://wa.me/6281368976966" target="_blank" rel="noopener">Tanya via WhatsApp <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         </div>
-        <p class="deliv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="17" r="2.5"/><circle cx="18" cy="17" r="2.5"/><path d="M8.5 17h7M3 12h8l2-5h4l3.5 5V17"/></svg>Free delivery area Bukit Cimanggu City</p>
+        <ul class="trust" aria-label="Kenapa CamilaNika">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Tanpa pengawet</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Fresh setiap hari</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Free delivery Bukit Cimanggu City</li>
+        </ul>
       </div>
       <div class="hero-media">
         <div class="photo"><img src="img/hero-combo.jpg" alt="Botol Aren Latte, Butterscotch, Peach Americano, cireng isi goreng dan cireng kuah" fetchpriority="high"></div>
@@ -743,10 +836,35 @@ body.sheet-open{overflow:hidden}
     </ul>
   </div>
 
+  <!-- STOREFRONT SECTIONS (js/shop.js, from get_storefront): category shortcuts, best sellers, Paket Hemat -->
+  <nav class="cat-pills" id="cat-pills" aria-label="Kategori menu" hidden><div class="wrap cp-row" id="cp-row"></div></nav>
+
+  <section class="block band" id="best" aria-labelledby="best-h" hidden>
+    <div class="wrap">
+      <div class="sec-top"><div class="sec-head"><p class="eyebrow">Paling dicari</p><h2 id="best-h">Best Seller bulan ini</h2></div><a href="#menu-root">Lihat semua menu</a></div>
+      <div class="best-grid" id="best-grid"></div>
+    </div>
+  </section>
+
+  <section class="block" id="paket-hemat" aria-labelledby="paket-h" hidden>
+    <div class="wrap">
+      <div class="sec-head"><p class="eyebrow">Lebih hemat</p><h2 id="paket-h">Paket Ngopi + Nyemil</h2><p id="paket-sub" hidden></p></div>
+      <div class="pk-grid" id="pk-grid"></div>
+    </div>
+  </section>
+
   <!-- MENU: main menus, submenus and products are loaded from the database (js/shop.js) -->
   <div id="menu-root">
     <section class="block"><div class="wrap"><p class="menu-status" id="menu-status">Memuat menu…</p></div></section>
   </div>
+
+  <!-- TESTIMONI (admin: Testimoni) -->
+  <section class="block band" id="testimoni" aria-labelledby="testi-h" hidden>
+    <div class="wrap">
+      <div class="sec-top"><div class="sec-head"><p class="eyebrow">Dari pelanggan</p><h2 id="testi-h">Kata mereka tentang CamilaNika</h2><p id="testi-sub" hidden></p></div><a id="testi-ig" href="https://www.instagram.com/camilanika.food" target="_blank" rel="noopener" hidden>Lihat di Instagram</a></div>
+      <div class="t-grid" id="t-grid"></div>
+    </div>
+  </section>
 
   <!-- PROMO + HOW TO -->
   <section class="block" id="cara-order">
@@ -939,7 +1057,7 @@ body.sheet-open{overflow:hidden}
 <script src="js/config.js?v=202611131545"></script>
 <script src="js/vendor/supabase.js"></script>
 <script src="js/hours.js?v=202611131430"></script>
-<script src="js/shop.js?v=202611131900"></script>
+<script src="js/shop.js?v=202611132300"></script>
 
 </body>
 </html>

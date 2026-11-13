@@ -12,7 +12,7 @@ const ROOT = path.resolve(__dirname, "../..");
 const ADMIN = "00000000-0000-0000-0000-00000000000a";
 const CUSTOMER = "00000000-0000-0000-0000-00000000000c";
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".webp": "image/webp" };
-const TABLES = new Set(["profiles", "orders", "order_items", "products", "product_variants", "menu_categories", "menu_sections", "shop_settings", "expenses", "offline_orders"]);
+const TABLES = new Set(["profiles", "orders", "order_items", "products", "product_variants", "menu_categories", "menu_sections", "shop_settings", "expenses", "offline_orders", "testimonials"]);
 const ident = (s) => { if (!/^[a-z_][a-z0-9_]*$/.test(s)) throw new Error("bad identifier " + s); return '"' + s + '"'; };
 
 async function asUser(pool, uid, fn) {

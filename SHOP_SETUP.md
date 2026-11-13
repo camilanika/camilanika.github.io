@@ -5,7 +5,7 @@ The website is hosted on Hostinger at https://camilanika.store (deployed from th
 | File | What it is |
 |---|---|
 | `index.html`, `js/shop.js` | Shop page: menu from the database, cart, promo codes, login, online payment, order history |
-| `admin.html` | Admin dashboard: orders, stock, main menus and submenus, products and variants, promos |
+| `admin.html` | Admin dashboard: orders, stock, main menus and submenus, products and variants, Paket Hemat, Testimoni, promos |
 | `js/config.js` | Public settings: Supabase URL and key |
 | `supabase/schema.sql` | Database tables, security rules and functions |
 | `supabase/seed.sql` | The current menu, loaded as products and variants |
@@ -83,7 +83,29 @@ Open `https://camilanika.store/admin.html`.
 - The page adapts on its own: empty or hidden submenus and main menus disappear, the jump links and size switch only show when they're needed, and product cards fill as many columns as fit.
 - Deleting a main menu or submenu never deletes products or orders; its products are hidden until you move them to another submenu.
 - Each main menu has its own **photo showcase**, set in **Menu → Ubah**: no photos, a swipeable photo row above the menu, or a photo mosaic beside the menu (the first photo is shown large). Upload photos, add captions, reorder or remove them. The same window holds the description, short info lines and round labels. A new main menu lays itself out from these settings.
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`, `018_order_privacy_checkout_guard.sql`, `019_order_columns_private.sql`, `020_paket_testimoni.sql`.
+
+## Storefront redesign (Nov 2026): Paket Hemat, Best Seller, Testimoni
+**Install once:** run `supabase/migrations/020_paket_testimoni.sql` in the SQL Editor. Until it runs, the shop looks the same as before minus the new sections, and the two new admin pages say the migration is needed.
+
+- **Look:** cream page, white cards, one brand pink (`#B8325A`, dark enough for white text and for pink text on the blush bands) for buttons, caramel badges, dark espresso footer. The shop always shows the light theme (`<html data-theme="light">` in `index.html`); remove that attribute to follow the visitor's light/dark setting again.
+- **Order of the page:** promo line above the header (the main automatic promo) → hero with one main button (**Pesan sekarang**) → category shortcuts (round photos, one per submenu) → **Best Seller** → **Paket Hemat** → menu → **Testimoni** → promo, GoFood, Cara order → footer.
+- **Best Seller** is automatic: the 4 products sold most in the last 30 days, counting only real paid orders (test/Sandbox orders don't count). It shows once at least 2 products have sales.
+
+### Paket Hemat (Admin → 🎁 Paket Hemat)
+- **+ Paket baru**: name, optional short description and photo label (e.g. "Untuk 4 orang"), photo (upload or URL), the items inside with quantities (any variant of any menu item), and the paket price. The form shows the normal price and how much the buyer saves while you type.
+- In the shop each paket shows its items, the normal price crossed out and "Hemat X%". The first paket gets the dark highlighted card.
+- A paket is a normal product behind the scenes (one variant, the paket price), so the cart, online payment, promos, vouchers, loyalty, notifications and Cashflow all work with it unchanged. It also appears in **Produk** (edit it in Paket Hemat) and **Stok** (unlimited by default; set a number if you make a limited batch).
+- A paket shows **Habis** while anything inside it is sold out or no longer for sale. Note: this check is in the shop page; the server checks the paket's own stock, so for strict limits also set the paket's stock in **Stok**.
+- ↑ ↓ reorders, **Ubah → Tampilkan di toko** hides one temporarily, **Hapus** deletes it (past orders keep its name and price).
+- The pakets live in a main menu called "Paket Hemat" (slug `paket`), which the shop shows as its own section. Don't hide or delete it in **Menu**, or the pakets stop being for sale.
+- **Judul bagian di toko** sets the section's heading and line under it.
+
+### Testimoni (Admin → 💬 Testimoni)
+- **+ Testimoni**: a customer photo or review screenshot and/or the customer's own words, their name or @account (only with their permission), where it came from (Instagram, WhatsApp, GoFood, Google Maps, other) and an optional https link to the post. Photos go to the `product-images` storage (folder `testimoni/`).
+- **Sembunyikan / Tampilkan**, ↑ ↓ to reorder, **Ubah**, **Hapus**.
+- **Pengaturan bagian di toko**: section on/off, heading, line under it, how many to show (1–24), and the Instagram account linked next to the heading.
+- The section only appears when at least one testimonial is shown. Use real customer content only.
 
 ## Customer accounts
 - Run `supabase/migrations/003_customer_accounts.sql` once (adds the **Pelanggan** tab's data).
