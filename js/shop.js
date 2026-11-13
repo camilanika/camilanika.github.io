@@ -79,6 +79,10 @@
   let shop = { open: true }; // open / closed, from shop_status()
   let promoCode = "";
   let session = null;
+  // automatic voucher choice at checkout (see autoApply below)
+  let autoCode = "", autoSave = 0, autoOff = false, autoKey = "", autoT = null, autoRun = 0;
+  let vch = null, vchAt = 0;
+  function dropVoucherCache() { vch = null; autoKey = ""; }
   let profile = null;
   const save = () => store.set("cn-cart-v2", cart);
 
@@ -553,6 +557,10 @@
       $("promo-msg").textContent = sub >= pr.min_spend ? `Yeay! Kamu dapat ${what}.` : `Tambah ${rp(pr.min_spend - sub)} lagi untuk dapat ${what}.`;
     } else { bar.hidden = true; $("promo-msg").textContent = ""; }
 
+    const auto = autoCode && promoCode === autoCode;
+    $("auto-msg").hidden = !auto;
+    if (auto) $("auto-msg").textContent = `✅ ${autoCode} otomatis dipakai${autoSave ? ` · hemat ${rp(autoSave)}` : ""}. Bisa diganti lewat pilihan voucher.`;
+    if (!$("checkout").hidden && cart.length) autoApplySoon();
     $("to-checkout").hidden = !cart.length || !$("checkout").hidden;
     if (!cart.length) $("checkout").hidden = true;
     $("send-wa").href = cart.length ? `https://wa.me/${WA}?text=${encodeURIComponent(buildMsg(total))}` : `https://wa.me/${WA}`;
@@ -749,6 +757,8 @@
   $("to-checkout").addEventListener("click", () => { $("checkout").hidden = false; renderCart(); $("cust-name").focus(); });
   $("apply-code").addEventListener("click", async () => {
     promoCode = $("promo-code").value.trim().toUpperCase();
+    if (promoCode !== autoCode) { autoCode = ""; autoSave = 0; }
+    if (!promoCode) autoOff = true;   // the customer cleared the code: don't put one back
     const btn = $("apply-code"); btn.disabled = true;
     const { error } = await runQuote(true);
     btn.disabled = false;
@@ -756,6 +766,59 @@
     if (!error && promoCode) refreshBadgesSoon();
   });
   $("promo-code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("apply-code").click(); });
+
+  // ------------------------------------------------------------------ best voucher, applied automatically
+  // At checkout the cart tries every code the customer can use (their own available vouchers, plus
+  // public promos that need a code) and keeps the one that saves the most. A code the customer typed
+  // or picked themselves is never replaced, and clearing the code stops the automatic choice.
+  async function voucherCandidates() {
+    if (vch && Date.now() - vchAt < 60000) return vch;
+    const r = session ? await sb.rpc("my_vouchers") : await sb.rpc("public_promotions");
+    if (r.error) throw r.error;
+    const d = session ? (r.data || {}) : { promos: r.data || [] };
+    const mine = [...(d.referral || []), ...(d.loyalty || []), ...(d.admin || [])].filter((v) => v.status === "available");
+    const codes = [...new Set([...mine.map((v) => v.code), ...(d.promos || []).filter((p) => p.code).map((p) => p.code)])];
+    vch = { mine: mine.length, codes }; vchAt = Date.now();
+    return vch;
+  }
+  function voucherLinkText() {
+    $("vc-link").textContent = session && vch?.mine ? `🏷️ Pilih voucher kamu (${vch.mine} tersedia)` : "🏷️ Lihat promo & voucher";
+  }
+  const autoApplySoon = () => { clearTimeout(autoT); autoT = setTimeout(autoApply, 400); };
+  async function autoApply() {
+    if (autoOff || !cart.length || $("checkout").hidden) return;
+    if (promoCode && promoCode !== autoCode) return;               // the customer's own choice
+    const fee = deliveryState().fee, items = cartItems();
+    const key = JSON.stringify([items, fee, session?.user?.id || "", promoCode]);
+    if (key === autoKey) return;
+    autoKey = key;
+    const run = ++autoRun;
+    let c;
+    try { c = await voucherCandidates(); } catch { return; }
+    voucherLinkText();
+    if (run !== autoRun || !c.codes.length) return;
+    const ask = (code) => sb.rpc("quote_cart", { p_items: items, p_promo_code: code }).then((r) => ({ code, r }), () => ({ code, r: { error: true } }));
+    const [base, ...tries] = await Promise.all([ask(null), ...c.codes.slice(0, 12).map(ask)]);
+    if (run !== autoRun || autoOff || (promoCode && promoCode !== autoCode)) return;
+    const worth = (q) => (q?.discount || 0) + shipDiscount(q, fee);
+    const baseWorth = base.r.error ? 0 : worth(base.r.data), baseGifts = base.r.data?.gifts?.length || 0;
+    let best = null;
+    for (const { code, r } of tries) {
+      if (r.error || !r.data) continue;
+      const w = worth(r.data), g = r.data.gifts?.length || 0;
+      if (w < baseWorth || (w === baseWorth && g <= baseGifts)) continue;   // no better than no code
+      if (!best || w > best.w || (w === best.w && g > best.g)) best = { code, w, g, q: r.data };
+    }
+    if (!best) {
+      if (promoCode && promoCode === autoCode) { promoCode = autoCode = ""; autoSave = 0; $("promo-code").value = ""; await runQuote(); }
+      return;
+    }
+    promoCode = autoCode = best.code; autoSave = best.w - baseWorth;
+    $("promo-code").value = best.code;
+    quote = best.q; showErr("");
+    autoKey = JSON.stringify([items, fee, session?.user?.id || "", promoCode]);
+    renderCart();
+  }
 
   // drawers
   const bg = $("drawer-bg");
@@ -819,7 +882,7 @@
     location.assign(url);
     return true;
   }
-  function clearCart() { cart = []; promoCode = ""; quote = null; $("promo-code").value = ""; $("checkout").hidden = true; save(); renderCart(); refreshCards(); }
+  function clearCart() { dropVoucherCache(); autoCode = ""; autoSave = 0; cart = []; promoCode = ""; quote = null; $("promo-code").value = ""; $("checkout").hidden = true; save(); renderCart(); refreshCards(); }
 
   $("pay-btn").addEventListener("click", async () => {
     if (paying) return;
@@ -1453,6 +1516,7 @@
     const signedOut = !s && !!session;
     session = s;
     profile = null;
+    dropVoucherCache(); autoOff = false;
     if (signedOut) {
       // logging out leaves no personal details behind on a shared device (QA fix OBS-11)
       ["cust-name", "cust-phone", "cust-addr", "cust-email"].forEach((id) => { if ($(id)) $(id).value = ""; });
