@@ -103,7 +103,7 @@ footer{border-top:1px solid var(--line);padding-block:1.5rem 3rem;color:var(--mu
   </details>
   <details>
     <summary>Jam berapa toko buka?</summary>
-    <p>Setiap hari pukul <b>10.00–20.00 WIB</b>. Pesanan online hanya bisa dibuat selama jam buka; saat toko tutup, situs menampilkan pemberitahuan dan pesanan baru tidak bisa dibuat. Untuk pesanan di luar jam buka, silakan chat kami lewat WhatsApp.</p>
+    <p>Setiap hari pukul <b><span data-shop-hours>10.00–20.00</span> WIB</b>. Pesanan online hanya bisa dibuat selama jam buka; saat toko tutup, situs menampilkan pemberitahuan dan pesanan baru tidak bisa dibuat. Untuk pesanan di luar jam buka, silakan chat kami lewat WhatsApp.</p>
   </details>
   <details>
     <summary>Bisa pesan dalam jumlah banyak untuk acara?</summary>
@@ -175,7 +175,7 @@ footer{border-top:1px solid var(--line);padding-block:1.5rem 3rem;color:var(--mu
   <div class="faq">
   <details>
     <summary>Bagaimana memakai kode promo atau voucher?</summary>
-    <p>Masukkan kodenya di keranjang sebelum membayar; potongannya langsung terlihat di total. Setiap voucher punya syarat dan masa berlaku sendiri, yang bisa kamu lihat di menu Akun.</p>
+    <p>Saat checkout, voucher atau promo yang paling hemat untuk keranjangmu otomatis terpasang. Mau pakai yang lain? Ketik kodenya di keranjang, atau tekan <b>Pilih voucher kamu</b> untuk melihat semua voucher dan pilih <b>Pakai</b>. Setiap voucher punya syarat dan masa berlaku sendiri. Voucher yang sudah dipakai pada pesanan yang dibayar tidak dikembalikan jika pesanan dibatalkan, tetapi kamu bisa menghubungi admin untuk meminta voucher pengganti.</p>
   </details>
   <details>
     <summary>Bisa membatalkan pesanan atau minta refund?</summary>
@@ -189,10 +189,12 @@ footer{border-top:1px solid var(--line);padding-block:1.5rem 3rem;color:var(--mu
     <nav class="foot-links" aria-label="Bantuan"><span class="foot-label">Bantuan</span><ul><li><a href="faq.html" aria-current="page">FAQ</a></li><li><a href="./#cara-order">Cara order</a></li><li><a href="contact.html">Hubungi kami</a></li></ul></nav>
     <nav class="foot-links" aria-label="Kebijakan"><span class="foot-label">Kebijakan</span><ul><li><a href="refund.html">Pengembalian dana</a></li><li><a href="terms.html">Syarat &amp; ketentuan</a></li><li><a href="privacy.html">Privasi</a></li></ul></nav>
     <div class="foot-legal">
-      <p>Buka setiap hari · 10.00–20.00 WIB<br><a href="mailto:camilanika.shop@gmail.com">camilanika.shop@gmail.com</a></p>
+      <p>Buka setiap hari · <span data-shop-hours>10.00–20.00</span> WIB<br><a href="mailto:camilanika.shop@gmail.com">camilanika.shop@gmail.com</a></p>
       <p>© 2026 CamilaNika Foods &amp; Drinks</p>
     </div>
   </div>
 </footer>
+<script src="js/config.js?v=202611131545"></script>
+<script src="js/hours.js?v=202611131430"></script>
 </body>
 </html>
