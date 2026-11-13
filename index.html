@@ -327,6 +327,9 @@ footer{padding-block:3rem 6rem;border-top:1px solid var(--line)}
 .promo-code{display:flex;gap:.5rem}
 .promo-code input{flex:1;min-width:0;font:inherit;padding:.6rem .8rem;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);color:var(--fg);text-transform:uppercase}
 .promo-code .btn{padding:.6rem 1rem}
+.vc-pick{display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;margin-top:-.2rem}
+.vc-pick .linkish{font-size:.9rem}
+.auto-msg{color:var(--fg);margin:0}
 .field small{font-weight:600}
 .pay-note{font-size:.8rem;color:var(--muted);text-align:center;margin-top:-.3rem}
 .linkish{border:0;background:none;padding:0;font:inherit;color:var(--rose);font-weight:800;text-decoration:underline;cursor:pointer}
@@ -861,6 +864,10 @@ body.sheet-open{overflow:hidden}
         <input id="promo-code" placeholder="Kode promo / voucher" autocomplete="off" aria-label="Kode promo atau voucher">
         <button class="btn btn-ghost" type="button" id="apply-code">Pakai</button>
       </div>
+      <div class="vc-pick">
+        <p class="promo-msg auto-msg" id="auto-msg" role="status" hidden></p>
+        <button type="button" class="linkish" id="vc-link" data-open-vouchers>🏷️ Lihat promo &amp; voucher</button>
+      </div>
       <div class="field"><label for="cust-name">Nama</label><input id="cust-name" autocomplete="name" placeholder="Nama kamu"></div>
       <div class="field"><label for="cust-phone">No. WhatsApp</label><input id="cust-phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="08xxxxxxxxxx"></div>
       <div class="field"><label for="cust-email">Email <small>(opsional, untuk bukti bayar)</small></label><input id="cust-email" type="email" autocomplete="email" placeholder="nama@email.com"></div>
@@ -931,7 +938,7 @@ body.sheet-open{overflow:hidden}
 
 <script src="js/config.js?v=202611131545"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/shop.js?v=202611131500"></script>
+<script src="js/shop.js?v=202611131700"></script>
 
 </body>
 </html>
