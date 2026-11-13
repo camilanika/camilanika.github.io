@@ -144,104 +144,107 @@
   // ---- photo showcase + info lines for a main menu (all configured in the admin page)
   const TAG_COLORS = ["#E8C07A", "#D9586F", "#F2D46B", "#A14A2E", "#6E9A3E", "#2F7FA8"];
   const ICON_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></svg>';
-  const showcaseImages = (c) => (Array.isArray(c.showcase_images) ? c.showcase_images : []).filter((i) => i && i.url);
-  function showcaseHTML(c) {
-    const imgs = showcaseImages(c);
-    if (!imgs.length || c.showcase_layout === "none") return "";
-    const img = (i, extra = "") => `<img src="${esc(i.url)}" alt="${esc(i.alt || i.caption || "")}" loading="lazy"${extra}>`;
-    if (c.showcase_layout === "row") {
-      return `<div class="bottle-row" tabindex="0" role="group" aria-label="Foto produk (geser)">${imgs.map((i) => `<figure class="bottle">${img(i)}${i.caption ? `<figcaption>${esc(i.caption)}${i.tag ? `<span>${esc(i.tag)}</span>` : ""}</figcaption>` : ""}</figure>`).join("")}</div>
-        ${imgs.length > 3 ? '<p class="swipe-hint">Geser untuk lihat foto lainnya →</p>' : ""}`;
-    }
-    // mosaic: first photo is tall; if the grid would leave a gap, the last photo goes full width
-    const k = imgs.length, solo = k === 1, lastWide = !solo && (k + 1) % 2 === 1;
-    const rows = solo ? 2 : Math.ceil((k + 1 + (lastWide ? 1 : 0)) / 2);
-    return `<div class="mosaic" style="--rows:${rows};grid-template-rows:repeat(${rows},var(--mosaic-row)) auto">
-      ${imgs.map((i, n) => `<figure class="${solo ? "solo" : n === k - 1 && lastWide ? "wide" : ""}">${img(i)}${i.caption ? `<figcaption>${esc(i.caption)}</figcaption>` : ""}</figure>`).join("")}
-      ${c.showcase_note ? `<div class="note" aria-hidden="true">${esc(c.showcase_note)}</div>` : ""}
-      <img class="sticker" src="img/logo.jpg" alt="">
-    </div>`;
-  }
   const infoHTML = (c) =>
     (c.highlights || []).filter(Boolean).map((h) => `<p class="deliv">${ICON_INFO}${esc(h)}</p>`).join("") +
     ((c.tags || []).filter(Boolean).length ? `<div class="fillings">${c.tags.filter(Boolean).map((t, i) => `<div><i style="background:${TAG_COLORS[i % TAG_COLORS.length]}"></i>${esc(t)}</div>`).join("")}</div>` : "");
-  const sizesIn = (c) => {
-    const all = new Set();
-    c.sections.forEach((s) => s.products.filter(usesSize).forEach((p) => attrValues(p, SIZE_ATTR).forEach((v) => all.add(v))));
-    return [...all].sort((a, b) => (SIZE_ORDER.indexOf(a) + 1 || 99) - (SIZE_ORDER.indexOf(b) + 1 || 99));
-  };
 
-  function catHTML(c, i) {
-    const showcase = showcaseHTML(c);
-    const side = !!showcase && c.showcase_layout === "mosaic";
-    const sizes = sizesIn(c);
-    if (sizes.length && !sizes.includes(size)) size = sizes.includes("M") ? "M" : sizes[0];
-    const head = `<div class="sec-head">
-        ${c.eyebrow ? `<p class="eyebrow">${esc(c.eyebrow)}</p>` : ""}
-        <h2 id="cat-${esc(c.slug)}">${esc(c.heading || c.name)}${c.heading_script ? ` <span class="script" style="font-size:.6em">${esc(c.heading_script)}</span>` : ""}</h2>
-        ${c.description ? `<p>${esc(c.description)}</p>` : ""}
-      </div>${infoHTML(c) ? `<div class="cat-info">${infoHTML(c)}</div>` : ""}`;
-    const secs = c.sections.map((s) => `
-      <section class="series acc-${esc(s.accent || "caramel")}" id="sub-${esc(s.slug)}" aria-labelledby="sub-h-${esc(s.slug)}">
-        <div class="series-head"><h3 id="sub-h-${esc(s.slug)}">${esc(s.name)}</h3>${s.tagline ? `<p>${esc(s.tagline)}</p>` : ""}</div>
-        <div class="menu-grid">${s.products.map((p) => cardHTML(p)).join("")}</div>
-      </section>`).join("");
-    const main = head + (side ? "" : showcase) + secs;
-    return `<section class="block cat${i % 2 ? " alt" : ""}" id="${esc(c.slug)}" aria-labelledby="cat-${esc(c.slug)}">
-      <div class="wrap${side ? " cat-side" : ""}">${side ? `<div class="cat-media">${showcase}</div>` : ""}<div class="cat-main">${main}</div></div>
-    </section>`;
-  }
-
-  // ---- shop bar: search + one chip per submenu (or per main menu with a single submenu); sticky while browsing the menu
+  // ---- the menu (Nov 2026): one grid with every product, filtered by tabs: Semua + one per submenu.
+  // Header links (#minuman), category shortcuts (#sub-coffee-series) and links from outside (camilanika.store/#camilan)
+  // pick the matching filter instead of scrolling to a section.
   const ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
-  const ICON_LIST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
-  function shopBarHTML(cats) {
-    const tabs = cats.flatMap((c) => c.sections.map((s) => `<a href="#sub-${esc(s.slug)}" data-cat="${esc(c.slug)}">${esc(s.name.replace(/ Series$/, ""))}</a>`));
-    const list = cats.map((c) => `<div class="sb-cat"><a href="#${esc(c.slug)}" class="sb-cat-name">${esc(c.name)}</a>${c.sections.length > 1 ? c.sections.map((s) => `<a href="#sub-${esc(s.slug)}">${s.icon ? esc(s.icon) + " " : ""}${esc(s.name.replace(/ Series$/, ""))}</a>`).join("") : ""}</div>`).join("");
-    return `<div class="shopbar" id="shopbar"><div class="wrap sb-row">
-      <button class="sb-catbtn" type="button" id="sb-catbtn" aria-haspopup="true" aria-expanded="false" aria-controls="sb-cats">${ICON_LIST}<span id="sb-catname">${esc(cats[0].name)}</span></button>
-      <nav class="sb-chips" aria-label="Submenu">${tabs.join("")}</nav>
-      <div class="sb-search" id="sb-search" role="search" hidden>${ICON_SEARCH}<input type="search" id="sb-q" placeholder="Cari menu, mis. latte, cireng" aria-label="Cari menu" autocomplete="off" enterkeyhint="search"><button class="sb-x" type="button" id="sb-close" aria-label="Tutup pencarian">×</button></div>
-      <button class="sb-btn" type="button" id="sb-open" aria-label="Cari menu" aria-controls="sb-search" aria-expanded="false">${ICON_SEARCH}</button>
-    </div><div class="sb-cats" id="sb-cats" hidden><div class="wrap">${list}</div></div></div>`;
+  let menuFilter = "all";
+  const shortName = (s) => s.name.replace(/ Series$/, "");
+  function menuHTML(cats) {
+    const secs = cats.flatMap((c) => c.sections.map((s) => ({ ...s, cat: c })));
+    const tabs = [`<button type="button" class="mf" data-filter="all" aria-pressed="true">Semua</button>`,
+      ...secs.map((s) => `<button type="button" class="mf" data-filter="${esc(s.slug)}" aria-pressed="false">${s.icon ? esc(s.icon) + " " : ""}${esc(shortName(s))}</button>`)];
+    const cards = secs.flatMap((s) => s.products.map((p) => cardHTML(p).replace('<article class="pcard"',
+      `<article class="pcard" data-sec="${esc(s.slug)}" data-cat="${esc(s.cat.slug)}" data-group="${esc(s.cat.name + " " + s.name)}"`)));
+    return `<section class="block menu-head" id="menu-lengkap" aria-labelledby="menu-h"><div class="wrap">
+        <div class="sec-head"><p class="eyebrow">Menu lengkap</p><h2 id="menu-h">Mau yang mana hari ini?</h2></div></div></section>
+      <div class="shopbar" id="shopbar"><div class="wrap sb-row">
+        <nav class="sb-chips mf-row" aria-label="Pilih kategori menu">${tabs.join("")}</nav>
+        <div class="sb-search" id="sb-search" role="search" hidden>${ICON_SEARCH}<input type="search" id="sb-q" placeholder="Cari menu, mis. latte, cireng" aria-label="Cari menu" autocomplete="off" enterkeyhint="search"><button class="sb-x" type="button" id="sb-close" aria-label="Tutup pencarian">×</button></div>
+        <button class="sb-btn" type="button" id="sb-open" aria-label="Cari menu" aria-controls="sb-search" aria-expanded="false">${ICON_SEARCH}</button>
+      </div></div>
+      <section class="block menu-all" aria-label="Daftar menu"><div class="wrap">
+        <div class="mf-info" id="mf-info" role="status" hidden></div>
+        <div class="menu-grid" id="menu-grid">${cards.join("")}</div>
+        <p class="op-empty mf-empty" id="sb-empty" hidden>Menu yang kamu cari belum ada. Coba kata lain, atau <a href="https://wa.me/${WA}" target="_blank" rel="noopener">tanya kami lewat WhatsApp</a>.</p>
+      </div></section>`;
   }
-  const catMenu = (open) => { const m = $("sb-cats"); if (!m) return; m.hidden = !open; $("sb-catbtn").setAttribute("aria-expanded", String(open)); };
+  // a filter value is a submenu slug, a main menu slug or "all"
+  const filterFor = (id) => {
+    const cats = renderMenu.cats || [];
+    if (id === "menu-lengkap" || id === "menu-root") return "all";
+    const sec = id.startsWith("sub-") && cats.some((c) => c.sections.some((s) => s.slug === id.slice(4))) ? id.slice(4) : null;
+    return sec || (cats.some((c) => c.slug === id) ? id : null);
+  };
+  function filterInfo(f) {
+    const cats = renderMenu.cats || [];
+    const cat = cats.find((c) => c.slug === f || c.sections.some((s) => s.slug === f));
+    if (!cat || f === "all") return "";
+    const sec = cat.sections.find((s) => s.slug === f);
+    const lead = sec ? sec.tagline : cat.description;
+    return `<div><b>${esc(sec ? shortName(sec) : cat.name)}</b>${lead ? ` <span>${esc(lead)}</span>` : ""}</div>${infoHTML(cat)}`;
+  }
+  function applyFilter(f, scroll) {
+    if ($("sb-search") && !$("sb-search").hidden) closeSearch(true);
+    menuFilter = f || "all";
+    let active = null;
+    document.querySelectorAll("#shopbar .mf").forEach((b) => { const on = b.dataset.filter === menuFilter; b.setAttribute("aria-pressed", String(on)); if (on) active = b; });
+    document.querySelectorAll("#menu-grid [data-card]").forEach((c) => { c.hidden = menuFilter !== "all" && c.dataset.sec !== menuFilter && c.dataset.cat !== menuFilter; });
+    const info = filterInfo(menuFilter);
+    $("mf-info").hidden = !info; $("mf-info").innerHTML = info;
+    if (active) { const row = active.parentElement; row.scrollTo({ left: row.scrollLeft + active.getBoundingClientRect().left - row.getBoundingClientRect().left - (row.clientWidth - active.offsetWidth) / 2, behavior: "smooth" }); }
+    if (scroll) toMenuTop();
+  }
   document.addEventListener("click", (e) => {
-    if (e.target.closest("#sb-catbtn")) { catMenu($("sb-cats").hidden); return; }
-    if (!e.target.closest("#sb-cats a") && e.target.closest("#sb-cats")) return;
-    if ($("sb-cats") && !$("sb-cats").hidden) catMenu(false);
+    const tab = e.target.closest("#shopbar .mf");
+    if (tab) { applyFilter(tab.dataset.filter, true); return; }
+    // links to a menu or submenu anywhere on the page choose that filter
+    const a = e.target.closest('a[href^="#"]');
+    if (!a || !$("menu-grid")) return;
+    const f = filterFor(a.getAttribute("href").slice(1));
+    if (f === null) return;
+    e.preventDefault();
+    applyFilter(f, true);
   });
-  const fold = (t) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const fold = (t) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   function indexSearch() {
     document.querySelectorAll("#menu-root [data-card]").forEach((card) => {
       const p = productById(card.dataset.card); if (!p) return;
-      const words = [p.name, p.subtitle, p.note, card.closest(".series")?.querySelector(".series-head")?.textContent, card.closest(".cat")?.querySelector(".sec-head h2")?.textContent,
+      const words = [p.name, p.subtitle, p.note, card.dataset.group,
         ...(p.variants || []).flatMap((v) => [v.name, ...Object.values(v.attrs || {})]), ...(p.choices || []).flatMap((c) => c.options || [])];
       card.dataset.hay = fold(words.filter(Boolean).join(" "));
     });
   }
+  // searching looks through every product (the tabs are put away meanwhile); clearing it brings the chosen tab back
   function applySearch(raw) {
     const words = fold(raw).trim().split(/\s+/).filter(Boolean), on = words.length > 0, root = $("menu-root");
     root.classList.toggle("searching", on);
     let hits = 0;
-    root.querySelectorAll("[data-card]").forEach((card) => { const ok = !on || words.every((w) => card.dataset.hay?.includes(w)); card.hidden = !ok; if (ok) hits++; });
-    root.querySelectorAll(".series, .cat").forEach((el) => { el.hidden = on && !el.querySelector("[data-card]:not([hidden])"); });
+    root.querySelectorAll("[data-card]").forEach((card) => {
+      const ok = on ? words.every((w) => card.dataset.hay?.includes(w)) : menuFilter === "all" || card.dataset.sec === menuFilter || card.dataset.cat === menuFilter;
+      card.hidden = !ok; if (ok) hits++;
+    });
     $("sb-empty").hidden = !on || hits > 0;
-    setOffsets(); setActive();
+    $("mf-info").hidden = on || !filterInfo(menuFilter);
+    setOffsets();
   }
   // put the top of the menu right under the header (results start there)
-  const toMenuTop = () => { const r = $("menu-root"); scrollTo({ top: r.getBoundingClientRect().top + scrollY - hdr.offsetHeight + 1, behavior: "instant" }); };
+  const toMenuTop = () => { const r = $("shopbar") || $("menu-root"); scrollTo({ top: r.getBoundingClientRect().top + scrollY - hdr.offsetHeight + 1, behavior: "instant" }); };
   function openSearch() {
-    catMenu(false);
     $("sb-search").hidden = false; $("sb-open").hidden = true; $("sb-open").setAttribute("aria-expanded", "true");
-    document.querySelector(".sb-chips").hidden = true; $("sb-catbtn").hidden = true;
+    document.querySelector(".sb-chips").hidden = true;
     toMenuTop(); $("sb-q").focus();
   }
-  function closeSearch() {
+  function closeSearch(quiet) {
     $("sb-q").value = ""; applySearch("");
     $("sb-search").hidden = true; $("sb-open").hidden = false; $("sb-open").setAttribute("aria-expanded", "false");
-    document.querySelector(".sb-chips").hidden = false; $("sb-catbtn").hidden = false;
-    setOffsets(); toMenuTop(); $("sb-open").focus();
+    document.querySelector(".sb-chips").hidden = false;
+    setOffsets();
+    if (!quiet) { toMenuTop(); $("sb-open").focus(); }
   }
   document.addEventListener("click", (e) => {
     if (e.target.closest("#sb-open")) openSearch();
@@ -252,7 +255,7 @@
   document.addEventListener("input", (e) => {
     if (e.target.id !== "sb-q") return;
     applySearch(e.target.value);
-    const r = $("menu-root"); if (r.getBoundingClientRect().top < hdr.offsetHeight - 2) toMenuTop();
+    const r = $("shopbar"); if (r && r.getBoundingClientRect().top < hdr.offsetHeight - 2) toMenuTop();
   });
   document.addEventListener("keydown", (e) => {
     if (e.target.id !== "sb-q") return;
@@ -274,16 +277,23 @@
       $("nav-menus").innerHTML = "";
       return;
     }
-    root.innerHTML = shopBarHTML(cats) + cats.map(catHTML).join("") +
-      `<section class="block sb-none" id="sb-empty" hidden><div class="wrap"><p class="op-empty">Menu yang kamu cari belum ada. Coba kata lain, atau <a href="https://wa.me/${WA}" target="_blank" rel="noopener">tanya kami lewat WhatsApp</a>.</p></div></section>`;
+    // a menu refresh (stock change) keeps the chosen tab if it still exists
+    const keep = cats.some((c) => c.slug === menuFilter || c.sections.some((s) => s.slug === menuFilter)) ? menuFilter : "all";
+    root.innerHTML = menuHTML(cats);
     indexSearch();
     $("nav-menus").innerHTML = (front.bundles.length ? '<a href="#paket-hemat">Paket</a>' : "") + cats.map((c) => `<a href="#${esc(c.slug)}">${esc(c.name)}</a>`).join("");
-    $("see-menu").href = "#" + cats[0].slug;
-    navLinks = [...root.querySelectorAll(".sb-chips a")];
+    $("see-menu").href = "#menu-lengkap";
+    navLinks = [];
     refreshCards();
-    setOffsets(); setActive();
-    // jump to an anchor from the URL once the menu exists (e.g. camilanika.store/#camilan)
-    if (location.hash && !renderMenu.jumped) { renderMenu.jumped = true; document.getElementById(location.hash.slice(1))?.scrollIntoView(); }
+    applyFilter(keep, false);
+    setOffsets();
+    // a link from outside (camilanika.store/#camilan, #sub-coffee-series) opens the menu on that filter, once
+    if (location.hash && !renderMenu.jumped) {
+      renderMenu.jumped = true;
+      const f = filterFor(location.hash.slice(1));
+      if (f !== null) { applyFilter(f, false); requestAnimationFrame(() => toMenuTop()); }
+      else document.getElementById(location.hash.slice(1))?.scrollIntoView();
+    }
   }
 
   const productById = (id) => menu.products.find((p) => p.id === +id);
