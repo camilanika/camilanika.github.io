@@ -83,6 +83,11 @@
 
   // ------------------------------------------------------------------ state
   let menu = { products: [], promotions: [] };
+  // storefront sections (migration 020, get_storefront): pakets, testimonials, best sellers. Empty when not available,
+  // so the shop works the same as before without them.
+  const NO_FRONT = { bundles: [], testimonials: [], best_sellers: [], testi: {}, paket: {} };
+  let front = NO_FRONT;
+  const bundleOf = (id) => front.bundles.find((b) => b.id === +id);
   let size = "M";
   let cart = store.get("cn-cart-v2", []);
   let quote = null;          // last server quote
@@ -112,8 +117,8 @@
   const sizesOf = (p) => attrValues(p, SIZE_ATTR).sort((a, b) => (SIZE_ORDER.indexOf(a) + 1 || 99) - (SIZE_ORDER.indexOf(b) + 1 || 99));
   const hasOptions = (p) => p.variants.length > 1 || (p.choices || []).length > 0 || !!p.addon_label;
   const cardImg = (p, cls = "pc-img") => `<div class="${cls}${usesSize(p) ? " ill" : ""}">${p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" onerror="this.remove()">` : ""}</div>`;
-  const cardHTML = (p) => `<article class="pcard" data-card="${p.id}">
-      <div class="pc-media">${cardImg(p)}<b class="pc-qty num" data-qty hidden></b></div>
+  const cardHTML = (p, badge = "") => `<article class="pcard" data-card="${p.id}">
+      <div class="pc-media">${cardImg(p)}<b class="pc-qty num" data-qty hidden></b>${badge ? `<span class="pc-badge">${esc(badge)}</span>` : ""}</div>
       <h3>${esc(p.name)}</h3>
       <div class="pc-foot"><div class="pc-price num" data-from></div><span class="stock-tag" data-stock></span>
       <button class="pc-add" type="button" data-pick>Tambah</button></div>
@@ -179,7 +184,7 @@
     const secs = c.sections.map((s) => `
       <section class="series acc-${esc(s.accent || "caramel")}" id="sub-${esc(s.slug)}" aria-labelledby="sub-h-${esc(s.slug)}">
         <div class="series-head"><h3 id="sub-h-${esc(s.slug)}">${esc(s.name)}</h3>${s.tagline ? `<p>${esc(s.tagline)}</p>` : ""}</div>
-        <div class="menu-grid">${s.products.map(cardHTML).join("")}</div>
+        <div class="menu-grid">${s.products.map((p) => cardHTML(p)).join("")}</div>
       </section>`).join("");
     const main = head + (side ? "" : showcase) + secs;
     return `<section class="block cat${i % 2 ? " alt" : ""}" id="${esc(c.slug)}" aria-labelledby="cat-${esc(c.slug)}">
@@ -258,10 +263,12 @@
   function renderMenu() {
     const root = $("menu-root");
     const bySection = new Map();
-    menu.products.forEach((p) => { if (!bySection.has(p.section_id)) bySection.set(p.section_id, []); bySection.get(p.section_id).push(p); });
+    // pakets have their own section (Paket Hemat), so they are left out of the menu lists
+    menu.products.filter((p) => !bundleOf(p.id)).forEach((p) => { if (!bySection.has(p.section_id)) bySection.set(p.section_id, []); bySection.get(p.section_id).push(p); });
     const cats = (menu.categories || [])
       .map((c) => ({ ...c, sections: c.sections.map((s) => ({ ...s, products: bySection.get(s.id) || [] })).filter((s) => s.products.length) }))
       .filter((c) => c.sections.length);
+    renderMenu.cats = cats;
     if (!cats.length) {
       root.innerHTML = `<section class="block"><div class="wrap"><p class="menu-status">Menu belum tersedia. Pesan langsung lewat <a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a>.</p></div></section>`;
       $("nav-menus").innerHTML = "";
@@ -270,7 +277,7 @@
     root.innerHTML = shopBarHTML(cats) + cats.map(catHTML).join("") +
       `<section class="block sb-none" id="sb-empty" hidden><div class="wrap"><p class="op-empty">Menu yang kamu cari belum ada. Coba kata lain, atau <a href="https://wa.me/${WA}" target="_blank" rel="noopener">tanya kami lewat WhatsApp</a>.</p></div></section>`;
     indexSearch();
-    $("nav-menus").innerHTML = cats.map((c) => `<a href="#${esc(c.slug)}">${esc(c.name)}</a>`).join("");
+    $("nav-menus").innerHTML = (front.bundles.length ? '<a href="#paket-hemat">Paket</a>' : "") + cats.map((c) => `<a href="#${esc(c.slug)}">${esc(c.name)}</a>`).join("");
     $("see-menu").href = "#" + cats[0].slug;
     navLinks = [...root.querySelectorAll(".sb-chips a")];
     refreshCards();
@@ -280,6 +287,57 @@
   }
 
   const productById = (id) => menu.products.find((p) => p.id === +id);
+
+  // ---- storefront sections: category shortcuts, best sellers, Paket Hemat, Testimoni (all hidden when empty)
+  const SOURCES = { instagram: "Instagram", whatsapp: "WhatsApp", gofood: "GoFood", google: "Google", lainnya: "" };
+  const safeUrl = (u) => (/^https:\/\//i.test(String(u || "")) || /^img\//.test(String(u || "")) ? String(u) : "");
+  function renderStorefront() {
+    const cats = renderMenu.cats || [];
+    // category shortcuts: one round photo per submenu (its first product with a photo), Paket first
+    const pills = [];
+    const bundles = front.bundles.filter((b) => productById(b.id));
+    if (bundles.length) pills.push({ href: "#paket-hemat", name: "Paket", img: bundles.find((b) => b.image_url)?.image_url });
+    cats.forEach((c) => c.sections.forEach((s) => pills.push({ href: "#sub-" + s.slug, name: s.name.replace(/ Series$/, ""), img: s.products.find((p) => p.image_url)?.image_url })));
+    $("cp-row").innerHTML = pills.map((x) => `<a class="cp" href="${esc(x.href)}"><i aria-hidden="true">${safeUrl(x.img) ? `<img src="${esc(safeUrl(x.img))}" alt="" loading="lazy" onerror="this.remove()">` : esc(x.name.charAt(0))}</i>${esc(x.name)}</a>`).join("");
+    $("cat-pills").hidden = pills.length < 2;
+
+    // best sellers (most sold in the last 30 days, real paid orders): shown once there are at least 2
+    const best = (front.best_sellers || []).map((id) => productById(id)).filter(Boolean);
+    $("best").hidden = best.length < 2;
+    $("best-grid").innerHTML = best.length < 2 ? "" : best.map((p) => cardHTML(p, "Best seller")).join("");
+
+    // Paket Hemat
+    if (front.paket?.title) $("paket-h").textContent = front.paket.title;
+    $("paket-sub").hidden = !front.paket?.subtitle; $("paket-sub").textContent = front.paket?.subtitle || "";
+    $("paket-hemat").hidden = !bundles.length;
+    $("pk-grid").innerHTML = bundles.map((b) => {
+      const save = b.normal_price > b.price ? Math.round((1 - b.price / b.normal_price) * 100) : 0;
+      return `<article class="pkcard" data-card="${b.id}">
+        <div class="pk-media">${safeUrl(b.image_url) ? `<img src="${esc(safeUrl(b.image_url))}" alt="${esc(b.name)}" loading="lazy" onerror="this.remove()">` : `<span class="pk-ph" aria-hidden="true">${esc(b.name.charAt(0))}</span>`}<b class="pc-qty num" data-qty hidden></b>${b.badge ? `<span class="pk-badge">${esc(b.badge)}</span>` : ""}</div>
+        <div class="pk-body">
+          <h3>${esc(b.name)}</h3>${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ""}
+          <ul class="pk-items" aria-label="Isi paket">${(b.items || []).map((i) => `<li>${i.quantity}× ${esc(i.name)}</li>`).join("")}</ul>
+          <div class="pk-foot"><div class="pk-price"><span class="pc-price num" data-from></span>${save > 0 ? `<s class="num" aria-label="Harga normal ${esc(rp(b.normal_price))}">${esc(rp(b.normal_price))}</s><span class="pk-save">Hemat ${save}%</span>` : ""}</div>
+            <span class="stock-tag" data-stock></span><button class="pc-add" type="button" data-pick>Tambah</button></div>
+        </div></article>`;
+    }).join("");
+
+    // Testimoni
+    const t = front.testi || {}, list = front.testimonials || [];
+    $("testimoni").hidden = t.enabled === false || !list.length;
+    if (t.title) $("testi-h").textContent = t.title;
+    $("testi-sub").hidden = !t.subtitle; $("testi-sub").textContent = t.subtitle || "";
+    const ig = String(t.instagram || "").replace(/^@/, "");
+    $("testi-ig").hidden = !/^[A-Za-z0-9._]{1,30}$/.test(ig);
+    if (!$("testi-ig").hidden) { $("testi-ig").href = "https://www.instagram.com/" + ig; $("testi-ig").textContent = "@" + ig + " di Instagram"; }
+    $("t-grid").innerHTML = list.map((x) => {
+      const who = x.author ? esc(x.author) : "Pelanggan CamilaNika", src = SOURCES[x.source] || "", link = safeUrl(x.link_url);
+      return `<figure class="tcard">${safeUrl(x.image_url) ? `<img src="${esc(safeUrl(x.image_url))}" alt="${x.quote ? "" : esc("Foto dari " + (x.author || "pelanggan"))}" loading="lazy" onerror="this.remove()">` : ""}
+        ${x.quote ? `<blockquote>“${esc(x.quote)}”</blockquote>` : ""}
+        <figcaption><b>${who}</b>${src ? `<span>via ${esc(src)}</span>` : ""}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener nofollow">Lihat</a>` : ""}</figcaption></figure>`;
+    }).join("");
+    refreshCards();
+  }
 
   function selection(card) {
     const p = productById(card.dataset.product);
@@ -332,7 +390,8 @@
     card.querySelector("[data-from]").innerHTML = (prices.length > 1 ? '<small>mulai</small> ' : "") + rp(Math.min(...prices));
     const n = cart.filter((l) => l.product_id === p.id).reduce((s, l) => s + l.qty, 0);
     q.hidden = !n; q.textContent = n; q.setAttribute("aria-label", `${n} di keranjang`);
-    const soldOut = p.variants.every((v) => v.available != null && v.available <= 0);
+    const b = bundleOf(p.id);   // a paket is sold out when anything inside it is (get_storefront)
+    const soldOut = (b && b.available === false) || p.variants.every((v) => v.available != null && v.available <= 0);
     const full = !soldOut && p.variants.every((v) => leftOf(v) <= 0);
     btn.disabled = !shop.open || soldOut || (full && !hasOptions(p));
     btn.textContent = !shop.open ? "Toko tutup" : soldOut ? "Habis" : full && !hasOptions(p) ? "Stok di keranjang" : "Tambah";
@@ -462,14 +521,17 @@
   // ------------------------------------------------------------------ promo banner
   const mainPromo = () => menu.promotions.find((p) => p.min_spend > 0) || menu.promotions[0] || null;
   function renderPromo() {
-    const pr = mainPromo(), box = $("promo-box");
-    if (!pr) { box.hidden = true; return; }
+    const pr = mainPromo(), box = $("promo-box"), ann = $("announce");
+    if (!pr) { box.hidden = true; ann.hidden = true; return; }
     box.hidden = false;
     $("promo-big").innerHTML = pr.discount_type === "free_item" ? "FREE" : pr.discount_type === "percent" ? `${pr.value}%` : esc(rp(pr.value).replace("Rp", "Rp "));
     const lower = (t) => t.charAt(0).toLowerCase() + t.slice(1);
     const what = pr.discount_type === "free_item" ? lower(pr.gift_text) : pr.discount_type === "percent" ? `diskon ${pr.value}%` : `potongan ${rp(pr.value)}`;
     $("promo-title").textContent = pr.min_spend > 0 ? `Belanja di atas ${rp(pr.min_spend)}, dapat ${what}` : pr.name;
     $("promo-desc").textContent = pr.description || "";
+    // same promo, one line above the header
+    ann.hidden = false;
+    ann.innerHTML = `${esc($("promo-title").textContent)}<a href="${esc($("see-menu").getAttribute("href") || "#menu-root")}">Lihat menu</a>`;
   }
 
   // ------------------------------------------------------------------ cart
@@ -1715,11 +1777,15 @@
 
   // ------------------------------------------------------------------ boot
   async function refreshMenu() {
-    const { data, error } = await sb.rpc("get_menu");
+    const [{ data, error }, fr] = await Promise.all([
+      sb.rpc("get_menu"),
+      Promise.resolve(sb.rpc("get_storefront")).catch((e) => ({ error: e })),   // optional: the shop works without it
+    ]);
     if (error || !data) throw error || new Error("menu");
     menu = data;
+    front = !fr?.error && fr?.data ? { ...NO_FRONT, ...fr.data } : NO_FRONT;
     syncCartWithMenu();
-    renderMenu(); renderPromo(); renderCart();
+    renderMenu(); renderStorefront(); renderPromo(); renderCart();
   }
 
   // Online payment can be switched off in config.js (WhatsApp / GoFood ordering still works)
