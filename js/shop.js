@@ -337,7 +337,7 @@
         <div class="pk-media">${safeUrl(b.image_url) ? `<img src="${esc(safeUrl(b.image_url))}" alt="${esc(b.name)}" loading="lazy" onerror="this.remove()">` : `<span class="pk-ph" aria-hidden="true">${esc(b.name.charAt(0))}</span>`}<b class="pc-qty num" data-qty hidden></b>${b.badge ? `<span class="pk-badge">${esc(b.badge)}</span>` : ""}</div>
         <div class="pk-body">
           <h3>${esc(b.name)}</h3>${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ""}
-          <ul class="pk-items" aria-label="Isi paket">${(b.items || []).map((i) => `<li>${i.quantity}× ${esc(i.name)}</li>`).join("")}</ul>
+          <ul class="pk-items" aria-label="Isi paket">${(b.items || []).map((i) => `<li><b class="pk-q num">${i.quantity}×</b><span>${esc(i.name)}</span></li>`).join("")}</ul>
           <div class="pk-foot"><div class="pk-price"><span class="pc-price num" data-from></span>${save > 0 ? `<s class="num" aria-label="Harga normal ${esc(rp(b.normal_price))}">${esc(rp(b.normal_price))}</s><span class="pk-save">Hemat ${save}%</span>` : ""}</div>
             <span class="stock-tag" data-stock></span><button class="pc-add" type="button" data-pick>Tambah</button></div>
         </div></article>`;
@@ -785,7 +785,10 @@
   // ------------------------------------------------------------------ shop open / closed
   function shopClosedText() {
     if (shop.open) return "";
-    if (shop.reason === "schedule") return `Toko sedang tutup. Buka setiap hari pukul ${shop.open_time}–${shop.close_time} WIB.${shop.message ? " " + shop.message : ""}`;
+    if (shop.reason === "schedule") {
+      const when = window.CN_HOURS ? window.CN_HOURS.format(shop, "text") : `setiap hari pukul ${shop.open_time}–${shop.close_time} WIB`;
+      return `Toko sedang tutup. Buka ${when}.${shop.message ? " " + shop.message : ""}`;
+    }
     return shop.message || "Toko sedang tutup untuk sementara. Sampai jumpa lagi!";
   }
   function renderShop() {
