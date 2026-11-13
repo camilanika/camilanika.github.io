@@ -773,6 +773,21 @@ body.sheet-open{overflow:hidden}
 .promo{background:var(--fg)}
 footer{background:#2A1A14;color:#F3E6D8;border-top:0;--fg:#F3E6D8;--muted:#CDB7A6;--line:#4A3329;--paper:#3A2820;--bg:#2A1A14;--rose:#F28CA8;--rose-ink:#2A1A14}
 footer .tile-ic{color:#fff}
+/* menu (Nov 2026): one grid of every product, tabs to filter (Semua + submenus) */
+.menu-head{padding-block:clamp(2.5rem,6vw,4.5rem) .6rem}
+.menu-head .sec-head{margin-bottom:0}
+.menu-all{padding-block:1.2rem clamp(3rem,7vw,5rem)}
+.sb-chips.mf-row{gap:.45rem;align-items:center}
+.sb-chips .mf{flex:none;display:inline-flex;align-items:center;min-height:40px;padding:0 1rem;border:1.5px solid var(--line);border-radius:999px;background:var(--paper);color:var(--fg);font:800 .9rem var(--f-body);white-space:nowrap;cursor:pointer}
+.sb-chips .mf:hover{border-color:var(--rose)}
+.sb-chips .mf[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.mf-info{display:grid;gap:.45rem;margin:0 0 1.2rem;padding:1rem 1.1rem;border-radius:var(--r-md);background:var(--paper);border:1px solid var(--line)}
+.mf-info > div:first-child b{font-family:var(--f-display);font-size:1.2rem}
+.mf-info > div:first-child span{color:var(--muted);font-weight:600}
+.mf-info .fillings{margin:.3rem 0 0}
+.mf-info .fillings div{background:var(--bg)}
+.mf-empty{display:block;padding:1rem;border:1.5px dashed var(--line);border-radius:var(--r-md)}
+#menu-root.searching .menu-head{display:none}
 @media (max-width:600px){.best-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}.t-grid{columns:2 150px;column-gap:.7rem}.tcard{margin-bottom:.7rem}.tcard blockquote{padding:.8rem .8rem 0;font-size:.9rem}.tcard figcaption{padding:.6rem .8rem .8rem}}
 </style>
 <style>body{margin:0}[hidden]{display:none!important}</style>
@@ -1057,7 +1072,7 @@ footer .tile-ic{color:#fff}
 <script src="js/config.js?v=202611131545"></script>
 <script src="js/vendor/supabase.js"></script>
 <script src="js/hours.js?v=202611131430"></script>
-<script src="js/shop.js?v=202611132300"></script>
+<script src="js/shop.js?v=202611140100"></script>
 
 </body>
 </html>

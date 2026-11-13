@@ -90,6 +90,8 @@ Open `https://camilanika.store/admin.html`.
 
 - **Look:** cream page, white cards, one brand pink (`#B8325A`, dark enough for white text and for pink text on the blush bands) for buttons, caramel badges, dark espresso footer. The shop always shows the light theme (`<html data-theme="light">` in `index.html`); remove that attribute to follow the visitor's light/dark setting again.
 - **Order of the page:** promo line above the header (the main automatic promo) → hero with one main button (**Pesan sekarang**) → category shortcuts (round photos, one per submenu) → **Best Seller** → **Paket Hemat** → menu → **Testimoni** → promo, GoFood, Cara order → footer.
+- **Menu = one grid** ("Mau yang mana hari ini?"): every product in one grid, with tabs **Semua** + one per submenu. A tab shows only that submenu plus its info lines (tagline, the main menu's info lines and round labels from **Menu → Ubah**). Header links (Minuman, Camilan), the category shortcuts and outside links like `camilanika.store/#camilan` or `#sub-coffee-series` open the grid on that filter. Search looks through every product; closing it brings the chosen tab back.
+- The per-main-menu **photo showcase** (swipeable row / mosaic) is no longer shown in the shop; its settings stay saved in **Menu → Ubah** in case you want them back.
 - **Best Seller** is automatic: the 4 products sold most in the last 30 days, counting only real paid orders (test/Sandbox orders don't count). It shows once at least 2 products have sales.
 
 ### Paket Hemat (Admin → 🎁 Paket Hemat)
