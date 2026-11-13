@@ -1,6 +1,6 @@
 # CamilaNika online shop: setup guide
 
-The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, orders and promos. iPaymu takes the payments.
+The website is hosted on Hostinger at https://camilanika.store (deployed from this repo with Hostinger Git deployment). Supabase holds the menu, stock, accounts, orders and promos. iPaymu takes the payments.
 
 | File | What it is |
 |---|---|
@@ -27,8 +27,8 @@ The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, ord
    ```
 
 ## 2. Login settings (Supabase → Authentication → URL Configuration)
-- Site URL: `https://camilanika.github.io/`
-- Redirect URLs: add `https://camilanika.github.io/**`
+- Site URL: `https://camilanika.store/`
+- Redirect URLs: add `https://camilanika.store/**`
 
 ## 3. Edge Functions (Supabase → Edge Functions)
 1. Create a function named **create-payment** and paste in `supabase/functions/create-payment/index.ts`. Do the same for **ipaymu-webhook**.
@@ -38,8 +38,8 @@ The website stays on GitHub Pages. Supabase holds the menu, stock, accounts, ord
    - `IPAYMU_VA`: your iPaymu **VA** number (the Sandbox one while testing)
    - `IPAYMU_API_KEY`: your iPaymu **API Key** (the Sandbox one while testing)
    - `IPAYMU_IS_PRODUCTION`: `false` (change to `true` when you go live)
-   - `ALLOWED_ORIGINS`: `https://camilanika.github.io`
-   - `SITE_URL`: `https://camilanika.github.io/`
+   - `ALLOWED_ORIGINS`: `https://camilanika.store`
+   - `SITE_URL`: `https://camilanika.store/`
    The old `MIDTRANS_*` secrets and the **midtrans-webhook** function are no longer used and can be deleted once no Midtrans orders are pending.
 
 ## 4. iPaymu dashboard
@@ -56,7 +56,7 @@ Sign up on the website with your email, then run this in the SQL Editor:
 update public.profiles set role = 'admin'
 where id = (select id from auth.users where email = 'YOUR_EMAIL');
 ```
-Open `https://camilanika.github.io/admin.html`.
+Open `https://camilanika.store/admin.html`.
 
 ## Going live
 1. Once iPaymu has approved your account, switch to the Live VA and API Key. In the admin page, **Cashflow Summary → Pengaturan → Ganti ke Production** at the same time.
@@ -99,7 +99,7 @@ Open `https://camilanika.github.io/admin.html`.
 - Anyone can register any number, since nothing is sent to verify it. Orders still need payment, so the risk is low; if it ever becomes a problem, add an SMS provider and switch to codes.
 
 ## Releasing changes
-GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` or `js/config.js` changes, bump the `?v=` number on their `<script>` tags in `index.html` (and `admin.html` for config) so visitors get the new version immediately.
+Browsers can keep scripts for up to 10 minutes. When `js/shop.js` or `js/config.js` changes, bump the `?v=` number on their `<script>` tags in `index.html` (and `admin.html` for config) so visitors get the new version immediately.
 
 ## Stock
 - In **Stok**, type how many are available and press **Simpan** (or Enter). **Kosongkan** marks it sold out. **Tak terbatas** makes it always available without counting; type a number again any time to go back to counting.
@@ -125,7 +125,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - Distance is a straight line from the shop pin, so road distance is usually a bit longer; set tiers with that in mind.
 
 ## Order history ("Pesanan saya")
-- Customers open it from **Akun → Riwayat pesanan → Lihat semua pesanan** (or `camilanika.github.io/#pesanan`). It lists every order from their account plus orders made on that device without logging in, with filters: Belum dibayar, Diproses, Selesai, Batal.
+- Customers open it from **Akun → Riwayat pesanan → Lihat semua pesanan** (or `camilanika.store/#pesanan`). It lists every order from their account plus orders made on that device without logging in, with filters: Belum dibayar, Diproses, Selesai, Batal.
 - Tapping an order opens its page: status, items, discount, ongkir, total, delivery address and map pin, payment method.
 - **Unpaid orders** show "Bayar sebelum HH:MM" and a **Lanjutkan pembayaran** button that reopens the same iPaymu payment page, even on another phone when logged in. After 60 minutes the order shows as Kedaluwarsa and can't be paid any more.
 - Paid orders show **Chat admin untuk pengiriman**; other orders show **Tanya lewat WhatsApp**.
@@ -152,7 +152,7 @@ GitHub Pages lets browsers keep scripts for up to 10 minutes. When `js/shop.js` 
 - The account button's badge is the sum of the three. Badges refresh on login, every minute, when the page comes back into view, and after paying, reading notifications or using a voucher.
 
 ## Referral campaigns (Admin → Voucher & Loyalty → Kampanye referral)
-- A campaign has a **code** (e.g. `CNJUNI26`) you share on WhatsApp / Instagram. **Salin link** copies `camilanika.github.io/?ref=CODE`, which opens sign-up with the code filled in.
+- A campaign has a **code** (e.g. `CNJUNI26`) you share on WhatsApp / Instagram. **Salin link** copies `camilanika.store/?ref=CODE`, which opens sign-up with the code filled in.
 - New customers who sign up with an active code get their **own one-time voucher** (`REF-XXXX-XXXX`), shown right after sign-up and kept in Kode Voucher.
 - Settings per campaign: start / end, status (Aktif, Dijeda, Berakhir), total voucher quota, daily quota, max vouchers per network (IP), and the voucher: percent or Rupiah, max discount, minimum purchase, products, validity in days.
 - **"Voucher aktif: setelah pembayaran pertama"** keeps the voucher pending until the customer's first successful payment, which makes throwaway accounts less useful.

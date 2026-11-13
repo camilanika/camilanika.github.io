@@ -1,0 +1,14 @@
+# Hostinger (Apache) settings for camilanika.store
+Options -Indexes
+
+# Force HTTPS and drop "www."
+RewriteEngine On
+RewriteCond %{HTTPS} off [OR]
+RewriteCond %{HTTP_HOST} ^www\. [NC]
+RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
+RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+
+# Repo-only files: not part of the public website
+RedirectMatch 404 ^/(\.git|supabase|tests|docs)(/|$)
+RedirectMatch 404 \.(md|sql|ts)$
+RedirectMatch 404 /\.(gitignore|nojekyll)$

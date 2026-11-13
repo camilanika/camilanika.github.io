@@ -351,7 +351,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
 <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/config.js?v=202610271844"></script>
+<script src="js/config.js?v=202611131500"></script>
 <script src="js/vendor/supabase.js"></script>
 <script src="js/nota.js?v=202610291300"></script>
 <script src="js/cashflow-core.js?v=202611081800"></script>
@@ -1295,7 +1295,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
             return;
           }
           if (r.error) return fail({ NOT_ADMIN: "Hanya admin yang bisa membuat admin.", PHONE_INVALID: "Nomor WhatsApp belum benar.", NAME_REQUIRED: "Isi nama.", PASSWORD_TOO_SHORT: "Password minimal 8 karakter." }[r.error] || "Gagal membuat akun. Coba lagi.");
-          const site = (CFG.SITE_URL || "https://camilanika.github.io/").replace(/\/?$/, "/");
+          const site = (CFG.SITE_URL || "https://camilanika.store/").replace(/\/?$/, "/");
           const msg = `Halo ${name}, kamu sudah jadi admin toko CamilaNika.\nMasuk di ${site}admin.html\nNo. WhatsApp: ${r.phone}\nPassword: ${pw}\nSetelah masuk, ganti password lewat menu Akun di ${site}`;
           el.innerHTML = `<div class="card" style="display:grid;gap:.5rem"><b>✅ Akun admin dibuat untuk ${esc(name)}</b>
             <span>Login: <b>${esc(r.phone)}</b> · Password: <code style="user-select:all">${esc(pw)}</code></span>
@@ -1349,7 +1349,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       const out = await adminUsers({ action: "reset_password", user_id: c.id, password: pw });
       $("rpsave").disabled = false;
       if (out.error) { $("rpm").textContent = { NOT_ADMIN: "Hanya admin yang bisa reset password.", REMOVE_ADMIN_FIRST: "Password admin lain tidak bisa diganti dari sini. Cabut akses admin dulu.", PASSWORD_TOO_SHORT: "Password minimal 8 karakter." }[out.error] || "Gagal menyimpan. Coba lagi."; $("rpm").className = "msg err"; return; }
-      const msg = `Halo ${c.full_name || ""}, password akun CamilaNika kamu sudah kami ganti. Password baru: ${pw}\nMasuk di camilanika.github.io pakai nomor WhatsApp ini, lalu ganti password lewat menu Akun kalau mau.`;
+      const msg = `Halo ${c.full_name || ""}, password akun CamilaNika kamu sudah kami ganti. Password baru: ${pw}\nMasuk di camilanika.store pakai nomor WhatsApp ini, lalu ganti password lewat menu Akun kalau mau.`;
       $("modal-box").innerHTML = `<div class="modal-head"><h2>Password diganti</h2><button class="x" data-close aria-label="Tutup">×</button></div>
         <p style="margin:0">Password baru: <code style="font-size:1.05rem;user-select:all">${esc(pw)}</code></p>
         <div class="row-actions">${wa ? `<a class="btn btn-ok" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Kirim lewat WhatsApp</a>` : ""}<button class="btn btn-ghost" data-close>Selesai</button></div>`;
@@ -1378,7 +1378,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   const offer = (x) => (x.discount_type === "percent" ? `${x.value}%${x.max_discount ? " (maks " + rp(x.max_discount) + ")" : ""}` : x.discount_type === "shipping" ? `Ongkir s/d ${rp(x.value)}` : rp(x.value)) + (x.min_spend ? ` · min ${rp(x.min_spend)}` : "");
   const randCode = (n = 8) => { const a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < n; i++) c += a[Math.floor(Math.random() * a.length)]; return c; };
   const copy = async (t, what) => { try { await navigator.clipboard.writeText(t); toast(`${what} disalin`); } catch (e) { prompt("Salin:", t); } };
-  const regLink = (code) => `${(CFG.SITE_URL || "https://camilanika.github.io/").replace(/\/?$/, "/")}?ref=${encodeURIComponent(code)}`;
+  const regLink = (code) => `${(CFG.SITE_URL || "https://camilanika.store/").replace(/\/?$/, "/")}?ref=${encodeURIComponent(code)}`;
   const toLocal = (d) => d ? new Date(new Date(d).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
   let vSub = "campaigns", allProducts = null;
   async function productList() { if (!allProducts) { const { data } = await sb.from("products").select("id,name").order("sort_order").order("id"); allProducts = data || []; } return allProducts; }
