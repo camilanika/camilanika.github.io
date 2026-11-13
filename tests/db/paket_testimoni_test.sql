@@ -144,7 +144,7 @@ select t.ok('PK-07', not exists (select 1 from jsonb_object_keys(public.get_stor
 
 -- ---------------------------------------------------------------- TS-01 testimonials
 insert into public.testimonials (quote, author, source, sort_order) values ('Enak banget latte-nya', '@nika', 'instagram', 2);
-insert into public.testimonials (image_url, author, source, is_visible, sort_order) values ('https://x.test/a.jpg', 'Budi', 'gofood', false, 1);
+insert into public.testimonials (image_url, author, source, is_visible, sort_order) values ('https://x.test/a.jpg', 'Budi', 'google', false, 1);
 insert into public.testimonials (image_url, source, sort_order) values ('https://x.test/b.jpg', 'whatsapp', 1);
 do $$ begin
   insert into public.testimonials (author) values ('kosong');

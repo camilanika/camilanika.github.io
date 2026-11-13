@@ -56,3 +56,6 @@ psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/vo
 # Paket Hemat, Testimoni pelanggan and the storefront call (migration 020)
 bash tests/db/build.sh cn_test >/dev/null
 psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/paket_testimoni_test.sql
+# series only, series texts, Semua texts, gallery, no GoFood (migration 021)
+bash tests/db/build.sh cn_test >/dev/null
+psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/series_gallery_test.sql
