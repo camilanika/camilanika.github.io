@@ -45,7 +45,7 @@ test("ADMIN → SHOP: a paket made in Paket Hemat shows in the shop with its ite
   const page = await shop();
   const card = page.locator("#pk-grid .pkcard", { hasText: "Paket Uji" });
   await card.waitFor();
-  assert.match(await card.locator(".pk-items").innerText(), new RegExp("2× " + a.name));
+  assert.match(await card.locator(".pk-items").innerText(), new RegExp("2×\\s*" + a.name));
   assert.match(await card.locator(".pk-price").innerText(), /Hemat \d+%/);
   assert.equal(await page.locator("#menu-root [data-card]", { hasText: "Paket Uji" }).count(), 0, "not repeated in the menu lists");
   await card.locator("[data-pick]").click();

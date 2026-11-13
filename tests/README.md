@@ -13,6 +13,7 @@ Not part of the website: nothing in this folder is loaded by the shop or admin p
 | `db/loyalty_test.sql` | Loyalty programme (migrations 012, 013): one voucher per milestone, repeated payment notifications, refunds and re-crossing, recurring tiers, guests, the ongkir rule, and customers can't add to their own total | (part of `test:db`) |
 | `db/paket_testimoni_test.sql` | Migration 020: only admins manage pakets and testimonials, a paket's normal price and sold-out state, checkout charges the paket price, best sellers count only real paid orders, hidden testimonials stay hidden | (part of `test:db`) |
 | `db/series_gallery_test.sql` | Migration 021: every series has its texts and one order, a new series gets a main menu by itself, the storefront returns series/Semua texts and the gallery, GoFood is no longer a testimonial source | (part of `test:db`) |
+| `db/shop_days_test.sql` | Migration 022: opening days (days not ticked close the shop and the server refuses orders, night schedules count as the day they opened, no schedule = open every day) | (part of `test:db`) |
 | `db/known_defects_test.sql` | Executable bug reports for defects that are still open (none today); reports STILL PRESENT / FIXED and never fails | `npm run test:known-defects` |
 | `ui/` | Chromium drives the shop and `admin.html` against a real local database (Cashflow, checkout and payment return, admin forms, accessibility checks, phone layout) | `npm run test:ui` |
 

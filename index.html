@@ -717,27 +717,51 @@ body.sheet-open{overflow:hidden}
 .best-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:1.1rem}
 .band .pcard{border-color:transparent}
 .pc-badge,.pk-badge{position:absolute;top:8px;right:8px;background:var(--badge);color:var(--badge-ink);font:800 .74rem/1 var(--f-body);padding:.35rem .6rem;border-radius:999px;box-shadow:0 0 0 2px var(--paper)}
-/* Paket Hemat */
-.pk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:1.1rem}
-.pkcard{position:relative;display:grid;grid-template-columns:132px minmax(0,1fr);gap:1rem;align-items:start;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:1rem;box-shadow:0 8px 20px -14px rgba(60,30,10,.3)}
+/* Paket Hemat: tall cards (photo on top, contents, price + button at the bottom, same height in a row);
+   a single paket lies wide (photo left); phones get a compact row (small photo left) */
+.pk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1.25rem}
+.pkcard{position:relative;display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-xl);overflow:hidden;box-shadow:0 14px 34px -22px rgba(60,30,10,.45);transition:transform .15s,box-shadow .15s}
+.pkcard:hover{transform:translateY(-3px);box-shadow:0 20px 40px -22px rgba(60,30,10,.5)}
 .pkcard:first-child{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.pkcard:first-child :is(.pk-items,.pk-price s){color:color-mix(in srgb,var(--bg) 78%,var(--fg))}
-.pk-media{position:relative;aspect-ratio:1/1;border-radius:var(--r-md);overflow:hidden;background:var(--rose-soft)}
-.pk-media img{width:100%;height:100%;object-fit:cover}
-.pk-media .pk-ph{position:absolute;inset:0;display:grid;place-items:center;font:800 2rem var(--f-display);color:var(--rose)}
-.pk-badge{top:6px;right:auto;left:6px;max-width:calc(100% - 12px);line-height:1.15}
-.pk-body{display:grid;gap:.4rem;min-width:0}
-.pk-body h3{font-size:1.3rem}
-.pk-body > p{font-size:.9rem;opacity:.85}
-.pk-items{list-style:none;margin:0;padding:0;display:grid;gap:.1rem;font-size:.9rem;font-weight:700;color:var(--muted)}
-.pk-items li::before{content:"·";margin-right:.4rem;font-weight:800}
-.pk-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .55rem}
-.pk-price .pc-price{font-family:var(--f-display);font-size:1.35rem}
-.pk-price s{font-weight:700;font-size:.88rem;color:var(--muted)}
-.pk-save{background:var(--badge);color:var(--badge-ink);border-radius:999px;padding:.15rem .55rem;font-weight:800;font-size:.76rem}
-.pk-foot{display:grid;gap:.45rem;margin-top:.2rem}
+.pkcard:first-child :is(.pk-body > p,.pk-items,.pk-price s){color:color-mix(in srgb,var(--bg) 80%,var(--fg))}
+.pkcard:first-child .pk-items li{border-color:color-mix(in srgb,var(--bg) 18%,var(--fg))}
+.pkcard:first-child .pk-q{background:color-mix(in srgb,var(--bg) 16%,var(--fg));color:var(--bg)}
+.pk-media{position:relative;aspect-ratio:16/10;overflow:hidden;background:var(--rose-soft)}
+.pk-media img{width:100%;height:100%;object-fit:cover;transition:transform .4s}
+.pkcard:hover .pk-media img{transform:scale(1.03)}
+.pk-media .pk-ph{position:absolute;inset:0;display:grid;place-items:center;font:800 3rem var(--f-display);color:var(--rose)}
+.pk-badge{top:12px;right:auto;left:12px;max-width:calc(100% - 24px);line-height:1.15;font-size:.8rem;padding:.4rem .7rem}
+.pk-media .pc-qty{left:auto;right:12px;top:12px}
+.pk-body{flex:1;display:flex;flex-direction:column;gap:.6rem;padding:1.15rem 1.25rem 1.25rem;min-width:0}
+.pk-body h3{font-size:1.45rem}
+.pk-body > p{font-size:.95rem;color:var(--muted);line-height:1.5}
+.pk-items{list-style:none;margin:.1rem 0 0;padding:0;display:grid;font-size:.92rem;font-weight:700;color:var(--fg)}
+.pk-items li{display:flex;gap:.6rem;align-items:baseline;padding:.45rem 0;border-top:1px dashed var(--line)}
+.pk-items li:last-child{border-bottom:1px dashed var(--line)}
+.pk-q{flex:none;min-width:2.1rem;text-align:center;padding:.1rem .4rem;border-radius:999px;background:var(--rose-soft);color:var(--rose);font-size:.8rem;font-weight:800}
+.pk-foot{margin-top:auto;padding-top:.6rem;display:grid;gap:.6rem}
+.pk-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .6rem}
+.pk-price .pc-price{font-family:var(--f-display);font-size:1.7rem;line-height:1.1}
+.pk-price s{font-weight:700;font-size:.92rem;color:var(--muted)}
+.pk-save{background:var(--badge);color:var(--badge-ink);border-radius:999px;padding:.2rem .6rem;font-weight:800;font-size:.8rem;align-self:center}
+.pk-foot .pc-add{min-height:48px;font-size:1rem}
 .pkcard:first-child .pc-add:disabled{background:color-mix(in srgb,var(--bg) 20%,var(--fg));color:var(--bg)}
-@media (max-width:420px){.pkcard{grid-template-columns:96px minmax(0,1fr);gap:.75rem;padding:.8rem}.pk-body h3{font-size:1.15rem}}
+@media (min-width:761px){
+  .pk-grid:has(> .pkcard:only-child) .pkcard{flex-direction:row}
+  .pk-grid:has(> .pkcard:only-child) .pk-media{flex:0 0 46%;aspect-ratio:auto;min-height:320px}
+}
+@media (max-width:560px){
+  .pk-grid{gap:.8rem}
+  .pkcard{display:grid;grid-template-columns:112px minmax(0,1fr);align-items:start;padding:.8rem;gap:.8rem;border-radius:var(--r-lg)}
+  .pk-media{aspect-ratio:1/1;border-radius:var(--r-md)}
+  .pk-badge{top:6px;left:6px;font-size:.7rem;padding:.3rem .5rem}
+  .pk-body{padding:0;gap:.4rem}
+  .pk-body h3{font-size:1.15rem}
+  .pk-body > p{font-size:.85rem}
+  .pk-items{font-size:.85rem}
+  .pk-items li{padding:.3rem 0}
+  .pk-price .pc-price{font-size:1.3rem}
+}
 /* Testimoni */
 .t-grid{columns:4 230px;column-gap:1rem}
 .tcard{break-inside:avoid;margin:0 0 1rem;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;display:grid}
@@ -910,7 +934,7 @@ footer .tile-ic{color:#fff}
       <p class="tagline">Cinta rasa Nika untuk kita</p>
       <span class="promo-msg">Free delivery area Bukit Cimanggu City</span>
       <ul class="foot-facts">
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Buka setiap hari · <span data-shop-hours>10.00–20.00</span> WIB</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span><span data-shop-hours>Buka setiap hari · 10.00–20.00 WIB</span></span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><a href="mailto:admin@camilanika.store">admin@camilanika.store</a></li>
       </ul>
       <div class="phone"><code id="phone">0813-6897-6966</code><button class="copy" type="button" id="copy-phone">Salin nomor</button></div>
@@ -1054,8 +1078,8 @@ footer .tile-ic{color:#fff}
 
 <script src="js/config.js?v=202611131545"></script>
 <script src="js/vendor/supabase.js"></script>
-<script src="js/hours.js?v=202611131430"></script>
-<script src="js/shop.js?v=202611140300"></script>
+<script src="js/hours.js?v=202611142100"></script>
+<script src="js/shop.js?v=202611142100"></script>
 
 </body>
 </html>

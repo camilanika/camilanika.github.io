@@ -59,3 +59,6 @@ psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/pa
 # series only, series texts, Semua texts, gallery, no GoFood (migration 021)
 bash tests/db/build.sh cn_test >/dev/null
 psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/series_gallery_test.sql
+# opening days in the shop schedule (migration 022)
+bash tests/db/build.sh cn_test >/dev/null
+psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/shop_days_test.sql
