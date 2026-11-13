@@ -62,7 +62,7 @@ Open `https://camilanika.store/admin.html`.
 1. Once iPaymu has approved your account, switch to the Live VA and API Key. In the admin page, **Cashflow Summary → Pengaturan → Ganti ke Production** at the same time.
 2. Put the **Live** VA and API Key in the secrets and set `IPAYMU_IS_PRODUCTION=true`.
 3. Set the Live callback URL in the iPaymu dashboard to the same webhook address.
-4. iPaymu Production may ask for a registered domain and a **static server IP**. Supabase Edge Functions don't have a fixed IP, so ask iPaymu support whether registering the domain is enough, before going live.
+4. iPaymu Production only accepts API calls from a **registered IP**, and Supabase Edge Functions don't have a fixed one. So the functions send their signed iPaymu requests through `api/ipaymu.php` on Hostinger: add the secret `IPAYMU_RELAY_URL` = `https://camilanika.store/api/ipaymu.php`, and register Hostinger's outgoing IP in iPaymu → Integrasi → Kelola IP (open `https://camilanika.store/api/ipaymu.php?ip=1` to see it; currently `195.35.62.161`). The relay holds no keys and only forwards to iPaymu's payment and transaction APIs.
 5. Upgrade Supabase to Pro, which gives you backups and stops the project from being paused.
 
 ## How things work
