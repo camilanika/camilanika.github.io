@@ -330,6 +330,8 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       <button type="button" data-tab="stock" aria-pressed="false"><span aria-hidden="true">📊</span>Stok</button>
       <button type="button" data-tab="menu" aria-pressed="false"><span aria-hidden="true">🗂️</span>Menu</button>
       <button type="button" data-tab="products" aria-pressed="false"><span aria-hidden="true">☕</span>Produk</button>
+      <button type="button" data-tab="paket" aria-pressed="false"><span aria-hidden="true">🎁</span>Paket Hemat</button>
+      <button type="button" data-tab="testi" aria-pressed="false"><span aria-hidden="true">💬</span>Testimoni</button>
       <button type="button" data-tab="promos" aria-pressed="false"><span aria-hidden="true">🏷️</span>Promo</button>
       <button type="button" data-tab="customers" aria-pressed="false"><span aria-hidden="true">👥</span>Pelanggan</button>
       <button type="button" data-tab="vouchers" aria-pressed="false" aria-controls="subnav-vouchers"><span aria-hidden="true">🎟️</span>Voucher &amp; Loyalty</button>
@@ -438,7 +440,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
   $("logout").onclick = $("logout2").onclick = () => sb.auth.signOut();
 
   // ---------------------------------------------------------------- layout: sidebar / drawer
-  const TAB_NAME = { orders: "Pesanan", cashflow: "Cashflow Summary", shop: "Toko", stock: "Stok", menu: "Menu", products: "Produk", promos: "Promo", customers: "Pelanggan", vouchers: "Voucher & Loyalty" };
+  const TAB_NAME = { orders: "Pesanan", cashflow: "Cashflow Summary", shop: "Toko", stock: "Stok", menu: "Menu", products: "Produk", paket: "Paket Hemat", testi: "Testimoni", promos: "Promo", customers: "Pelanggan", vouchers: "Voucher & Loyalty" };
   const SUB_NAME = { campaigns: "Kampanye referral", vouchers: "Voucher", loyalty: "Loyalty", settings: "Batas pendaftaran" };
   const setChrome = (on) => { $("topbar").hidden = !on; $("sidenav").hidden = !on; if (!on) closeNav(); };
   const isDrawer = () => matchMedia("(max-width:1023px)").matches;
@@ -515,7 +517,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
     document.querySelectorAll("#subnav-vouchers [data-vs]").forEach((b) => b.setAttribute("aria-pressed", String(t === "vouchers" && b.dataset.vs === vSub)));
     syncPlace();
     app.scrollTop = 0; window.scrollTo(0, 0);
-    ({ orders: renderOrders, cashflow: () => window.CN_CASHFLOW.render(adminApi, cfSub), shop: renderShopTab, stock: renderStock, menu: renderMenuTab, products: renderProducts, promos: renderPromos, customers: renderCustomers, vouchers: renderVouchersTab })[t]();
+    ({ orders: renderOrders, cashflow: () => window.CN_CASHFLOW.render(adminApi, cfSub), shop: renderShopTab, stock: renderStock, menu: renderMenuTab, products: renderProducts, paket: renderPaket, testi: renderTesti, promos: renderPromos, customers: renderCustomers, vouchers: renderVouchersTab })[t]();
   }
 
   // modal
@@ -971,7 +973,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       return `<tr><td>${p.image_url ? `<img class="thumb" src="${esc(p.image_url)}" alt="">` : ""}</td><td><b>${esc(p.name)}</b><br><span class="muted" style="font-size:.85rem">${esc(p.subtitle || "")}</span></td>
         <td>${esc(secLabel(p.section_id) || "–")}</td><td class="num">${p.product_variants.length}</td><td class="num">${range}</td>
         <td><span class="badge ${p.is_active ? "on" : "off"}">${p.is_active ? "Aktif" : "Nonaktif"}</span></td><td class="num">${p.sort_order}</td>
-        <td><button class="btn btn-ghost btn-sm" data-edit="${p.id}">Ubah</button></td></tr>`;
+        <td>${p.is_bundle ? `<a class="btn btn-ghost btn-sm" href="#paket">Ubah di Paket Hemat</a>` : `<button class="btn btn-ghost btn-sm" data-edit="${p.id}">Ubah</button>`}</td></tr>`;
     }
   }
 
@@ -1948,6 +1950,264 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       document.head.appendChild(js);
     });
     return leafletP;
+  }
+
+  // ---------------------------------------------------------------- shared: photo upload (public product-images bucket)
+  async function uploadPhoto(f, folder = "") {
+    if (!f) return null;
+    if (!/^image\//.test(f.type)) throw new Error("Pilih file gambar (JPG, PNG atau WebP).");
+    if (f.size > 3 * 1024 * 1024) throw new Error("Maks 3 MB.");
+    const path = `${folder}${Date.now()}-${slugify(f.name.replace(/\.[^.]+$/, "")) || "foto"}.${(f.name.split(".").pop() || "jpg").toLowerCase()}`;
+    const { error } = await sb.storage.from("product-images").upload(path, f, { contentType: f.type, upsert: false });
+    if (error) throw new Error("Gagal unggah: " + error.message);
+    return sb.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+  }
+  const NEEDS_020 = (e) => /admin_list_bundles|testimonials|testi_|paket_title|does not exist|schema cache/i.test(e?.message || String(e));
+  const MIG_020 = `<p class="msg err">Fitur ini butuh database terbaru. Jalankan <b>supabase/migrations/020_paket_testimoni.sql</b> di Supabase → SQL Editor, lalu muat ulang halaman.</p>`;
+
+  // ---------------------------------------------------------------- PAKET HEMAT (migration 020)
+  // A paket is a product with one price; what's inside is listed in the shop with the normal price and "Hemat X%".
+  let paketData = { bundles: [], options: [] };
+  const optLabel = (o) => `${o.product}${o.variant && !["Default", "Paket"].includes(o.variant) ? " · " + o.variant : ""}`;
+  const BUNDLE_ERR = { BUNDLE_NAME_REQUIRED: "Isi nama paket.", BUNDLE_PRICE_INVALID: "Isi harga paket (angka bulat, 0 atau lebih).",
+    BUNDLE_ITEMS_REQUIRED: "Tambahkan minimal satu item.", BUNDLE_ITEM_INVALID: "Ada item yang tidak valid. Pilih ulang itemnya.",
+    BUNDLE_ITEM_DUPLICATE: "Item yang sama dipilih dua kali. Gabungkan dengan menambah jumlahnya.", BUNDLE_NOT_FOUND: "Paket ini sudah dihapus. Muat ulang halaman." };
+  const bundleErr = (e) => BUNDLE_ERR[err(e).replace(/\W.*$/s, "")] || err(e);
+  async function renderPaket() {
+    app.innerHTML = `<div class="bar"><h2>Paket Hemat</h2><button class="btn btn-rose" id="newbd">+ Paket baru</button></div>
+      <p class="muted" style="margin:-.4rem 0 1rem">Gabungkan menu jadi satu paket dengan satu harga. Di toko, paket tampil di bagian <b>Paket Hemat</b> lengkap dengan isi, harga normal dan label "Hemat X%". Pembayaran, voucher, loyalty dan laporan menghitung paket seperti menu biasa. Stok paket bisa diatur di tab <b>Stok</b>; paket otomatis tampil "Habis" kalau salah satu isinya habis.</p>
+      <div class="card" style="display:grid;gap:.6rem;margin-bottom:1rem"><h3>Judul bagian di toko</h3>
+        <div class="grid2"><label class="f">Judul<input id="pk-title" maxlength="60"></label><label class="f">Keterangan (opsional)<input id="pk-sub" maxlength="140" placeholder="mis. Lebih hemat dari beli satuan"></label></div>
+        <div><button class="btn btn-ghost btn-sm" id="pk-save">Simpan judul</button></div></div>
+      <div class="tbl-wrap"><table><thead><tr><th></th><th>Paket</th><th>Isi</th><th class="num">Harga</th><th class="num">Harga normal</th><th>Status</th><th>Urutan</th><th></th></tr></thead><tbody id="bdbody"><tr><td colspan="8" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("newbd").onclick = () => editBundle(null);
+    const { data: cfg, error: ce } = await sb.from("shop_settings").select("*").eq("id", 1).maybeSingle();
+    if (!ce && cfg && "paket_title" in cfg) { $("pk-title").value = cfg.paket_title || ""; $("pk-sub").value = cfg.paket_subtitle || ""; }
+    $("pk-save").onclick = async () => {
+      const title = $("pk-title").value.trim();
+      if (!title) return toast("Isi judulnya dulu");
+      const { error } = await sb.from("shop_settings").update({ paket_title: title, paket_subtitle: $("pk-sub").value.trim() || null }).eq("id", 1);
+      toast(error ? (NEEDS_020(error) ? "Jalankan migration 020 dulu" : err(error)) : "Judul tersimpan");
+    };
+    await loadBundles();
+  }
+  async function loadBundles() {
+    const { data, error } = await sb.rpc("admin_list_bundles");
+    const tb = $("bdbody"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="8">${NEEDS_020(error) ? MIG_020 : `<p class="msg err">${esc(err(error))}</p>`}</td></tr>`; return; }
+    paketData = data;
+    const list = data.bundles;
+    tb.innerHTML = list.map((b, i) => {
+      const normal = b.items.reduce((s, it) => s + it.price * it.quantity, 0);
+      const save = normal > b.price ? Math.round((1 - b.price / normal) * 100) : 0;
+      const off = b.items.filter((it) => !it.active);
+      const status = !b.is_active ? `<span class="badge off">Disembunyikan</span>`
+        : !b.on_sale ? `<span class="badge off">Tidak tampil</span><br><span class="muted" style="font-size:.8rem">Menu "Paket Hemat" nonaktif di tab Menu</span>`
+        : `<span class="badge on">Tampil</span>`;
+      return `<tr><td>${b.image_url ? `<img class="thumb" src="${esc(b.image_url)}" alt="">` : ""}</td>
+        <td><b>${esc(b.name)}</b>${b.badge ? ` <span class="badge">${esc(b.badge)}</span>` : ""}<br><span class="muted" style="font-size:.85rem">${esc(b.subtitle || "")}</span></td>
+        <td style="font-size:.88rem">${b.items.map((it) => `${it.quantity}× ${esc(optLabel(it))}`).join("<br>")}${off.length ? `<br><span class="msg err" style="padding:0">${off.length} item tidak dijual lagi</span>` : ""}</td>
+        <td class="num"><b>${rp(b.price)}</b></td><td class="num">${rp(normal)}${save > 0 ? `<br><span class="muted">hemat ${save}%</span>` : normal < b.price ? `<br><span class="msg err" style="padding:0">lebih mahal dari satuan</span>` : ""}</td>
+        <td>${status}</td>
+        <td><span style="display:flex;gap:.3rem"><button class="btn btn-ghost btn-sm" data-mv="-1" data-id="${b.id}" aria-label="Naikkan ${esc(b.name)}" ${i === 0 ? "disabled" : ""}>↑</button><button class="btn btn-ghost btn-sm" data-mv="1" data-id="${b.id}" aria-label="Turunkan ${esc(b.name)}" ${i === list.length - 1 ? "disabled" : ""}>↓</button></span></td>
+        <td><span style="display:flex;gap:.3rem;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" data-ebd="${b.id}">Ubah</button><button class="btn btn-ghost btn-sm" data-dbd="${b.id}">Hapus</button></span></td></tr>`;
+    }).join("") || `<tr><td colspan="8" class="muted">Belum ada paket. Tekan <b>+ Paket baru</b>.</td></tr>`;
+    tb.querySelectorAll("[data-ebd]").forEach((b) => b.onclick = () => editBundle(list.find((x) => x.id === +b.dataset.ebd)));
+    tb.querySelectorAll("[data-mv]").forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      const { error } = await sb.rpc("admin_move_bundle", { p_id: +b.dataset.id, p_dir: +b.dataset.mv });
+      if (error) toast(bundleErr(error)); loadBundles();
+    });
+    tb.querySelectorAll("[data-dbd]").forEach((b) => b.onclick = async () => {
+      const x = list.find((y) => y.id === +b.dataset.dbd);
+      if (!confirm(`Hapus paket "${x.name}"? Pesanan lama tetap tersimpan dengan nama dan harganya. Untuk menyembunyikan sementara, pakai Ubah → hilangkan centang "Tampilkan di toko".`)) return;
+      const { error } = await sb.rpc("admin_delete_bundle", { p_id: x.id });
+      if (error) return toast(bundleErr(error));
+      toast("Paket dihapus"); loadBundles();
+    });
+  }
+  function editBundle(b) {
+    const isNew = !b;
+    b = b ? structuredClone(b) : { name: "", subtitle: "", badge: "", image_url: "", price: null, is_active: true, items: [] };
+    let items = b.items.map((it) => ({ variant_id: it.variant_id, quantity: it.quantity }));
+    if (!items.length) items = [{ variant_id: null, quantity: 1 }];
+    const opts = paketData.options;
+    const groups = [...new Set(opts.map((o) => o.product))];
+    const select = (vid) => `<select data-iv aria-label="Item"><option value="">— Pilih menu —</option>${groups.map((g) => `<optgroup label="${esc(g)}">${opts.filter((o) => o.product === g)
+      .map((o) => `<option value="${o.variant_id}" ${o.variant_id === vid ? "selected" : ""}>${esc(optLabel(o))} — ${esc(rp(o.price))}${o.active ? "" : " (tidak dijual)"}</option>`).join("")}</optgroup>`).join("")}</select>`;
+    openModal(`<div class="modal-head"><h2>${isNew ? "Paket baru" : "Ubah " + esc(b.name)}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <div class="grid2">
+        <label class="f">Nama paket<input id="bd-name" value="${esc(b.name)}" maxlength="60" placeholder="mis. Paket Mager"></label>
+        <label class="f">Label kecil di foto (opsional)<input id="bd-badge" value="${esc(b.badge || "")}" maxlength="24" placeholder="mis. Untuk 4 orang"></label>
+        <label class="f">Deskripsi singkat (opsional)<input id="bd-sub" value="${esc(b.subtitle || "")}" maxlength="120" placeholder="mis. Ngopi sambil nyemil di rumah"></label>
+        <label class="chk" style="align-self:end"><input type="checkbox" id="bd-act" ${b.is_active ? "checked" : ""}> Tampilkan di toko</label>
+      </div>
+      <label class="f">Foto paket<span style="display:flex;gap:.5rem;align-items:center"><img class="thumb" id="bd-imgv" src="${esc(b.image_url || "")}" alt="" ${b.image_url ? "" : "hidden"}><input id="bd-img" value="${esc(b.image_url || "")}" placeholder="Unggah foto, atau tempel URL" style="flex:1"></span>
+        <input type="file" id="bd-file" accept="image/*"></label>
+      <div class="card" style="display:grid;gap:.6rem">
+        <h3>Isi paket</h3>
+        <div class="tbl-wrap"><table><thead><tr><th>Menu</th><th class="num">Jumlah</th><th class="num">Subtotal</th><th></th></tr></thead><tbody id="bd-items"></tbody></table></div>
+        <div><button class="btn btn-ghost btn-sm" id="bd-add">+ Item</button></div>
+      </div>
+      <div class="grid2" style="align-items:end">
+        <label class="f">Harga paket (Rp)<input id="bd-price" type="number" min="0" step="500" value="${b.price ?? ""}" inputmode="numeric"></label>
+        <p class="muted" id="bd-sum" style="margin:0;font-weight:700" aria-live="polite"></p>
+      </div>
+      <p class="msg" id="bd-msg"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="bd-save">Simpan paket</button></div>`);
+    const priceOf = (vid) => opts.find((o) => o.variant_id === vid)?.price || 0;
+    const readItems = () => { items = [...$("bd-items").querySelectorAll("tr[data-i]")].map((r) => ({ variant_id: +r.querySelector("[data-iv]").value || null, quantity: intIn(r.querySelector("[data-iq]").value) })); };
+    const sum = () => {
+      const normal = items.reduce((s, it) => s + priceOf(it.variant_id) * (Number.isInteger(it.quantity) ? it.quantity : 0), 0);
+      const price = intIn($("bd-price").value);
+      $("bd-sum").textContent = !normal ? "" : `Harga normal ${rp(normal)}` + (Number.isInteger(price) ? (price < normal ? ` · pembeli hemat ${rp(normal - price)} (${Math.round((1 - price / normal) * 100)}%)` : price > normal ? " · harga paket lebih mahal dari beli satuan" : "") : "");
+      $("bd-items").querySelectorAll("tr[data-i]").forEach((r, i) => { const it = items[i]; r.querySelector("[data-is]").textContent = it?.variant_id ? rp(priceOf(it.variant_id) * (it.quantity || 0)) : "–"; });
+    };
+    const draw = () => {
+      $("bd-items").innerHTML = items.map((it, i) => `<tr data-i="${i}"><td>${select(it.variant_id)}</td>
+        <td class="num"><input data-iq type="number" min="1" max="20" value="${it.quantity ?? 1}" style="width:80px" aria-label="Jumlah item ${i + 1}"></td>
+        <td class="num" data-is>–</td><td><button class="btn btn-ghost btn-sm" data-irm="${i}" aria-label="Hapus item ${i + 1}">✕</button></td></tr>`).join("");
+      $("bd-items").querySelectorAll("[data-irm]").forEach((x) => x.onclick = () => { readItems(); items.splice(+x.dataset.irm, 1); if (!items.length) items.push({ variant_id: null, quantity: 1 }); draw(); });
+      sum();
+    };
+    draw();
+    $("bd-items").addEventListener("input", () => { readItems(); sum(); });
+    $("bd-items").addEventListener("change", () => { readItems(); sum(); });
+    $("bd-price").oninput = sum;
+    $("bd-add").onclick = () => { readItems(); items.push({ variant_id: null, quantity: 1 }); draw(); };
+    $("bd-img").oninput = () => { const v = $("bd-imgv"); v.src = $("bd-img").value; v.hidden = !$("bd-img").value; };
+    $("bd-file").onchange = async () => {
+      try { toast("Mengunggah…"); $("bd-img").value = await uploadPhoto($("bd-file").files[0], "paket/"); $("bd-img").oninput(); toast("Foto terunggah"); }
+      catch (e) { toast(e.message); }
+    };
+    $("bd-save").onclick = async () => {
+      readItems();
+      const msg = $("bd-msg"), fail = (t) => { msg.textContent = t; msg.className = "msg err"; };
+      const name = $("bd-name").value.trim(), price = intIn($("bd-price").value);
+      const chosen = items.filter((it) => it.variant_id);
+      if (!name) return fail(BUNDLE_ERR.BUNDLE_NAME_REQUIRED);
+      if (!chosen.length) return fail(BUNDLE_ERR.BUNDLE_ITEMS_REQUIRED);
+      if (chosen.some((it) => !Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > 20)) return fail("Jumlah tiap item 1 sampai 20.");
+      if (new Set(chosen.map((it) => it.variant_id)).size !== chosen.length) return fail(BUNDLE_ERR.BUNDLE_ITEM_DUPLICATE);
+      if (!Number.isInteger(price) || price < 0) return fail(BUNDLE_ERR.BUNDLE_PRICE_INVALID);
+      $("bd-save").disabled = true; msg.textContent = "Menyimpan…"; msg.className = "msg";
+      const { error } = await sb.rpc("admin_save_bundle", { p_id: b.id ?? null, p_name: name, p_subtitle: $("bd-sub").value.trim() || null,
+        p_image_url: $("bd-img").value.trim() || null, p_price: price, p_badge: $("bd-badge").value.trim() || null,
+        p_items: chosen, p_active: $("bd-act").checked, p_sort_order: null });
+      if (error) { const s2 = $("bd-save"); if (s2) s2.disabled = false; return fail(bundleErr(error)); }
+      closeModal(); toast("Paket tersimpan"); loadBundles();
+    };
+  }
+
+  // ---------------------------------------------------------------- TESTIMONI (migration 020)
+  // Real customer photos, review screenshots and words, shown in the shop's "Kata mereka" section.
+  const T_SOURCES = { instagram: "Instagram", whatsapp: "WhatsApp", gofood: "GoFood", google: "Google Maps", lainnya: "Lainnya" };
+  let testiList = [];
+  async function renderTesti() {
+    app.innerHTML = `<div class="bar"><h2>Testimoni</h2><button class="btn btn-rose" id="newts">+ Testimoni</button></div>
+      <p class="muted" style="margin:-.4rem 0 1rem">Pakai foto, screenshot ulasan dan kata-kata <b>asli</b> dari pelanggan, dan minta izin dulu sebelum menampilkan nama atau akun mereka. Testimoni tampil di toko sesuai urutan di bawah.</p>
+      <div class="card" style="display:grid;gap:.6rem;margin-bottom:1rem" id="ts-cfg"><h3>Pengaturan bagian di toko</h3><p class="muted">Memuat…</p></div>
+      <div class="tbl-wrap"><table><thead><tr><th></th><th>Testimoni</th><th>Dari</th><th>Status</th><th>Urutan</th><th></th></tr></thead><tbody id="tsbody"><tr><td colspan="6" class="muted">Memuat…</td></tr></tbody></table></div>`;
+    $("newts").onclick = () => editTesti(null);
+    const { data: cfg, error } = await sb.from("shop_settings").select("*").eq("id", 1).maybeSingle();
+    const box = $("ts-cfg"); if (!box) return;
+    if (error || !cfg || !("testi_enabled" in cfg)) { box.innerHTML = MIG_020; }
+    else {
+      box.innerHTML = `<h3>Pengaturan bagian di toko</h3>
+        <label class="chk"><input type="checkbox" id="ts-on" ${cfg.testi_enabled ? "checked" : ""}> Tampilkan bagian testimoni di toko</label>
+        <div class="grid2">
+          <label class="f">Judul<input id="ts-title" value="${esc(cfg.testi_title || "")}" maxlength="60"></label>
+          <label class="f">Keterangan (opsional)<input id="ts-sub" value="${esc(cfg.testi_subtitle || "")}" maxlength="140" placeholder="mis. Foto dan ulasan asli dari pelanggan"></label>
+          <label class="f">Jumlah yang ditampilkan (1–24)<input id="ts-lim" type="number" min="1" max="24" value="${cfg.testi_limit ?? 8}"></label>
+          <label class="f">Akun Instagram (tanpa @, opsional)<input id="ts-ig" value="${esc(cfg.testi_instagram || "")}" maxlength="30" placeholder="camilanika.food"></label>
+        </div>
+        <div><button class="btn btn-ghost btn-sm" id="ts-save">Simpan pengaturan</button></div><p class="msg" id="ts-m"></p>`;
+      $("ts-save").onclick = async () => {
+        const lim = intIn($("ts-lim").value), ig = $("ts-ig").value.trim().replace(/^@/, ""), title = $("ts-title").value.trim();
+        const fail = (t) => { $("ts-m").textContent = t; $("ts-m").className = "msg err"; };
+        if (!title) return fail("Isi judulnya.");
+        if (!Number.isInteger(lim) || lim < 1 || lim > 24) return fail("Jumlah yang ditampilkan 1 sampai 24.");
+        if (ig && !/^[A-Za-z0-9._]{1,30}$/.test(ig)) return fail("Akun Instagram hanya huruf, angka, titik dan garis bawah.");
+        const { error: e2 } = await sb.from("shop_settings").update({ testi_enabled: $("ts-on").checked, testi_title: title,
+          testi_subtitle: $("ts-sub").value.trim() || null, testi_limit: lim, testi_instagram: ig || null }).eq("id", 1);
+        if (e2) return fail(err(e2));
+        $("ts-m").textContent = "Tersimpan"; $("ts-m").className = "msg ok"; toast("Pengaturan testimoni tersimpan");
+      };
+    }
+    await loadTesti();
+  }
+  async function loadTesti() {
+    const { data, error } = await sb.from("testimonials").select("*").order("sort_order").order("id");
+    const tb = $("tsbody"); if (!tb) return;
+    if (error) { tb.innerHTML = `<tr><td colspan="6">${NEEDS_020(error) ? MIG_020 : `<p class="msg err">${esc(err(error))}</p>`}</td></tr>`; return; }
+    testiList = data;
+    tb.innerHTML = data.map((t, i) => `<tr>
+      <td>${t.image_url ? `<img class="thumb" src="${esc(t.image_url)}" alt="">` : ""}</td>
+      <td style="max-width:360px">${t.quote ? `“${esc(t.quote)}”` : `<span class="muted">(foto saja)</span>`}</td>
+      <td><b>${esc(t.author || "Tanpa nama")}</b><br><span class="muted" style="font-size:.85rem">${esc(T_SOURCES[t.source] || t.source)}</span>${t.link_url ? `<br><a href="${esc(t.link_url)}" target="_blank" rel="noopener nofollow" style="font-size:.85rem">Lihat sumber</a>` : ""}</td>
+      <td><span class="badge ${t.is_visible ? "on" : "off"}">${t.is_visible ? "Tampil" : "Disembunyikan"}</span></td>
+      <td><span style="display:flex;gap:.3rem"><button class="btn btn-ghost btn-sm" data-tmv="-1" data-i="${i}" aria-label="Naikkan" ${i === 0 ? "disabled" : ""}>↑</button><button class="btn btn-ghost btn-sm" data-tmv="1" data-i="${i}" aria-label="Turunkan" ${i === data.length - 1 ? "disabled" : ""}>↓</button></span></td>
+      <td><span style="display:flex;gap:.3rem;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" data-tvis="${t.id}">${t.is_visible ? "Sembunyikan" : "Tampilkan"}</button><button class="btn btn-ghost btn-sm" data-ted="${t.id}">Ubah</button><button class="btn btn-ghost btn-sm" data-tdel="${t.id}">Hapus</button></span></td></tr>`).join("")
+      || `<tr><td colspan="6" class="muted">Belum ada testimoni. Bagian ini tidak tampil di toko sampai ada minimal satu yang ditampilkan.</td></tr>`;
+    const byId = (id) => data.find((t) => t.id === +id);
+    tb.querySelectorAll("[data-ted]").forEach((b) => b.onclick = () => editTesti(byId(b.dataset.ted)));
+    tb.querySelectorAll("[data-tvis]").forEach((b) => b.onclick = async () => {
+      const t = byId(b.dataset.tvis);
+      const { error: e } = await sb.from("testimonials").update({ is_visible: !t.is_visible }).eq("id", t.id);
+      if (e) return toast(err(e)); toast(t.is_visible ? "Disembunyikan" : "Ditampilkan"); loadTesti();
+    });
+    tb.querySelectorAll("[data-tdel]").forEach((b) => b.onclick = async () => {
+      if (!confirm("Hapus testimoni ini? Fotonya tetap tersimpan di penyimpanan.")) return;
+      const { error: e } = await sb.from("testimonials").delete().eq("id", +b.dataset.tdel);
+      if (e) return toast(err(e)); toast("Testimoni dihapus"); loadTesti();
+    });
+    // reorder: swap with the neighbour, then renumber everyone 10, 20, 30…
+    tb.querySelectorAll("[data-tmv]").forEach((b) => b.onclick = async () => {
+      const i = +b.dataset.i, j = i + +b.dataset.tmv, order = [...data];
+      [order[i], order[j]] = [order[j], order[i]];
+      b.disabled = true;
+      for (const [k, t] of order.entries()) {
+        if (t.sort_order === (k + 1) * 10) continue;
+        const { error: e } = await sb.from("testimonials").update({ sort_order: (k + 1) * 10 }).eq("id", t.id);
+        if (e) { toast(err(e)); break; }
+      }
+      loadTesti();
+    });
+  }
+  function editTesti(t) {
+    const isNew = !t;
+    t = t ? { ...t } : { image_url: "", quote: "", author: "", source: "instagram", link_url: "", is_visible: true };
+    openModal(`<div class="modal-head"><h2>${isNew ? "Testimoni baru" : "Ubah testimoni"}</h2><button class="x" data-close aria-label="Tutup">×</button></div>
+      <label class="f">Foto pelanggan atau screenshot ulasan<span style="display:flex;gap:.5rem;align-items:center"><img class="thumb" id="ts-imgv" src="${esc(t.image_url || "")}" alt="" ${t.image_url ? "" : "hidden"}><input id="ts-img" value="${esc(t.image_url || "")}" placeholder="Unggah foto, atau tempel URL" style="flex:1"></span>
+        <input type="file" id="ts-file" accept="image/*"></label>
+      <label class="f">Kata-kata pelanggan (opsional jika ada foto)<textarea id="ts-quote" rows="3" maxlength="400" placeholder="Salin persis dari pesan / ulasan pelanggan">${esc(t.quote || "")}</textarea></label>
+      <div class="grid2">
+        <label class="f">Nama atau akun (opsional)<input id="ts-author" value="${esc(t.author || "")}" maxlength="60" placeholder="mis. @nama.pelanggan atau Rina"></label>
+        <label class="f">Dari<select id="ts-src">${Object.entries(T_SOURCES).map(([k, v]) => `<option value="${k}" ${t.source === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+        <label class="f">Link ke postingan / ulasan (opsional)<input id="ts-link" value="${esc(t.link_url || "")}" placeholder="https://www.instagram.com/p/…"></label>
+        <label class="chk" style="align-self:end"><input type="checkbox" id="ts-vis" ${t.is_visible ? "checked" : ""}> Tampilkan di toko</label>
+      </div>
+      <p class="muted" style="margin:0;font-size:.85rem">Tampilkan nama atau akun hanya jika pelanggan setuju.</p>
+      <p class="msg" id="tsm"></p>
+      <div class="row-actions"><button class="btn btn-ghost" data-close>Batal</button><button class="btn btn-rose" id="ts-ok">Simpan testimoni</button></div>`);
+    $("ts-img").oninput = () => { const v = $("ts-imgv"); v.src = $("ts-img").value; v.hidden = !$("ts-img").value; };
+    $("ts-file").onchange = async () => {
+      try { toast("Mengunggah…"); $("ts-img").value = await uploadPhoto($("ts-file").files[0], "testimoni/"); $("ts-img").oninput(); toast("Foto terunggah"); }
+      catch (e) { toast(e.message); }
+    };
+    $("ts-ok").onclick = async () => {
+      const fail = (m) => { $("tsm").textContent = m; $("tsm").className = "msg err"; };
+      const row = { image_url: $("ts-img").value.trim() || null, quote: $("ts-quote").value.trim() || null, author: $("ts-author").value.trim() || null,
+        source: $("ts-src").value, link_url: $("ts-link").value.trim() || null, is_visible: $("ts-vis").checked };
+      if (!row.image_url && !row.quote) return fail("Isi foto atau kata-kata pelanggan (minimal salah satu).");
+      if (row.link_url && !/^https:\/\//i.test(row.link_url)) return fail("Link harus diawali https://");
+      if (row.image_url && !/^(https:\/\/|img\/)/i.test(row.image_url)) return fail("Foto harus diunggah, atau URL yang diawali https://");
+      if (isNew) row.sort_order = ((testiList.at(-1)?.sort_order) || 0) + 10;
+      $("ts-ok").disabled = true;
+      const { error } = isNew ? await sb.from("testimonials").insert(row) : await sb.from("testimonials").update(row).eq("id", t.id);
+      if (error) { $("ts-ok").disabled = false; return fail(NEEDS_020(error) ? "Jalankan migration 020 dulu." : err(error)); }
+      closeModal(); toast("Testimoni tersimpan"); loadTesti();
+    };
   }
 
   // ---------------------------------------------------------------- PROMOS
