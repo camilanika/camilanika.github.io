@@ -66,6 +66,17 @@ Open `https://camilanika.store/admin.html`.
    So that only the shop's own iPaymu account can use the relay, create the file `ipaymu-relay.php` in the Hostinger home folder, one level **above** `public_html` (Hostinger → File Manager), with your VA numbers: `<?php return ['va' => ['<Live VA>', '<Sandbox VA>']];`. It stays out of the public repo. Until the file exists, the relay forwards every account and adds an `X-Relay-Warning` header to its answers.
 5. Upgrade Supabase to Pro, which gives you backups and stops the project from being paused.
 
+## Test payments while live (iPaymu Sandbox, migration 023)
+The shop can take real payments (Production) and test payments (Sandbox) at the same time, so iPaymu or anyone you send the link to can try the checkout without real money and without an admin account.
+1. Run `supabase/migrations/023_sandbox_tests.sql`.
+2. Edge Functions → Secrets: add `IPAYMU_SANDBOX_VA` and `IPAYMU_SANDBOX_API_KEY` (the Sandbox VA and API Key from sandbox.ipaymu.com → Integrasi). Keep `IPAYMU_VA` / `IPAYMU_API_KEY` as the Live ones with `IPAYMU_IS_PRODUCTION=true`.
+3. Paste the updated **create-payment** and **ipaymu-webhook** functions again and deploy them.
+4. If the relay's VA allow-list (`ipaymu-relay.php` above `public_html`, or `IPAYMU_RELAY_VA`) is set, it must list the Sandbox VA too.
+- How to test: open `https://camilanika.store/?test=1` (a "MODE TES" badge shows; `?test=0` ends it) and check out as usual. The payment page is iPaymu Sandbox.
+- Those orders are **Mock**: marked **Sandbox · bukan uang asli** in Pesanan (don't send them), not in Cashflow or Best Seller, and they never earn loyalty spending or activate a referral voucher. Stock is reduced like any paid order, so put it back in **Stok** if needed.
+- A Sandbox payment can only pay a Sandbox order: the webhook checks each notification with the account the order was made for and never marks a real order paid with Sandbox money.
+- Switch it off in **Admin → Toko → Pembayaran tes** when no longer needed; `?test=1` checkouts are then refused with a message.
+
 ## How things work
 - **Prices, promos and stock are always checked on the server**, so a customer can't change a price in their browser.
 - Stock is **reserved** while a customer pays, for 60 minutes (iPaymu counts payment time in hours). It is deducted when iPaymu confirms payment and released if the payment expires, fails or is cancelled.
@@ -83,7 +94,7 @@ Open `https://camilanika.store/admin.html`.
 - The same page holds the **Semua** tab's description and info lines, and the **Galeri foto** (the photo strip that moves by itself under the hero): upload photos, add captions, reorder or remove them, then **Simpan galeri**. It shows once there are at least 2 photos.
 - Empty or hidden series disappear from the shop by themselves. Deleting a series never deletes products or orders; its products are hidden until you move them to another series.
 - Main menus (Minuman, Camilan) are no longer used or shown. They stay in the database only because older database functions join through them; a new series is put in one automatically (migration 021).
-- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`, `018_order_privacy_checkout_guard.sql`, `019_order_columns_private.sql`, `020_paket_testimoni.sql`, `021_series_gallery.sql`, `022_shop_days.sql`.
+- Database scripts to run once, in order: `migrations/002_menu_structure.sql`, `003_customer_accounts.sql`, `004_menu_showcase.sql`, `005_delete_accounts.sql`, `006_unlimited_stock.sql`, `007_shop_hours.sql`, `008_delivery.sql`, `009_order_history.sql`, `010_notifications.sql`, `011_referral_vouchers.sql`, `012_loyalty.sql`, `013_shipping_vouchers.sql`, `014_cashflow.sql`, `015_cashflow_hide_mock.sql`, `016_offline_payment_status.sql`, `017_qa_fixes.sql`, `018_order_privacy_checkout_guard.sql`, `019_order_columns_private.sql`, `020_paket_testimoni.sql`, `021_series_gallery.sql`, `022_shop_days.sql`, `023_sandbox_tests.sql`.
 
 ## Storefront redesign (Nov 2026): Paket Hemat, Best Seller, Testimoni
 **Install once:** run `supabase/migrations/020_paket_testimoni.sql` in the SQL Editor. Until it runs, the shop looks the same as before minus the new sections, and the two new admin pages say the migration is needed.

@@ -3,9 +3,10 @@
   const CFG = window.CN_CONFIG;
   // ONLINE_PAYMENT: true = on for everyone, false = off, "test" = only after opening the site with ?test=1
   // (remembered in this browser tab; ?test=0 turns it off again)
-  const ONLINE = (() => {
-    if (CFG.ONLINE_PAYMENT === true) return true;
-    if (CFG.ONLINE_PAYMENT !== "test") return false;
+  // ?test=1 (remembered in this tab, ?test=0 ends it) also makes online payments go through iPaymu Sandbox while
+  // the shop takes real payments (migration 023): no real money, the order is a Mock order, no loyalty/referral
+  // rewards. create-payment checks the switch in Admin → Toko.
+  const TEST = (() => {
     const t = new URLSearchParams(location.search).get("test");
     try {
       if (t === "1") sessionStorage.setItem("cn-test", "1");
@@ -13,6 +14,9 @@
       return sessionStorage.getItem("cn-test") === "1";
     } catch { return t === "1"; }
   })();
+  const ONLINE = CFG.ONLINE_PAYMENT === true || (CFG.ONLINE_PAYMENT === "test" && TEST);
+  const sandboxPay = () => TEST;
+  let testBadge = null;
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
   const WA = CFG.WHATSAPP;
   const $ = (id) => document.getElementById(id);
@@ -66,6 +70,7 @@
     VOUCHER_RESERVED: "Voucher ini sedang dipakai di pesanan lain yang belum dibayar.",
     VOUCHER_NOT_APPLICABLE: "Voucher ini tidak berlaku untuk menu di keranjang.",
     VOUCHER_MIN_SPEND: "Belanjaan belum mencapai minimal voucher.",
+    SANDBOX_OFF: "Mode tes (iPaymu Sandbox) sedang tidak aktif. Buka toko tanpa ?test=1 untuk memesan seperti biasa.",
     VOUCHER_NO_SHIPPING: "Voucher ini hanya memotong ongkir, dan pesanan ini tidak kena ongkir. Simpan vouchernya untuk lain kali.",
   };
   const errMsg = (raw) => {
@@ -1010,7 +1015,7 @@
           ...(s?.session?.access_token ? { "x-user-token": s.session.access_token } : {}),
         },
         body: JSON.stringify({
-          items: cartItems(), promo_code: promoCode || null,
+          items: cartItems(), promo_code: promoCode || null, ...(sandboxPay() ? { sandbox: true } : {}),
           customer: { name, phone, email: $("cust-email").value.trim(), address: $("cust-addr").value.trim(), lat: deliv.loc?.lat ?? null, lng: deliv.loc?.lng ?? null },
         }),
       });
@@ -1813,12 +1818,18 @@
   }
 
   // Online payment can be switched off in config.js (WhatsApp ordering still works)
-  if (ONLINE && CFG.ONLINE_PAYMENT === "test") {
-    const b = document.createElement("div");
-    b.textContent = "MODE TES · pembayaran online (Sandbox) aktif · buka ?test=0 untuk keluar";
-    b.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9999;background:#b45309;color:#fff;font:600 12px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:8px;pointer-events:none";
-    document.body.appendChild(b);
+  // test mode badge: with ONLINE_PAYMENT "test", or for an admin making Sandbox (mock) payments on the live shop
+  function renderTestBadge() {
+    if (!testBadge) {
+      testBadge = document.createElement("div");
+      testBadge.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9999;background:#b45309;color:#fff;font:600 12px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:8px;pointer-events:none";
+      document.body.appendChild(testBadge);
+    }
+    const sbx = sandboxPay();
+    testBadge.hidden = !(sbx || (ONLINE && CFG.ONLINE_PAYMENT === "test"));
+    testBadge.textContent = "MODE TES · pembayaran pakai iPaymu Sandbox, bukan uang asli · buka ?test=0 untuk keluar";
   }
+  renderTestBadge();
   if (!ONLINE) {
     $("pay-btn").hidden = true;
     document.querySelector(".pay-note").hidden = true;

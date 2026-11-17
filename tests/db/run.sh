@@ -62,3 +62,6 @@ psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/se
 # opening days in the shop schedule (migration 022)
 bash tests/db/build.sh cn_test >/dev/null
 psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/shop_days_test.sql
+# test (mock) payments through iPaymu Sandbox never turn into real rewards (migration 023)
+bash tests/db/build.sh cn_test >/dev/null
+psql -X -q -U postgres -d cn_test -v ON_ERROR_STOP=1 -P pager=off -f tests/db/sandbox_tests_test.sql

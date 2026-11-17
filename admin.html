@@ -564,7 +564,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       acts.push(`<button class="btn btn-ghost btn-sm" data-nota="${o.id}">🖨️ Cetak nota</button>`);
       if (o.classification) acts.push(`<button class="btn btn-ghost btn-sm" data-cls="${o.classification === "mock" ? "real" : "mock"}" data-id="${o.id}" data-no="${esc(o.order_number)}">${o.classification === "mock" ? "Tandai pembelian asli" : "Tandai pesanan tes"}</button>`);
       return `<div class="card order">
-        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span>${o.classification === "mock" ? `<span class="badge cf-mock" title="Tidak ditampilkan atau dihitung di Cashflow Summary">Pesanan tes</span>` : ""}${o.payment_issue ? `<span class="badge failed" title="${esc(issueText(o.payment_issue))}">Perlu dicek</span>` : ""}</div>
+        <div><div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>${esc(o.order_number)}</b><span class="badge ${o.status}">${STATUS[o.status] || o.status}</span>${o.classification === "mock" ? `<span class="badge cf-mock" title="Tidak ditampilkan atau dihitung di Cashflow Summary">Pesanan tes</span>` : ""}${o.payment_env === "sandbox" && o.status !== "pending" ? `<span class="badge failed" title="Dibayar lewat iPaymu Sandbox: bukan uang asli, jangan dikirim">Sandbox · bukan uang asli</span>` : ""}${o.payment_issue ? `<span class="badge failed" title="${esc(issueText(o.payment_issue))}">Perlu dicek</span>` : ""}</div>
           <div class="muted" style="font-size:.85rem">${fmtDate(o.created_at)}${o.payment_method ? " · " + esc(o.payment_method) : ""}${o.user_id ? "" : " · tamu"}</div>
           <div style="margin-top:.4rem"><b>${esc(o.customer_name)}</b> · ${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(o.phone)}</a>` : ""}${o.email ? `<br><span class="muted">${esc(o.email)}</span>` : ""}</div>
           ${o.address ? `<div class="muted" style="white-space:pre-line">${esc(o.address)}</div>` : ""}${o.notes ? `<div class="muted">${esc(o.notes)}</div>` : ""}
@@ -1796,6 +1796,12 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
         </div>
         <p class="muted" style="margin:0;font-size:.88rem">Saat tutup, pembeli tetap bisa melihat menu, tapi tidak bisa menambah ke keranjang, bayar, atau kirim pesanan lewat WhatsApp.</p>
       </div>
+      <div class="card" style="display:grid;gap:.6rem">
+        <h3>Pembayaran tes (iPaymu Sandbox)</h3>
+        ${"sandbox_tests" in cfg ? `<label class="chk"><input type="checkbox" id="sh-sbx" ${cfg.sandbox_tests ? "checked" : ""}> Izinkan pembayaran tes lewat <b>camilanika.store/?test=1</b></label>
+        <p class="muted" style="margin:0;font-size:.88rem">Siapa pun yang membuka toko dengan <b>?test=1</b> membayar lewat iPaymu Sandbox (bukan uang asli), misalnya tim iPaymu. Pesanannya ditandai <b>Sandbox</b> di Pesanan dan <b>jangan dikirim</b>; tidak dihitung di Cashflow, Best Seller, loyalty atau referral. Stok tetap berkurang seperti pesanan biasa. Matikan kalau sudah tidak dipakai.</p>`
+        : `<p class="msg err" style="margin:0">Jalankan <b>supabase/migrations/023_sandbox_tests.sql</b> di Supabase supaya pembayaran tes bisa diatur.</p>`}
+      </div>
       <div class="card" style="display:grid;gap:.8rem">
         <h3>Jadwal buka (WIB, GMT+7)</h3>
         <label class="chk"><input type="checkbox" id="sh-sched" ${cfg.schedule_enabled ? "checked" : ""}> Buka & tutup otomatis sesuai jadwal</label>
@@ -1836,6 +1842,7 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       toast(msg); renderShopTab();
     };
     $("sh-open")?.addEventListener("click", () => save({ is_closed: false }, "Toko dibuka"));
+    $("sh-sbx")?.addEventListener("change", (e) => save({ sandbox_tests: e.target.checked }, e.target.checked ? "Pembayaran tes (Sandbox) diizinkan" : "Pembayaran tes (Sandbox) dimatikan"));
     $("sh-close")?.addEventListener("click", () => {
       if (!confirm("Tutup toko sekarang? Pembeli tidak bisa memesan sampai kamu menekan Buka toko.")) return;
       save({ is_closed: true }, "Toko ditutup");

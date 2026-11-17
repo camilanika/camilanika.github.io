@@ -6,6 +6,8 @@
 //   IPAYMU_VA                iPaymu VA number (Sandbox VA while testing)
 //   IPAYMU_API_KEY           iPaymu API Key (Sandbox key while testing)
 //   IPAYMU_IS_PRODUCTION     "false" while testing, "true" when live
+//   IPAYMU_SANDBOX_VA        Sandbox VA, for test (mock) payments while live (migration 023)
+//   IPAYMU_SANDBOX_API_KEY   Sandbox API Key, same
 //   ALLOWED_ORIGINS          e.g. "https://camilanika.store"
 //   SITE_URL                 e.g. "https://camilanika.store/"
 //   SIGNUP_SALT              optional, the same salt phone-signup uses to hash IP addresses
@@ -15,6 +17,11 @@
 // ('off' / 'test' = admins only / 'on') and the per-network and unpaid-order limits (DEF-002).
 //
 // "Verify JWT" can stay ON: the website always sends the public anon key in Authorization.
+//
+// Test (mock) payments (migration 023): the shop opened with ?test=1 sends { sandbox: true }. While
+// shop_settings.sandbox_tests is on, that order is paid through iPaymu Sandbox (IPAYMU_SANDBOX_VA /
+// IPAYMU_SANDBOX_API_KEY when the main keys are Production) and tagged payment_env 'sandbox' = Mock order:
+// no real money, not in Cashflow, no loyalty or referral rewards. Everyone else pays through the main keys.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
@@ -28,13 +35,20 @@ const SITE_URL = Deno.env.get("SITE_URL") ?? "https://camilanika.store/";
 const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://camilanika.store")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
-const IPAYMU_BASE = IS_PROD ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.com";
+// the iPaymu account an order is paid with: the main one, or Sandbox for test (mock) payments
+type Account = { prod: boolean; va: string; key: string };
+const MAIN: Account = { prod: IS_PROD, va: VA, key: API_KEY };
+const SBX_VA = (Deno.env.get("IPAYMU_SANDBOX_VA") ?? "").trim();
+const SBX_KEY = (Deno.env.get("IPAYMU_SANDBOX_API_KEY") ?? "").trim();
+const SANDBOX: Account | null = !IS_PROD ? MAIN : SBX_VA && SBX_KEY ? { prod: false, va: SBX_VA, key: SBX_KEY } : null;
 // iPaymu Production only accepts calls from registered IPs, and Edge Functions have no fixed IP.
 // When IPAYMU_RELAY_URL is set (e.g. https://camilanika.store/api/ipaymu.php), the signed request goes
 // through that relay on the Hostinger server instead, whose IP is registered in the iPaymu dashboard.
+// (The relay's VA allow-list must include the Sandbox VA too.)
 const RELAY = (Deno.env.get("IPAYMU_RELAY_URL") ?? "").trim();
-const ipaymuUrl = (path: string) =>
-  RELAY ? `${RELAY}?env=${IS_PROD ? "prod" : "sandbox"}&path=${encodeURIComponent(path)}` : `${IPAYMU_BASE}${path}`;
+const ipaymuUrl = (acc: Account, path: string) =>
+  RELAY ? `${RELAY}?env=${acc.prod ? "prod" : "sandbox"}&path=${encodeURIComponent(path)}`
+        : `${acc.prod ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.com"}${path}`;
 // iPaymu Production only accepts notifyUrl on a registered domain. IPAYMU_NOTIFY_URL (e.g.
 // https://camilanika.store/api/ipaymu-notify.php) forwards the notification to ipaymu-webhook.
 const NOTIFY_URL = (Deno.env.get("IPAYMU_NOTIFY_URL") ?? "").trim() || `${SUPABASE_URL}/functions/v1/ipaymu-webhook`;
@@ -77,12 +91,12 @@ function stamp() {
   return d.slice(0, 19).replace(/[-T:]/g, "");
 }
 // Signed POST to iPaymu API v2: signature = HMAC-SHA256("POST:<va>:<sha256(body)>:<apiKey>", apiKey)
-async function ipaymuPost(path: string, payload: unknown) {
+async function ipaymuPost(acc: Account, path: string, payload: unknown) {
   const body = JSON.stringify(payload);
-  const signature = await hmacSha256(`POST:${VA}:${await sha256(body)}:${API_KEY}`, API_KEY);
-  const res = await fetch(ipaymuUrl(path), {
+  const signature = await hmacSha256(`POST:${acc.va}:${await sha256(body)}:${acc.key}`, acc.key);
+  const res = await fetch(ipaymuUrl(acc, path), {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json", va: VA, signature, timestamp: stamp() },
+    headers: { "Content-Type": "application/json", Accept: "application/json", va: acc.va, signature, timestamp: stamp() },
     body,
   });
   const out = await res.json().catch(() => null);
@@ -116,6 +130,14 @@ Deno.serve(async (req) => {
   const c = body?.customer ?? {};
   const items = Array.isArray(body?.items) ? body.items.slice(0, 50) : [];
 
+  // Test (mock) payment through Sandbox? Only while switched on in Admin → Toko and Sandbox keys exist.
+  let acc = MAIN;
+  if (body?.sandbox === true && IS_PROD) {
+    const { data: st } = await admin.from("shop_settings").select("sandbox_tests").eq("id", 1).maybeSingle();
+    if (!st?.sandbox_tests || !SANDBOX) return reply({ error: "SANDBOX_OFF" }, 403);
+    acc = SANDBOX;
+  }
+
   // 0) Online payment switched on, and this network / phone within its limits? (DEF-002)
   const { data: guard, error: gErr } = await admin.rpc("checkout_guard", {
     p_ip_hash: await hashIp(req), p_phone: str(c.phone, 30), p_user: userId,
@@ -148,7 +170,7 @@ Deno.serve(async (req) => {
   // Cashflow: record which iPaymu environment this order uses (Sandbox orders are counted as Mock, never as income).
   // Best effort: if it fails, the database falls back to shop_settings.payments_mode.
   const { error: tagErr } = await admin.rpc("tag_order_payment_env", {
-    p_order_number: order.order_number, p_env: IS_PROD ? "production" : "sandbox",
+    p_order_number: order.order_number, p_env: acc.prod ? "production" : "sandbox",
   });
   if (tagErr) console.error("tag_order_payment_env failed", tagErr.message);
 
@@ -200,7 +222,7 @@ Deno.serve(async (req) => {
 
   let pay: { SessionID?: string; Url?: string } | null = null;
   try {
-    const { ok, out } = await ipaymuPost("/api/v2/payment", payBody);
+    const { ok, out } = await ipaymuPost(acc, "/api/v2/payment", payBody);
     if (!ok || !out?.Data?.Url) throw new Error(JSON.stringify(out));
     pay = out.Data;
   } catch (e) {
@@ -218,6 +240,7 @@ Deno.serve(async (req) => {
 
   return reply({
     url: pay!.Url,
+    sandbox: !acc.prod,
     order_number: order.order_number,
     access_token: order.access_token,
     total: order.total,
