@@ -267,9 +267,9 @@
      "functions/v1/create-payment",
      "public",
      "Create order & payment",
-     "Creates the order and starts payment. Works for guests; pass x-user-token to attach it to the account. First checks shop_settings.online_payment (off / test = admins only / on) and the checkout limits: 403 ONLINE_PAYMENT_OFF, 429 RATE_LIMITED (per network) or 429 TOO_MANY_PENDING (unpaid orders per phone). Response includes order_number, access_token and a free flag for zero-total orders; errors come back as { error, detail } (e.g. PAYMENT_GATEWAY_ERROR).",
+     "Creates the order and starts payment. Works for guests; pass x-user-token to attach it to the account. First checks shop_settings.online_payment (off / test = admins only / on) and the checkout limits: 403 ONLINE_PAYMENT_OFF, 429 RATE_LIMITED (per network) or 429 TOO_MANY_PENDING (unpaid orders per phone). Response includes order_number, access_token and a free flag for zero-total orders; errors come back as { error, detail } (e.g. PAYMENT_GATEWAY_ERROR). Optional \"sandbox\": true (the shop opened with ?test=1) pays through iPaymu Sandbox while live; the order becomes a Mock order and the response has sandbox: true; 403 SANDBOX_OFF when switched off in Admin → Toko (migration 023).",
      null,
-     "{\n  \"items\": [ { \"variant_id\": 12, \"quantity\": 2, \"addon\": false, \"choices\": {} } ],\n  \"promo_code\": \"HEMAT10\",          // or null\n  \"customer\": {\n    \"name\": \"Siti\", \"phone\": \"081234567890\", \"email\": \"\",\n    \"address\": \"Jl. ...\", \"lat\": -6.54, \"lng\": 106.78\n  }\n}"
+     "{\n  \"items\": [ { \"variant_id\": 12, \"quantity\": 2, \"addon\": false, \"choices\": {} } ],\n  \"promo_code\": \"HEMAT10\",          // or null\n  \"sandbox\": true,                  // optional: test payment through iPaymu Sandbox\n  \"customer\": {\n    \"name\": \"Siti\", \"phone\": \"081234567890\", \"email\": \"\",\n    \"address\": \"Jl. ...\", \"lat\": -6.54, \"lng\": 106.78\n  }\n}"
     ],
     [
      "POST",
@@ -582,6 +582,16 @@
        "gallery",
        "json",
        "[{ url, caption?, alt? }] photo strip under the hero"
+      ],
+      [
+       "sandbox_tests",
+       "bool",
+       "Allow test payments through iPaymu Sandbox via ?test=1 (migration 023)"
+      ],
+      [
+       "open_days",
+       "int[]",
+       "Opening days for the schedule, 1 = Senin … 7 = Minggu (migration 022)"
       ]
      ]
     ]
