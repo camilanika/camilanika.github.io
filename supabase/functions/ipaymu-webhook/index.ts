@@ -3,7 +3,10 @@
 // also set it in the iPaymu dashboard → Integration → URL Notify / Callback:
 //   https://<project-ref>.supabase.co/functions/v1/ipaymu-webhook
 //
-// Secrets: IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_IS_PRODUCTION (same as create-payment).
+// Secrets: IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_IS_PRODUCTION, IPAYMU_SANDBOX_VA, IPAYMU_SANDBOX_API_KEY (same as create-payment).
+// Test (mock) orders are paid through iPaymu Sandbox while the shop is live (migration 023), so a notification is
+// checked with the account the order was made for first, then the other one. A Sandbox payment can only pay an
+// order that was made as a Sandbox order: it never marks a real order paid.
 // Deploy with "Verify JWT" turned OFF (iPaymu doesn't send a Supabase token).
 // The notification body is never trusted: every call is re-checked with iPaymu's Check Transaction API
 // (signed with your API Key), and the order number and amount come from that answer.
@@ -13,13 +16,18 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 const VA = Deno.env.get("IPAYMU_VA") ?? "";
 const API_KEY = Deno.env.get("IPAYMU_API_KEY") ?? "";
 const IS_PROD = Deno.env.get("IPAYMU_IS_PRODUCTION") === "true";
-const IPAYMU_BASE = IS_PROD ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.com";
+type Account = { prod: boolean; va: string; key: string };
+const MAIN: Account = { prod: IS_PROD, va: VA, key: API_KEY };
+const SBX_VA = (Deno.env.get("IPAYMU_SANDBOX_VA") ?? "").trim();
+const SBX_KEY = (Deno.env.get("IPAYMU_SANDBOX_API_KEY") ?? "").trim();
+const SANDBOX: Account | null = IS_PROD && SBX_VA && SBX_KEY ? { prod: false, va: SBX_VA, key: SBX_KEY } : null;
 // iPaymu Production only accepts calls from registered IPs, and Edge Functions have no fixed IP.
 // When IPAYMU_RELAY_URL is set (e.g. https://camilanika.store/api/ipaymu.php), the signed request goes
 // through that relay on the Hostinger server instead, whose IP is registered in the iPaymu dashboard.
 const RELAY = (Deno.env.get("IPAYMU_RELAY_URL") ?? "").trim();
-const ipaymuUrl = (path: string) =>
-  RELAY ? `${RELAY}?env=${IS_PROD ? "prod" : "sandbox"}&path=${encodeURIComponent(path)}` : `${IPAYMU_BASE}${path}`;
+const ipaymuUrl = (acc: Account, path: string) =>
+  RELAY ? `${RELAY}?env=${acc.prod ? "prod" : "sandbox"}&path=${encodeURIComponent(path)}`
+        : `${acc.prod ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.com"}${path}`;
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
@@ -36,12 +44,12 @@ async function hmacSha256(text: string, key: string) {
 function stamp() {
   return new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 19).replace(/[-T:]/g, "");
 }
-async function ipaymuPost(path: string, payload: unknown) {
+async function ipaymuPost(acc: Account, path: string, payload: unknown) {
   const body = JSON.stringify(payload);
-  const signature = await hmacSha256(`POST:${VA}:${await sha256(body)}:${API_KEY}`, API_KEY);
-  const res = await fetch(ipaymuUrl(path), {
+  const signature = await hmacSha256(`POST:${acc.va}:${await sha256(body)}:${acc.key}`, acc.key);
+  const res = await fetch(ipaymuUrl(acc, path), {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json", va: VA, signature, timestamp: stamp() },
+    headers: { "Content-Type": "application/json", Accept: "application/json", va: acc.va, signature, timestamp: stamp() },
     body,
   });
   const out = await res.json().catch(() => null);
@@ -69,19 +77,36 @@ Deno.serve(async (req) => {
   const trxId = String(n.trx_id ?? "").trim();
   if (!/^\d+$/.test(trxId)) return json({ error: "BAD_REQUEST" }, 400);
 
-  // Ask iPaymu directly for this transaction (don't rely on the notification body)
-  const { ok, out } = await ipaymuPost("/api/v2/transaction", { transactionId: Number(trxId) });
-  if (!ok || !out?.Data) {
-    console.error("Check Transaction failed", trxId, JSON.stringify(out));
+  // Ask iPaymu directly for this transaction (don't rely on the notification body). The body's reference only
+  // decides which account to ask first; the answer comes from iPaymu, signed with that account's key.
+  const hintRef = String(n.reference_id ?? n.referenceId ?? "").trim().slice(0, 40);
+  let hintEnv: string | null = null;
+  if (SANDBOX && hintRef) {
+    const { data: h } = await admin.from("orders").select("payment_env").eq("order_number", hintRef).maybeSingle();
+    hintEnv = h?.payment_env ?? null;
+  }
+  const accounts = SANDBOX ? (hintEnv === "sandbox" ? [SANDBOX, MAIN] : [MAIN, SANDBOX]) : [MAIN];
+  let acc: Account | null = null, t: any = null, lastOut: unknown = null;
+  for (const a of accounts) {
+    const { ok, out } = await ipaymuPost(a, "/api/v2/transaction", { transactionId: Number(trxId) });
+    lastOut = out;
+    if (ok && out?.Data) { acc = a; t = out.Data; break; }
+  }
+  if (!acc || !t) {
+    console.error("Check Transaction failed", trxId, JSON.stringify(lastOut));
     return json({ error: "CHECK_FAILED" }, 502); // iPaymu will retry
   }
-  const t = out.Data;
   const orderId = String(t.ReferenceId ?? t.referenceId ?? t.reference_id ?? "");
   if (!orderId) return json({ ok: true, ignored: "no reference" });
 
   const { data: order } = await admin
-    .from("orders").select("order_number,total,status").eq("order_number", orderId).maybeSingle();
+    .from("orders").select("order_number,total,status,payment_env").eq("order_number", orderId).maybeSingle();
   if (!order) return json({ ok: true, ignored: "unknown order" }); // e.g. a test notification
+  // Sandbox money can only pay a Sandbox (test) order, never a real one
+  if (IS_PROD && !acc.prod && order.payment_env !== "sandbox") {
+    console.error(`Sandbox payment for real order ${orderId} ignored`);
+    return json({ ok: true, ignored: "sandbox payment for a real order" });
+  }
 
   const status = Number(t.Status ?? t.status);
   // the amount comes only from iPaymu's verified answer, never from the notification body (QA fix OBS-29);
@@ -90,11 +115,13 @@ Deno.serve(async (req) => {
   const via = String(n.via ?? t.Via ?? t.PaymentMethod ?? "").toLowerCase();
   const method = METHOD[via] ?? (via || null);
 
-  // Cashflow: the environment that sent this notification (Sandbox = Mock order). Idempotent.
-  const { error: tagErr } = await admin.rpc("tag_order_payment_env", {
-    p_order_number: orderId, p_env: IS_PROD ? "production" : "sandbox",
-  });
-  if (tagErr) console.error("tag_order_payment_env failed", tagErr.message);
+  // Cashflow: the environment that paid (Sandbox = Mock order). Idempotent; a real payment for a test order makes it real.
+  if (!order.payment_env || acc.prod) {
+    const { error: tagErr } = await admin.rpc("tag_order_payment_env", {
+      p_order_number: orderId, p_env: acc.prod ? "production" : "sandbox",
+    });
+    if (tagErr) console.error("tag_order_payment_env failed", tagErr.message);
+  }
 
   let result = "unchanged";
   // 1 = berhasil, 6 = berhasil (settlement processed later), 7 = berhasil, held in escrow by iPaymu
