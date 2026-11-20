@@ -239,8 +239,8 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .how .sec-head{margin-bottom:0}
 .how-vid{margin:0 auto;width:min(100%,300px);display:grid;gap:.7rem;justify-items:center;text-align:center}
 .how-vid[hidden]{display:none}
-.how-phone{width:100%;aspect-ratio:9/16;padding:9px;border-radius:34px;background:var(--fg);box-shadow:var(--shadow)}
-.how-phone video{display:block;width:100%;height:100%;object-fit:cover;border-radius:26px;background:var(--bg)}
+.how-phone{width:100%;aspect-ratio:9/16;border-radius:var(--r-xl);overflow:hidden;background:var(--bg);border:var(--bd);box-shadow:var(--shadow)}
+.how-phone video{display:block;width:100%;height:100%;object-fit:cover;background:var(--bg)}
 .how-vid figcaption{font-size:.92rem;color:var(--muted)}
 @media (min-width:900px){
   .how.has-vid{grid-template-columns:300px minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start;column-gap:clamp(2.5rem,5vw,4.5rem)}
@@ -932,8 +932,8 @@ footer .tile-ic{color:#fff}
         </div>
         <figure class="how-vid" id="how-vid">
           <div class="how-phone">
-            <video id="how-video" controls playsinline preload="metadata" aria-label="Video tutorial: daftar, pesan dan bayar di CamilaNika">
-              <source src="video/cara-pesan.mp4#t=0.1" type="video/mp4">
+            <video id="how-video" controls playsinline preload="none" poster="video/cara-pesan.jpg" aria-label="Video tutorial: daftar, pesan dan bayar di CamilaNika">
+              <source src="video/cara-pesan.mp4" type="video/mp4">
             </video>
           </div>
           <figcaption>Tonton cara pesan, sekitar 20 detik</figcaption>
