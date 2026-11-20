@@ -234,6 +234,19 @@ section.block{padding-block:clamp(3rem,7vw,5.5rem)}
 .steps li::before{content:counter(s);font-family:var(--f-display);font-weight:800;font-size:1.1rem;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--rose-soft);color:var(--rose)}
 .steps p{color:var(--muted)}
 @media (max-width:760px){.steps{grid-template-columns:1fr}}
+/* Cara order: tutorial video beside the steps (video/cara-pesan.mp4; the block hides itself if the file is missing) */
+.how{display:grid;gap:clamp(1.5rem,4vw,2.5rem)}
+.how .sec-head{margin-bottom:0}
+.how-vid{margin:0 auto;width:min(100%,300px);display:grid;gap:.7rem;justify-items:center;text-align:center}
+.how-vid[hidden]{display:none}
+.how-phone{width:100%;aspect-ratio:9/16;padding:9px;border-radius:34px;background:var(--fg);box-shadow:var(--shadow)}
+.how-phone video{display:block;width:100%;height:100%;object-fit:cover;border-radius:26px;background:var(--bg)}
+.how-vid figcaption{font-size:.92rem;color:var(--muted)}
+@media (min-width:900px){
+  .how.has-vid{grid-template-columns:300px minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start;column-gap:clamp(2.5rem,5vw,4.5rem)}
+  .how.has-vid .how-vid{grid-column:1;grid-row:1 / span 2}
+  .how.has-vid .steps{grid-template-columns:1fr}
+}
 
 /* cart */
 .cart-fab{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:55;box-shadow:var(--shadow)}
@@ -911,12 +924,20 @@ footer .tile-ic{color:#fff}
       </div>
 
 
-      <div>
+      <div class="how has-vid" id="how">
         <div class="sec-head">
           <p class="eyebrow">Cara order</p>
           <h2>Pesan dalam 3 langkah</h2>
-          <p>Mau pesan banyak untuk acara atau arisan? Bisa, chat kami dulu untuk atur jumlah dan waktunya.</p>
+          <p>Tanpa akun juga bisa, daftar hanya supaya riwayat pesanan tersimpan. Mau pesan banyak untuk acara atau arisan? Chat kami dulu untuk atur jumlah dan waktunya.</p>
         </div>
+        <figure class="how-vid" id="how-vid">
+          <div class="how-phone">
+            <video id="how-video" controls playsinline preload="metadata" aria-label="Video tutorial: daftar, pesan dan bayar di CamilaNika">
+              <source src="video/cara-pesan.mp4#t=0.1" type="video/mp4">
+            </video>
+          </div>
+          <figcaption>Tonton cara pesan, sekitar 20 detik</figcaption>
+        </figure>
         <ol class="steps">
           <li><h3>Pilih menu</h3><p>Tentukan rasa, ukuran botol, atau isian dan jenis cireng, lalu tekan Tambah.</p></li>
           <li><h3>Cek keranjang</h3><p>Isi nama, nomor WA dan alamat. Masukkan kode promo kalau punya, total langsung terlihat.</p></li>
@@ -1081,5 +1102,15 @@ footer .tile-ic{color:#fff}
 <script src="js/hours.js?v=202611142100"></script>
 <script src="js/shop.js?v=202611171500"></script>
 
+<script>
+// Cara order video: hide it (and use the plain layout) when video/cara-pesan.mp4 isn't there
+(() => {
+  const v = document.getElementById("how-video"); if (!v) return;
+  const off = () => { document.getElementById("how-vid").hidden = true; document.getElementById("how").classList.remove("has-vid"); };
+  v.querySelector("source").addEventListener("error", off);
+  v.addEventListener("error", off);
+  if (v.networkState === 3) off();   // already failed before this ran
+})();
+</script>
 </body>
 </html>
