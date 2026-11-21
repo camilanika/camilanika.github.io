@@ -22,6 +22,14 @@ AddType text/javascript .js
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
+# Pages are checked with the server on every visit, so a menu or code update reaches everyone right away
+# (scripts and styles keep their ?v= version tags and can still be cached).
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+
 # Repo-only files: not part of the public website
 RedirectMatch 404 ^/(\.git|supabase|tests|docs)(/|$)
 RedirectMatch 404 \.(md|sql|ts)$
