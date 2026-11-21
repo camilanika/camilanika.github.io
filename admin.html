@@ -957,13 +957,15 @@ input,select,textarea,.cust-pick label,.pchk,.nav-toggle,.tabs > button,.subnav 
       choicesEl.innerHTML = p.choices.map((c, i) => `<div class="grid3" style="align-items:end" data-ch="${i}">
         <label class="f">Nama pilihan<input data-cl value="${esc(c.label)}"></label>
         <label class="f">Opsi (pisahkan koma)<input data-co value="${esc(c.options.join(", "))}"></label>
-        <span style="display:flex;gap:.5rem;align-items:end"><label class="f" style="flex:1">Default (nomor opsi, mulai 1)<input data-cd type="number" min="1" value="${(c.default ?? 0) + 1}"></label><button class="btn btn-ghost btn-sm" data-delch="${i}">Hapus</button></span></div>`).join("") || `<p class="muted" style="margin:0">Tidak ada.</p>`;
+        <span style="display:flex;gap:.5rem;align-items:end"><label class="f" style="flex:1">Default (nomor opsi, mulai 1)<input data-cd type="number" min="1" value="${(c.default ?? 0) + 1}"></label><button class="btn btn-ghost btn-sm" data-delch="${i}">Hapus</button></span>
+        <label class="f">Hanya untuk ukuran (pisahkan koma, kosong = semua)<input data-cs value="${esc((c.sizes || []).join(", "))}" placeholder="mis. S"></label></div>`).join("") || `<p class="muted" style="margin:0">Tidak ada.</p>`;
       choicesEl.querySelectorAll("[data-delch]").forEach((b) => b.onclick = () => { readChoices(); p.choices.splice(+b.dataset.delch, 1); drawChoices(); });
     };
     const readChoices = () => {
       p.choices = [...choicesEl.querySelectorAll("[data-ch]")].map((r) => {
         const options = r.querySelector("[data-co]").value.split(",").map((s) => s.trim()).filter(Boolean);
-        return { label: r.querySelector("[data-cl]").value.trim(), options, default: Math.min(Math.max(+r.querySelector("[data-cd]").value - 1, 0), Math.max(options.length - 1, 0)) };
+        const sizes = (r.querySelector("[data-cs]")?.value || "").split(",").map((s) => s.trim()).filter(Boolean);
+        return { label: r.querySelector("[data-cl]").value.trim(), options, default: Math.min(Math.max(+r.querySelector("[data-cd]").value - 1, 0), Math.max(options.length - 1, 0)), ...(sizes.length ? { sizes } : {}) };
       }).filter((c) => c.label && c.options.length);
     };
     $("addch").onclick = () => { readChoices(); p.choices.push({ label: "Tingkat gula", options: ["Less Sugar", "Normal Sugar"], default: 1 }); drawChoices(); };
