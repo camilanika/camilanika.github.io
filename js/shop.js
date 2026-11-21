@@ -114,8 +114,9 @@
   const usesSize = (p) => p.attr_names.includes(SIZE_ATTR);
   const sizeLabel = (s) => (SIZES[s] ? `${s} · ${SIZES[s]}` : s);
 
-  const chipGroup = (opts, label, def = 0, attr = "", show = (o) => o) =>
-    `<div class="opt"><div class="opt-label">${esc(label)}</div><div class="chips" role="group" aria-label="${esc(label)}" data-attr="${esc(attr)}" data-label="${esc(label)}">${opts
+  // sizes = only show this group for these sizes (e.g. the free bottle -> cup switch is only for S)
+  const chipGroup = (opts, label, def = 0, attr = "", show = (o) => o, sizes = null) =>
+    `<div class="opt"><div class="opt-label">${esc(label)}</div><div class="chips" role="group" aria-label="${esc(label)}" data-attr="${esc(attr)}" data-label="${esc(label)}"${sizes && sizes.length ? ` data-sizes="${esc(sizes.join(","))}"` : ""}>${opts
       .map((o, i) => `<button type="button" class="chip" data-v="${esc(o)}" aria-pressed="${i === def}">${esc(show(o))}</button>`)
       .join("")}</div></div>`;
 
@@ -136,7 +137,7 @@
     const sizeDef = Math.max(0, sizes.indexOf(size) >= 0 ? sizes.indexOf(size) : sizes.indexOf("M"));
     const opts = (sizes.length ? chipGroup(sizes, "Ukuran", sizeDef, SIZE_ATTR, sizeLabel) : "") +
       attrs.map((a) => chipGroup(attrValues(p, a), a === "Rasa" ? "Pilih rasa" : a, 0, a)).join("") +
-      (p.choices || []).map((c) => chipGroup(c.options, c.label, c.default ?? 0)).join("") +
+      (p.choices || []).map((c) => chipGroup(c.options, c.label, c.default ?? 0, "", (o) => o, usesSize(p) ? c.sizes : null)).join("") +
       (p.addon_label ? `<div class="opt"><div class="opt-label">Tambahan</div><label class="check" data-addon-wrap><input type="checkbox" data-addon> <span>${esc(p.addon_label)}</span> <span class="num" data-addon-price></span></label></div>` : "");
     return `<article class="os-card" data-product="${p.id}">
       <div class="os-top">${cardImg(p, "os-img")}<div class="os-info"><h3 id="os-title">${esc(p.name)}</h3>${p.subtitle ? `<p>${esc(p.subtitle)}</p>` : ""}${p.note ? `<em class="note-tag">${esc(p.note)}</em>` : ""}<div class="price num" data-price></div></div></div>
@@ -369,6 +370,7 @@
     const p = productById(card.dataset.product);
     const sel = {}, choices = {};
     card.querySelectorAll(".chips").forEach((g) => {
+      if (g.closest(".opt")?.hidden) return; // a choice that does not apply to the picked size; the server uses its default
       const v = g.querySelector('[aria-pressed="true"]')?.dataset.v;
       if (g.dataset.attr) sel[g.dataset.attr] = v; else choices[g.dataset.label] = v;
     });
@@ -384,6 +386,9 @@
   // the sheet (one product, the options chosen in it)
   function updateCard(card) {
     if (!card) return;
+    // show size-limited choices only for their sizes (before reading the selection, which skips hidden groups)
+    const curSize = card.querySelector(`.chips[data-attr="${SIZE_ATTR}"] [aria-pressed="true"]`)?.dataset.v || size;
+    card.querySelectorAll(".chips[data-sizes]").forEach((g) => { g.closest(".opt").hidden = !g.dataset.sizes.split(",").includes(curSize); });
     const { p, variant, addon } = selection(card);
     const priceEl = card.querySelector("[data-price]"), btn = card.querySelector("[data-add]"), tag = card.querySelector("[data-stock]");
     const wrap = card.querySelector("[data-addon-wrap]"), nEl = card.querySelector("[data-n]");
