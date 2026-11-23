@@ -22,12 +22,23 @@ AddType text/javascript .js
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# Pages are checked with the server on every visit, so a menu or code update reaches everyone right away
-# (scripts and styles keep their ?v= version tags and can still be cached).
+# Always the latest version: browsers (and Hostinger's CDN) check every page, script, style, image and video
+# with the server on each visit. An unchanged file is answered with a short "304 Not Modified" and comes from
+# the browser's cache, so this costs almost nothing; a changed file is downloaded at once. No ?v= tag has to be
+# changed after a deploy. Font files never change, so they are kept for a year. A tab that stays open is
+# covered by js/fresh.js (it reloads, or offers "Muat ulang", when the page or its scripts change).
+FileETag MTime Size
 <IfModule mod_headers.c>
-  <FilesMatch "\.html$">
+  <FilesMatch "\.(html?|php|js|mjs|css|json|webmanifest|xml|txt|svg|png|jpe?g|webp|gif|ico|mp4|webm)$">
     Header set Cache-Control "no-cache"
+    Header unset Expires
   </FilesMatch>
+  <FilesMatch "\.(woff2?|ttf|otf)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive Off
 </IfModule>
 
 # Repo-only files: not part of the public website
