@@ -349,3 +349,34 @@ test("test payments switched off after the page loaded: the Sandbox request is r
     await page.context().close();
   } finally { await H.sql("update public.shop_settings set sandbox_tests = true where id = 1"); }
 });
+
+// iPaymu refuses the payment (create-payment answers 422 with the reason): the shopper is told why, the cart stays
+async function refusedPayment(page, body) {
+  await page.locator("[data-pick]").first().click();
+  await page.locator("[data-add]:visible").first().click();
+  await page.locator("[data-open-cart]:visible").first().click();
+  if (await page.locator("#to-checkout").isVisible()) await page.locator("#to-checkout").click();
+  await page.fill("#cust-name", "Pembeli Batas");
+  await page.fill("#cust-phone", "081234567890");
+  H.payFail.next = { status: 422, body };
+  await page.locator("#pay-btn").click();
+  await page.locator("#cart-err:not([hidden])").waitFor();
+  return page.locator("#cart-err").innerText();
+}
+
+test("iPaymu's transaction limit: the shopper sees the amount that can be paid online, and the cart is kept", async () => {
+  const page = await openShop("");
+  const msg = await refusedPayment(page, { error: "PAYMENT_LIMIT", remaining: 124500, limit: 150000 });
+  assert.match(msg, /membatasi pembayaran online hingga Rp124\.500/);
+  assert.match(msg, /Kirim pesanan via WhatsApp/);
+  assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem("cn-cart-v2") || "[]").length) > 0, "cart kept");
+  assert.equal(await page.locator("#pay-btn").isEnabled(), true, "can try again");
+  await page.context().close();
+});
+
+test("iPaymu refuses for another reason: its reason is shown", async () => {
+  const page = await openShop("");
+  const msg = await refusedPayment(page, { error: "PAYMENT_REFUSED", reason: "Merchant inactive" });
+  assert.match(msg, /menolak transaksi ini \(Merchant inactive\)/);
+  await page.context().close();
+});
