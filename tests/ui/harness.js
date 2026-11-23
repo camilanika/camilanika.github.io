@@ -98,6 +98,7 @@ async function start({ seedSql } = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch();
   const payBodies = [];   // every request body the shop sent to create-payment, newest last
+  const payFail = { next: null };   // set payFail.next = { status, body } to answer the next payment with it
 
   async function open(hash = "", { uid = ADMIN, viewport = { width: 1280, height: 900 }, doubleAuth = false, file = "admin.html" } = {}) {
     const ctx = await browser.newContext({ viewport, locale: "id-ID", timezoneId: "Asia/Jakarta" });
@@ -114,6 +115,8 @@ async function start({ seedSql } = {}) {
     await ctx.route(/\/functions\/v1\/create-payment$/, async (r) => {
       const b = JSON.parse(r.request().postData() || "{}"), c = b.customer || {};
       payBodies.push(b);
+      // a test can make "iPaymu" refuse the next payment like create-payment reports it (status + body)
+      if (payFail.next) { const f = payFail.next; payFail.next = null; return r.fulfill({ status: f.status, contentType: "application/json", body: JSON.stringify(f.body) }); }
       // like the real function: a test (Sandbox) payment only while Admin → Toko → Pembayaran tes is on
       if (b.sandbox === true) {
         const { rows: [st] } = await pool.query("select sandbox_tests from public.shop_settings where id = 1");
@@ -140,7 +143,7 @@ async function start({ seedSql } = {}) {
   }
   const sql = async (q, v) => (await pool.query(q, v)).rows;
   async function close() { await browser.close(); server.close(); await pool.end(); }
-  return { base, open, sql, close, payBodies, ADMIN, CUSTOMER };
+  return { base, open, sql, close, payBodies, payFail, ADMIN, CUSTOMER };
 }
 
 module.exports = { start, ADMIN, CUSTOMER };

@@ -103,6 +103,25 @@ async function ipaymuPost(acc: Account, path: string, payload: unknown) {
   return { ok: res.ok && Number(out?.Status) === 200, out };
 }
 
+// iPaymu refused the payment (it answered with Success false / a 4xx Status), as opposed to not answering.
+//   PAYMENT_LIMIT    a transaction limit on the merchant account, e.g. before verification
+//                    ({"Status":403,"Message":"Unverified merchant transaction limit exceeded…",
+//                      "Data":{"Code":"UNVERIFIED_LIMIT_EXCEEDED","Limit":150000,"Remaining":124500,…}})
+//                    → { remaining, limit } so the shop can say how much can be paid online now
+//   PAYMENT_REFUSED  any other refusal; iPaymu's own message goes along (shown in brackets)
+function ipaymuRefusal(out: any): { code: string; info: Record<string, unknown> } | null {
+  if (!out || typeof out !== "object") return null;
+  const status = Number(out.Status), msg = typeof out.Message === "string" ? out.Message : "";
+  if (status >= 500 || (!(status >= 400 && status < 500) && out.Success !== false)) return null;   // 5xx: iPaymu itself failed
+  const data = out.Data && typeof out.Data === "object" ? out.Data : {};
+  const dcode = String(data.Code ?? "");
+  const num = (v: unknown) => (Number.isFinite(Number(v)) ? Math.max(0, Math.floor(Number(v))) : null);
+  if (/LIMIT/i.test(dcode) || /limit/i.test(msg)) {
+    return { code: "PAYMENT_LIMIT", info: { remaining: num(data.Remaining), limit: num(data.Limit) } };
+  }
+  return { code: "PAYMENT_REFUSED", info: { reason: clip(msg.replace(/\s+/g, " ").trim(), 140) } };
+}
+
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -221,13 +240,17 @@ Deno.serve(async (req) => {
   };
 
   let pay: { SessionID?: string; Url?: string } | null = null;
+  let refusal: ReturnType<typeof ipaymuRefusal> = null;
   try {
     const { ok, out } = await ipaymuPost(acc, "/api/v2/payment", payBody);
-    if (!ok || !out?.Data?.Url) throw new Error(JSON.stringify(out));
+    if (!ok || !out?.Data?.Url) { refusal = ipaymuRefusal(out); throw new Error(JSON.stringify(out)); }
     pay = out.Data;
   } catch (e) {
     console.error("iPaymu error", e);
     await admin.rpc("release_order", { p_order_number: order.order_number, p_status: "failed" });
+    // iPaymu answered and said no (e.g. the account's transaction limit): tell the shopper why (422).
+    // No answer, or one we can't read: the general gateway error (502).
+    if (refusal) return reply({ error: refusal.code, ...refusal.info }, 422);
     return reply({ error: "PAYMENT_GATEWAY_ERROR" }, 502);
   }
 
