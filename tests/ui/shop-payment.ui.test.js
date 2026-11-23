@@ -320,3 +320,32 @@ test("AUTH-07: a logged-in customer gets the account's address first and the sav
   assert.equal(await page.inputValue("#cust-email"), "");
   await page.context().close();
 });
+
+// Admin → Toko → "Pembayaran tes" off: ?test=1 is ignored and the shopper pays live (migration 026)
+test("test payments switched off: ?test=1 drops test mode, the address loses ?test=1, and the payment is live", async () => {
+  await H.sql("update public.shop_settings set sandbox_tests = false where id = 1");
+  try {
+    const page = await openShop("?test=1");
+    await page.waitForFunction(() => !location.search.includes("test="));
+    assert.equal(await page.locator("text=MODE TES").isVisible(), false, "no test-mode banner");
+    assert.equal(await page.evaluate(() => sessionStorage.getItem("cn-test")), null, "test mode not remembered");
+    const n = H.payBodies.length;
+    await checkoutAndPay(page, "Pembeli Live");
+    assert.equal(H.payBodies.length, n + 1, "one payment request");
+    assert.equal(H.payBodies.at(-1).sandbox, undefined, "paid live, not through Sandbox");
+    await page.context().close();
+  } finally { await H.sql("update public.shop_settings set sandbox_tests = true where id = 1"); }
+});
+
+test("test payments switched off after the page loaded: the Sandbox request is refused and the shop pays live instead", async () => {
+  const page = await openShop("?test=1");
+  await page.locator("text=MODE TES").waitFor();
+  await H.sql("update public.shop_settings set sandbox_tests = false where id = 1");
+  try {
+    const n = H.payBodies.length;
+    await checkoutAndPay(page, "Pembeli Telat");
+    assert.deepEqual(H.payBodies.slice(n).map((b) => b.sandbox === true), [true, false], "Sandbox refused, then paid live");
+    assert.equal(await page.locator("text=MODE TES").isVisible(), false, "the test-mode banner is gone");
+    await page.context().close();
+  } finally { await H.sql("update public.shop_settings set sandbox_tests = true where id = 1"); }
+});
