@@ -60,6 +60,8 @@
     NAME_REQUIRED: "Isi nama dulu ya.",
     PHONE_REQUIRED: "Isi nomor WhatsApp dulu ya.",
     PAYMENT_GATEWAY_ERROR: "Pembayaran sedang bermasalah. Coba lagi sebentar, atau kirim pesanan lewat WhatsApp.",
+    PAYMENT_LIMIT: "Penyedia pembayaran (iPaymu) sementara membatasi nominal transaksi, jadi pesanan ini belum bisa dibayar online. Kurangi pesanan, atau tekan Kirim pesanan via WhatsApp.",
+    PAYMENT_REFUSED: "Penyedia pembayaran (iPaymu) menolak transaksi ini. Coba lagi nanti, atau tekan Kirim pesanan via WhatsApp.",
     PAYMENT_NOT_CONFIGURED: "Pembayaran online belum aktif. Silakan pesan lewat WhatsApp.",
     ONLINE_PAYMENT_OFF: "Pembayaran online belum dibuka. Silakan pesan lewat WhatsApp.",
     RATE_LIMITED: "Terlalu banyak percobaan pesanan dari jaringan ini. Tunggu sebentar, atau pesan lewat WhatsApp.",
@@ -82,6 +84,20 @@
     VOUCHER_MIN_SPEND: "Belanjaan belum mencapai minimal voucher.",
     SANDBOX_OFF: "Mode tes (iPaymu Sandbox) sedang tidak aktif. Buka toko tanpa ?test=1 untuk memesan seperti biasa.",
     VOUCHER_NO_SHIPPING: "Voucher ini hanya memotong ongkir, dan pesanan ini tidak kena ongkir. Simpan vouchernya untuk lain kali.",
+  };
+  // iPaymu said no (create-payment, 422): say why, with the amount that can still be paid online when known
+  const payRefusalMsg = (out) => {
+    if (out?.error === "PAYMENT_LIMIT") {
+      const left = Number(out.remaining);
+      if (!Number.isFinite(left) || out.remaining == null) return ERRORS.PAYMENT_LIMIT;
+      if (left <= 0) return "Penyedia pembayaran (iPaymu) sementara belum bisa menerima pembayaran online. Silakan tekan Kirim pesanan via WhatsApp.";
+      return `Penyedia pembayaran (iPaymu) sementara membatasi pembayaran online hingga ${rp(left)}, jadi pesanan ini belum bisa dibayar online. Kurangi pesanan sampai di bawah ${rp(left)}, atau tekan Kirim pesanan via WhatsApp.`;
+    }
+    if (out?.error === "PAYMENT_REFUSED") {
+      const why = String(out.reason || "").trim();
+      return `Penyedia pembayaran (iPaymu) menolak transaksi ini${why ? ` (${why})` : ""}. Coba lagi nanti, atau tekan Kirim pesanan via WhatsApp.`;
+    }
+    return null;
   };
   const errMsg = (raw) => {
     const min = String(raw || "").match(/VOUCHER_MIN_SPEND:(\d+)/);
@@ -1041,7 +1057,7 @@
       if (!res.ok || out.error) {
         if (/OUT_OF_STOCK|PRODUCT_UNAVAILABLE/.test(out.detail || out.error)) { await refreshMenu(); await runQuote(); }
         if (/SHOP_CLOSED/.test(out.detail || out.error)) await loadShop();
-        showErr(errMsg(out.detail || out.error)); return;
+        showErr(payRefusalMsg(out) || errMsg(out.detail || out.error)); return;
       }
       rememberOrder(out);
       rememberCustomer($("cust-email").value.trim(), $("cust-addr").value.trim());
