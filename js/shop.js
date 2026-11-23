@@ -6,7 +6,9 @@
   // ?test=1 (remembered in this tab, ?test=0 ends it) also makes online payments go through iPaymu Sandbox while
   // the shop takes real payments (migration 023): no real money, the order is a Mock order, no loyalty/referral
   // rewards. create-payment checks the switch in Admin → Toko.
-  const TEST = (() => {
+  // When Admin → Toko → "Pembayaran tes" is off, ?test=1 is ignored: test mode is dropped (exitTest) and the
+  // shopper pays live as usual (shop_status().sandbox_tests, migration 026).
+  let TEST = (() => {
     const t = new URLSearchParams(location.search).get("test");
     try {
       if (t === "1") sessionStorage.setItem("cn-test", "1");
@@ -16,6 +18,14 @@
   })();
   const ONLINE = CFG.ONLINE_PAYMENT === true || (CFG.ONLINE_PAYMENT === "test" && TEST);
   const sandboxPay = () => TEST;
+  function exitTest() {
+    if (!TEST) return;
+    TEST = false;
+    try { sessionStorage.removeItem("cn-test"); } catch { /* private mode */ }
+    const u = new URL(location.href);
+    if (u.searchParams.has("test")) { u.searchParams.delete("test"); history.replaceState(history.state, "", u.pathname + u.search + u.hash); }
+    renderTestBadge();
+  }
   let testBadge = null;
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
   const WA = CFG.WHATSAPP;
@@ -811,6 +821,7 @@
   async function loadShop() {
     const { data, error } = await sb.rpc("shop_status");
     if (!error && data) {
+      if (data.sandbox_tests === false) exitTest();
       const changed = data.open !== shop.open;
       shop = data;
       if (changed || !shop.open) renderShop();
@@ -1012,7 +1023,7 @@
     paying = true; btn.disabled = true; label.textContent = "Menyiapkan pembayaran…";
     try {
       const { data: s } = await sb.auth.getSession();
-      const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/create-payment`, {
+      const send = () => fetch(`${CFG.SUPABASE_URL}/functions/v1/create-payment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY,
@@ -1024,7 +1035,9 @@
           customer: { name, phone, email: $("cust-email").value.trim(), address: $("cust-addr").value.trim(), lat: deliv.loc?.lat ?? null, lng: deliv.loc?.lng ?? null },
         }),
       });
-      const out = await res.json().catch(() => ({ error: "PAYMENT_GATEWAY_ERROR" }));
+      let res = await send(), out = await res.json().catch(() => ({ error: "PAYMENT_GATEWAY_ERROR" }));
+      // test mode was switched off in Admin after this page loaded: drop it and pay live instead
+      if (out.error === "SANDBOX_OFF" && TEST) { exitTest(); res = await send(); out = await res.json().catch(() => ({ error: "PAYMENT_GATEWAY_ERROR" })); }
       if (!res.ok || out.error) {
         if (/OUT_OF_STOCK|PRODUCT_UNAVAILABLE/.test(out.detail || out.error)) { await refreshMenu(); await runQuote(); }
         if (/SHOP_CLOSED/.test(out.detail || out.error)) await loadShop();
