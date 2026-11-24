@@ -14,6 +14,8 @@ test.after(async () => { await H?.close(); });
 const CONTENT = fs.readFileSync(path.join(__dirname, "../../api/private/docs-content.json"), "utf8");
 async function openDocs(uid) {
   const page = await H.open("", { uid, file: "docs.html" });
+  // leave the first copy of the page before counting, so a late request from it can't be counted (flaky test)
+  await page.goto("about:blank");
   const asked = [];
   await page.context().route(/\/api\/docs\.php$/, async (r) => {
     const tok = r.request().headers()["x-user-token"] || "";
@@ -23,7 +25,7 @@ async function openDocs(uid) {
     const [{ ok }] = await H.sql("select set_config('request.jwt.claim.sub', $1, true) is not null and public.is_admin() as ok", [who]);
     r.fulfill(ok ? { contentType: "application/json", body: CONTENT } : { status: 403, contentType: "application/json", body: '{"error":"NOT_ADMIN"}' });
   });
-  await page.reload();
+  await page.goto(`${H.base}/docs.html`);
   return { page, asked };
 }
 
