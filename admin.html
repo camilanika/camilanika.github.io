@@ -48,6 +48,8 @@ header.top{position:sticky;top:0;z-index:30;background:var(--paper);border-botto
 .nav-scrim{position:fixed;inset:0;background:rgba(20,10,6,.45);z-index:40}
 main#app{flex:1;min-width:0;padding:1.3rem clamp(16px,2.5vw,32px) 4rem;max-width:1280px}
 :focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+/* the field being typed in: rose border and a soft ring (instead of an outline floating around it) */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focus,textarea:focus{outline:none;border-color:var(--rose)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--rose) 25%,transparent)}
 /* tablet & phone: sidebar becomes a drawer */
 @media (max-width:1023px){
   .nav-toggle{display:grid}
@@ -115,6 +117,10 @@ label.f input,label.f select,label.f textarea{font-size:.95rem;font-weight:600}
   .tbl-wrap td[data-label=""],.tbl-wrap td:not([data-label]),.tbl-wrap td[colspan]{display:block;text-align:left}
   .tbl-wrap td:first-child{font-size:1rem}
   .tbl-wrap td .row-actions,.tbl-wrap td .adj,.tbl-wrap td .codecell{justify-content:flex-end;overflow:hidden}
+  /* buttons wrap onto more lines instead of running off the card (Pelanggan: Pesanan · Reset password · Hapus akun · Jadikan admin) */
+  .tbl-wrap td .adj,.tbl-wrap td .row-actions{flex-wrap:wrap;overflow:visible}
+  .tbl-wrap td:is([data-label=""],:not([data-label])) .adj{justify-content:flex-start}
+  .tbl-wrap td:is([data-label=""],:not([data-label])) .adj > .btn{flex:1 1 auto}
   .tbl-wrap td[data-label=""] .row-actions,.tbl-wrap td:not([data-label]) .row-actions{justify-content:flex-start}
   .tbl-wrap tr.group{background:transparent;border:0;padding:0;margin:1rem 0 .3rem}
   .tbl-wrap tr.group td{background:transparent;padding:0 .2rem}

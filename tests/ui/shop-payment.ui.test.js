@@ -361,6 +361,9 @@ async function refusedPayment(page, body) {
   H.payFail.next = { status: 422, body };
   await page.locator("#pay-btn").click();
   await page.locator("#cart-err:not([hidden])").waitFor();
+  // shown right under the button that was pressed, and scrolled into view
+  assert.equal(await page.evaluate(() => document.getElementById("pay-btn").nextElementSibling?.id), "cart-err", "error sits under Bayar online");
+  await page.waitForFunction(() => { const r = document.getElementById("cart-err").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; });
   return page.locator("#cart-err").innerText();
 }
 

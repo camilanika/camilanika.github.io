@@ -56,6 +56,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 img{max-width:100%;display:block}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--rose);outline-offset:3px;border-radius:6px}
+/* the field being typed in: rose border and a soft ring (instead of an outline floating around it) */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focus,textarea:focus{outline:none;border-color:var(--rose)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--rose) 22%,transparent)}
+.sb-search input:focus{box-shadow:none!important}
+.sb-search:focus-within{border-color:var(--rose)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--rose) 22%,transparent)}
 .wrap{max-width:1160px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 h1,h2,h3{font-family:var(--f-display);line-height:1.1;text-wrap:balance;margin:0}
 h2{font-size:clamp(2rem,4.5vw,2.9rem);font-weight:800}
