@@ -845,7 +845,18 @@
   }
   setInterval(loadShop, 60000);
 
-  const showErr = (msg) => { $("cart-err").hidden = !msg; $("cart-err").textContent = msg || ""; };
+  // The cart's error line sits where the shopper is looking: under "Bayar online" (or the WhatsApp button)
+  // once the checkout form is open, under the total otherwise, and is scrolled into view when it appears.
+  const errEl = $("cart-err"), errHome = document.createComment("cart-err");
+  errEl.before(errHome);
+  const showErr = (msg) => {
+    if (!$("checkout").hidden) {
+      const anchor = $("pay-btn").hidden ? $("send-wa") : $("pay-btn");
+      if (errEl.previousElementSibling !== anchor) anchor.after(errEl);
+    } else if (errHome.nextSibling !== errEl) errHome.after(errEl);
+    errEl.hidden = !msg; errEl.textContent = msg || "";
+    if (msg) requestAnimationFrame(() => errEl.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  };
 
   let quoteTimer = null, quoteSeq = 0;
   function scheduleQuote() { clearTimeout(quoteTimer); quoteTimer = setTimeout(runQuote, 350); }
